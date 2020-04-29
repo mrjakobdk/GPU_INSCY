@@ -4,32 +4,47 @@
 
 #ifndef GPU_INSCY_SCYTREENODE_H
 #define GPU_INSCY_SCYTREENODE_H
-class ScyTreeNode{
+
+#include "Node.h"
+//#include "SCYTreeImplGPU.h"
+#include <math.h>
+
+class ScyTreeNode {
 public:
+    int number_of_dims;
+    int number_of_restricted_dims;
+    int number_of_cells;
     int number_of_points;
+
+    int *dims;
+    int *restricted_dims;
+    bool is_s_connected;
+    float cell_size;
 
     Node *root;
 
-    SCYTreeImplNode(vector<vector<float>> X, int *subspace, int number_of_cells, int subspace_size, int n,
-    float neighborhood_size);
+    int get_dims_idx();
 
-    SCYTree *mergeWithNeighbors(SCYTree *parent_SCYTree, int dim_no, int &cell_no) override;
+    ScyTreeNode(vector <vector<float>> X, int *subspace, int number_of_cells, int subspace_size, int n,
+                float neighborhood_size);
 
-    SCYTree *restrict(int dim_no, int cell_no) override;
+    ScyTreeNode *mergeWithNeighbors(ScyTreeNode *parent_SCYTree, int dim_no, int &cell_no);
 
-    vector<pair<int, int>> get_descriptors() override;
+    ScyTreeNode *restrict(int dim_no, int cell_no);
 
-    bool pruneRecursion() override;
+    vector <pair<int, int>> get_descriptors();
 
-    void pruneRedundancy() override;
+    bool pruneRecursion();
+
+    void pruneRedundancy();
 
     void print();
 
-    vector<int> get_points() override;
+    vector<int> get_points();
 
-    SCYTreeImplNode();
+    ScyTreeNode();
 
-    SCYTreeGPU *convert_to_SCYTreeGPU();
+    //SCYTreeGPU *convert_to_SCYTreeGPU();
 
     int get_number_of_cells();
 
@@ -42,7 +57,7 @@ private:
 
     int leaf_count(Node *node);
 
-    void merge(SCYTreeImplNode *pNode);
+    void merge(ScyTreeNode *pNode);
 
     int pruneRecursionNode(Node *node, int min_size);
 
@@ -67,4 +82,5 @@ private:
                                      int *subspace, int subspace_size,
                                      float neighborhood_size);
 };
+
 #endif //GPU_INSCY_SCYTREENODE_H
