@@ -17,7 +17,7 @@ INSCY(scy_tree, result, d_first)
                 result += Clustering(scy_tree)
  */
 
-void INSCYImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, vector<vector<float>> X, int n, float neighborhood_size, int *subspace,
+void INSCYImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tensor X, int n, float neighborhood_size, int *subspace,
                   int subspace_size, float F, int num_obj, map<int, vector<int>> &result, int first_dim_no,
                   int total_number_of_dim, int &calls) {
     int dim_no = first_dim_no;

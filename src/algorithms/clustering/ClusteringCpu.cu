@@ -1,3 +1,5 @@
+
+#include <torch/extension.h>
 #include "ClusteringCpu.h"
 #include "../../utils/util.h"
 #include "../../utils/util_data.h"
@@ -34,9 +36,9 @@ double omega(int subspace_size) {
     return 2.0 / (subspace_size + 0.2);
 }
 
-double dist(int p_id, int q_id, vector <vector<float>> X, int *subspace, int subspace_size) {
-    vector<float> p = X[p_id];
-    vector<float> q = X[q_id];
+double dist(int p_id, int q_id, at::Tensor X, int *subspace, int subspace_size) {
+    float* p = X[p_id].data_ptr<float>();
+    float* q = X[q_id].data_ptr<float>();
     double distance = 0;
     for (int i = 0; i < subspace_size; i++) {
         int d_i = subspace[i];
@@ -47,7 +49,7 @@ double dist(int p_id, int q_id, vector <vector<float>> X, int *subspace, int sub
     return sqrt(distance);
 }
 
-vector<int> neighborhood(ScyTreeNode *neighborhood_tree, int p_id, vector <vector<float>> X,
+vector<int> neighborhood(ScyTreeNode *neighborhood_tree, int p_id, at::Tensor X,
                          float neighborhood_size, int *subspace, int subspace_size) {
     vector<int> neighbors;
 
@@ -56,7 +58,7 @@ vector<int> neighborhood(ScyTreeNode *neighborhood_tree, int p_id, vector <vecto
 
     //printf("Possible neighbors size: %d\n", possible_neighbors.size());
 
-    vector<float> p = X[p_id];
+    float* p = X[p_id].data_ptr<float>();
     //printf("neighborhood 1\n");
     vector<int> possible_neighbors = neighborhood_tree->get_possible_neighbors(p, subspace, subspace_size,
                                                                                neighborhood_size);
@@ -77,7 +79,7 @@ vector<int> neighborhood(ScyTreeNode *neighborhood_tree, int p_id, vector <vecto
     return neighbors;
 }
 
-float phi(int point_id, vector<int> neighbors, float neighborhood_size, vector <vector<float>> X, int *subspace,
+float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tensor X, int *subspace,
           int subspace_size) {
 
 
@@ -123,7 +125,7 @@ float alpha(int subspace_size, float neighborhood_size, int n) {
     return r;
 }
 
-bool dense(int point_id, vector<int> neighbors, float neighborhood_size, vector <vector<float>> X, int *subspace,
+bool dense(int point_id, vector<int> neighbors, float neighborhood_size, at::Tensor X, int *subspace,
            int subspace_size,
            float F, int n, int num_obj) {
     float p = phi(point_id, neighbors, neighborhood_size, X, subspace, subspace_size);
@@ -134,7 +136,7 @@ bool dense(int point_id, vector<int> neighbors, float neighborhood_size, vector 
 
 
 vector<int>
-INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, vector <vector<float>> X, int n,
+INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
                         float neighborhood_size, float F,
                         int num_obj) {
     int *subspace = scy_tree->restricted_dims;

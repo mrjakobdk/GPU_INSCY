@@ -1,8 +1,12 @@
 //
 // Created by mrjakobdk on 4/29/20.
 //
-
+#include <ATen/ATen.h>
 #include <torch/extension.h>
+
+#include <cuda.h>
+#include <cuda_runtime.h>
+
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -18,43 +22,9 @@ using namespace std;
 
 vector <at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int num_obj) {
 
-//    string data_set = "glove";
-
     int number_of_cells = 3;
-
-//    printf("max number of points: %d\n", n);
-//    printf("size of neighborhood: %f\n", neighborhood_size);
-//    printf("F: %f\n", F);
-//    printf("number of objects: %d\n", num_obj);
-//    printf("subspace size: %d\n", subspace_size);
-//
-//    vector <vector<float>> X;
-//    if (data_set == "glove") {
-//        X = load_glove(n, subspace_size);
-//    } else if (data_set == "glass") {
-//        X = load_glass(n);
-//    } else if (data_set == "gene") {
-//        X = load_gene(n);
-//    } else if (data_set == "vowel") {
-//        X = load_vowel(n);
-//    }
-//
-//    printf("%dx%d\n", X.size(), X[0].size());
     int n = X.size(0);
     int subspace_size = X.size(1);
-
-
-//    for (int i = 0; i < 9; i++) {
-//        vector<float> col = m_get_col(X, i);
-//        printf("%d mean: %f, min: %f, max: %f\n", i, v_mean(col), v_min(col), v_max(col));
-//    }
-//
-//    m_normalize(X);
-//
-//    for (int i = 0; i < 9; i++) {
-//        vector<float> col = m_get_col(X, i);
-//        printf("%d mean: %f, min: %f, max: %f\n", i, v_mean(col), v_min(col), v_max(col));
-//    }
 
 
     int *subspace = new int[subspace_size];
@@ -63,8 +33,7 @@ vector <at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int 
         subspace[i] = i;
     }
 
-    ScyTreeNode *scy_tree = new ScyTreeNode(X.data_ptr<float*>(), subspace, number_of_cells, subspace_size, n, neighborhood_size);
-    printf("Points at the begining: %d\n", scy_tree->get_points().size());
+    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size);
     ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
                                                      neighborhood_size);
 

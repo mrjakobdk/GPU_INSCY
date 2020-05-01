@@ -1,3 +1,5 @@
+
+#include <torch/extension.h>
 #include "util_data.h"
 #include <stdio.h>
 #include <numeric>
@@ -51,7 +53,7 @@ vector<vector<float>> load_glove(int n_max, int d_max) {
 }
 
 
-at::Tensor load_glove() {
+at::Tensor load_glove_torch(int n_max, int d_max) {
 
     fstream file;
     file.open("data/glove.6B.100d.txt");
@@ -73,7 +75,7 @@ at::Tensor load_glove() {
         bool first_col = true;
         vector<float> row;
         int d = 0;
-        while (getline(templine, data, seperator)) {
+        while (getline(templine, data, seperator) && d < d_max) {
             if (first_col) {
                 first_col = false;
                 continue;
@@ -83,13 +85,15 @@ at::Tensor load_glove() {
         }
         m.push_back(row);
         count++;
+        if (count >= n_max)
+            break;
     }
     file.close();
 
     int n = m.size();
     int d =  m[0].size();
 
-    at::Tensor X = at::zeros({n, d}, at::kInt);
+    at::Tensor X = at::zeros({n, d}, at::kFloat);
     for(int i =0;i<n;i++){
         for(int j =0;j<d;j++){
             X[i][j] = m[i][j];

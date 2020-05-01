@@ -6,7 +6,8 @@
 #define GPU_INSCY_SCYTREENODE_H
 
 #include "Node.h"
-//#include "SCYTreeImplGPU.h"
+#include <ATen/ATen.h>
+#include <torch/extension.h>
 #include <math.h>
 
 class ScyTreeNode {
@@ -25,7 +26,7 @@ public:
 
     int get_dims_idx();
 
-    ScyTreeNode(float** X, int *subspace, int number_of_cells, int subspace_size, int n,
+    ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int subspace_size, int n,
                 float neighborhood_size);
 
     ScyTreeNode *mergeWithNeighbors(ScyTreeNode *parent_SCYTree, int dim_no, int &cell_no);
@@ -51,7 +52,7 @@ public:
     int get_count();
 
     vector<int>
-    get_possible_neighbors(vector<float> p, int *subspace, int subspace_size, float neighborhood_size);
+    get_possible_neighbors(float *p, int *subspace, int subspace_size, float neighborhood_size);
 
 private:
 
@@ -69,7 +70,7 @@ private:
 
     Node *set_s_connection(Node *node, int cell_no, int &node_counter);
 
-    void construct_s_connection(float neighborhood_size, int &node_counter, Node *node, const vector<float> &x_i, int j,
+    void construct_s_connection(float neighborhood_size, int &node_counter, Node *node, float *x_i, int j,
                                 float x_ij, int cell_no);
 
     bool restrict_node(Node *old_node, Node *new_parent, int dim_no, int cell_no, int depth, bool &s_connection_found);
@@ -78,7 +79,7 @@ private:
 
     int get_number_of_nodes_in_subtree(Node *node);
 
-    void get_possible_neighbors_from(vector<int> &list, vector<float> p, Node *child, int depth, int subspace_index,
+    void get_possible_neighbors_from(vector<int> &list, float *p, Node *child, int depth, int subspace_index,
                                      int *subspace, int subspace_size,
                                      float neighborhood_size);
 };

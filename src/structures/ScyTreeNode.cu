@@ -2,6 +2,8 @@
 //#include "SCYTreeImplGPU.h"
 #include "../utils/util.h"
 //#include <windows.h>
+#include <ATen/ATen.h>
+#include <torch/extension.h>
 
 int ScyTreeNode::get_dims_idx() {
     int sum = 0;
@@ -25,9 +27,9 @@ Node *ScyTreeNode::set_s_connection(Node *node, int cell_no, int &node_counter) 
 }
 
 void ScyTreeNode::construct_s_connection(float neighborhood_size, int &node_counter, Node *node,
-                                             const vector<float> &x_i, int j, float x_ij, int cell_no) {
-    if (x_ij >=
-        ((cell_no + 1) * cell_size - neighborhood_size)) {//todo maybe change neighborhood_size to something else
+                                         float *x_i, int j, float x_ij, int cell_no) {
+    if (x_ij >= ((cell_no + 1) * cell_size - neighborhood_size)) {
+        //todo maybe change neighborhood_size to something else
 
         Node *s_connection = set_s_connection(node, cell_no, node_counter);
         Node *pre_s_connection = s_connection;
@@ -60,8 +62,8 @@ int ScyTreeNode::get_cell_no(float x_ij) {
 }
 
 
-ScyTreeNode::ScyTreeNode(float** X, int *subspace, int number_of_cells, int subspace_size,
-                                 int n, float neighborhood_size) {
+ScyTreeNode::ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int subspace_size,
+                         int n, float neighborhood_size) {
     float v = 1.;
     this->number_of_cells = number_of_cells;
     this->cell_size = v / this->number_of_cells;
@@ -74,8 +76,8 @@ ScyTreeNode::ScyTreeNode(float** X, int *subspace, int number_of_cells, int subs
     for (int i = 0; i < n; i++) {
         root->count += 1;
         Node *node = root;
-        printf("constructing SCY-tree: %d%%\r", int((i * 100) / X.size()));
-        vector<float> x_i = X[i];
+        //printf("constructing SCY-tree: %d%%\r", int((i * 100) / X.size()));
+        float *x_i = X[i].data_ptr<float>();
 
         for (int j = 0; j < number_of_dims; j++) {
 
@@ -94,15 +96,15 @@ ScyTreeNode::ScyTreeNode(float** X, int *subspace, int number_of_cells, int subs
         node->points.push_back(i);
         node->is_leaf = true;
     }
-    printf("constructing SCY-tree: 100%%\n");
-    printf("nodes in SCY-tree: %d\n", node_counter);
+    //printf("constructing SCY-tree: 100%%\n");
+    //printf("nodes in SCY-tree: %d\n", node_counter);
     this->number_of_points = root->count;
     this->root = root;
 }
 
 bool
 ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cell_no, int depth,
-                               bool &s_connection_found) {
+                           bool &s_connection_found) {
     bool is_on_restricted_dim = this->dims[depth] == dim_no;
     bool is_restricted_cell = old_node->cell_no == cell_no;
 
@@ -142,13 +144,13 @@ ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cel
 
         if (!old_node->is_leaf) { // restricted region is encountered and is a branch of the scy_tree
             // skip restricted dimension and make the children of old_node children of new_parent
-            for (pair<int, Node *> child_pair: old_node->children) {
+            for (pair < int, Node * > child_pair: old_node->children) {
                 Node *old_child = child_pair.second;
                 this->restrict_node(old_child, new_parent, dim_no, cell_no, depth + 1,
                                     s_connection_found);
             }
             // also copy s_connections in the same manner
-            for (pair<int, Node *> child_pair: old_node->s_connections) {
+            for (pair < int, Node * > child_pair: old_node->s_connections) {
                 Node *old_child = child_pair.second;
                 this->restrict_node(old_child, new_parent, dim_no, cell_no, depth + 1,
                                     s_connection_found);
@@ -160,7 +162,7 @@ ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cel
         Node *new_node = new Node(old_node);
         bool is_included = this->dims[depth] > dim_no;
         if (old_node->count == -1) { // node is a s-connection
-            for (pair<int, Node *> child_pair: old_node->s_connections) {
+            for (pair < int, Node * > child_pair: old_node->s_connections) {
                 Node *old_child = child_pair.second;
                 //printf("visiting s-connection!\n");
                 is_included = this->restrict_node(old_child, new_node, dim_no, cell_no,
@@ -175,14 +177,14 @@ ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cel
                 is_included = true;
 
 
-            for (pair<int, Node *> child_pair: old_node->children) {
+            for (pair < int, Node * > child_pair: old_node->children) {
                 Node *old_child = child_pair.second;
                 //printf("visiting node!\n");
                 is_included = this->restrict_node(old_child, new_node, dim_no, cell_no,
                                                   depth + 1, s_connection_found) || is_included;
             }
 
-            for (pair<int, Node *> child_pair: old_node->s_connections) {
+            for (pair < int, Node * > child_pair: old_node->s_connections) {
                 Node *old_child = child_pair.second;
                 //printf("visiting s-connection!\n");
                 is_included = this->restrict_node(old_child, new_node, dim_no, cell_no,
@@ -238,13 +240,13 @@ ScyTreeNode *ScyTreeNode::restrict(int dim_no, int cell_no) {
 
     int depth = 0;
     restricted_scy_tree->is_s_connected = false;
-    for (pair<int, Node *> child_pair: this->root->children) {
+    for (pair < int, Node * > child_pair: this->root->children) {
         Node *old_child = child_pair.second;
         this->restrict_node(old_child, restricted_scy_tree->root, dim_no, cell_no, depth,
                             restricted_scy_tree->is_s_connected);
     }
 
-    for (pair<int, Node *> child_pair: this->root->s_connections) {
+    for (pair < int, Node * > child_pair: this->root->s_connections) {
         Node *old_child = child_pair.second;
         this->restrict_node(old_child, restricted_scy_tree->root, dim_no, cell_no, depth,
                             restricted_scy_tree->is_s_connected);
@@ -255,8 +257,8 @@ ScyTreeNode *ScyTreeNode::restrict(int dim_no, int cell_no) {
 }
 
 
-vector<pair<int, int>> ScyTreeNode::get_descriptors() {
-    vector<pair<int, int>> descriptors;
+vector <pair<int, int>> ScyTreeNode::get_descriptors() {
+    vector <pair<int, int>> descriptors;
 
 
     return descriptors;
@@ -330,13 +332,13 @@ int ScyTreeNode::leaf_count(Node *node) {
 
 void ScyTreeNode::print() {
 
-    printf("r:  %d/%d\n", root->cell_no,root->count);
-    vector<Node *> next_nodes = vector<Node *>();
+    printf("r:  %d/%d\n", root->cell_no, root->count);
+    vector < Node * > next_nodes = vector<Node *>();
     next_nodes.push_back(this->root);
     for (int i = 0; i < this->number_of_dims; i++) {
         printf("%d: ", this->dims[i]);
 
-        vector<Node *> nodes = next_nodes;
+        vector < Node * > nodes = next_nodes;
         next_nodes = vector<Node *>();
         for (Node *node : nodes) {
             for (pair<const int, Node *> child_pair: node->children) {
@@ -559,9 +561,9 @@ int ScyTreeNode::get_count() {
 }
 
 void
-ScyTreeNode::get_possible_neighbors_from(vector<int> &list, vector<float> p, Node *node, int depth,
-                                             int subspace_index, int *subspace, int subspace_size,
-                                             float neighborhood_size) {
+ScyTreeNode::get_possible_neighbors_from(vector<int> &list, float *p, Node *node, int depth,
+                                         int subspace_index, int *subspace, int subspace_size,
+                                         float neighborhood_size) {
 
     if (node->children.empty()) {
         list.insert(list.end(), node->points.begin(), node->points.end());
@@ -598,11 +600,11 @@ ScyTreeNode::get_possible_neighbors_from(vector<int> &list, vector<float> p, Nod
     }
 }
 
-vector<int> ScyTreeNode::get_possible_neighbors(vector<float> p,
-                                                    int *subspace, int subspace_size,
-                                                    float neighborhood_size) {
+vector<int> ScyTreeNode::get_possible_neighbors(float *p,
+                                                int *subspace, int subspace_size,
+                                                float neighborhood_size) {
     vector<int> list;
-    vector<Node *> nodes;
+    vector < Node * > nodes;
     int depth = -1;
     int subspace_index = 0;
     get_possible_neighbors_from(list, p, root, depth, subspace_index, subspace, subspace_size, neighborhood_size);

@@ -13,3 +13,13 @@ inscy = load(name="inscy",
                      "src/utils/util_data.cu"
                      ])
 print("Finished compilation, took: %.4fs" % (time.time() - t0))
+
+def normalize(x):
+    x_normed = x / x.max(0, keepdim=True)[0]
+    return x_normed
+
+def run_cpu(X, neighborhood_size, F, num_obj):
+    return inscy.run_cpu(X, neighborhood_size, F, num_obj)
+
+def load_glove(n_max, d_max):
+    return inscy.load_glove(n_max, d_max)

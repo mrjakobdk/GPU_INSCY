@@ -14,13 +14,19 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+
 using namespace std;
 
-vector<vector<float>> load_glove(int n_max, int d_max);
-vector<vector<float>> load_gene(int n_max);
-vector<vector<float>> load_glass(int n_max);
-vector<vector<float>> load_vowel(int n_max);
-at::Tensor load_glove_torch();
+vector <vector<float>> load_glove(int n_max, int d_max);
+
+vector <vector<float>> load_gene(int n_max);
+
+vector <vector<float>> load_glass(int n_max);
+
+vector <vector<float>> load_vowel(int n_max);
+
+at::Tensor load_glove_torch(int n_max, int d_max);
+
 //at::Tensor load_gene_torch();
 //at::Tensor load_glass_torch();
 //at::Tensor load_vowel_torch();
