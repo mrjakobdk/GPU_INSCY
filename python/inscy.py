@@ -1,6 +1,5 @@
 from torch.utils.cpp_extension import load
 import time
-import matplotlib.pyplot as plt
 
 t0 = time.time()
 print("Compiling our c++/cuda code, this usually takes 1-2 min. ")

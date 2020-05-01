@@ -25,3 +25,4 @@ for subspace_size in range(subspace_size_min, subspace_size_max+1):
 
 plt.plot(list(range(subspace_size_min, subspace_size_max+1)), times)
 plt.show()
+
