@@ -5,7 +5,7 @@
 #ifndef GPU_INSCY_SCYTREEARRAY_H
 #define GPU_INSCY_SCYTREEARRAY_H
 
-class ScyTreeArray{
+class ScyTreeArray {
 public:
     //host variables
     int number_of_cells;

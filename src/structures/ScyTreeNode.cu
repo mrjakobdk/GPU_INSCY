@@ -60,7 +60,7 @@ int ScyTreeNode::get_cell_no(float x_ij) {
 }
 
 
-ScyTreeNode::ScyTreeNode(vector<vector<float>> X, int *subspace, int number_of_cells, int subspace_size,
+ScyTreeNode::ScyTreeNode(float** X, int *subspace, int number_of_cells, int subspace_size,
                                  int n, float neighborhood_size) {
     float v = 1.;
     this->number_of_cells = number_of_cells;

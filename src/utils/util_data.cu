@@ -50,6 +50,55 @@ vector<vector<float>> load_glove(int n_max, int d_max) {
     return m;
 }
 
+
+at::Tensor load_glove() {
+
+    fstream file;
+    file.open("data/glove.6B.100d.txt");
+    char seperator = ' ';
+
+    string line;
+
+    vector <vector<float>> m;
+    bool first_line = true;
+    int count = 0;
+    while (getline(file, line, '\n')) {
+        if (first_line) {
+            first_line = false;
+            continue;
+        }
+        istringstream templine(line);
+        string data;
+
+        bool first_col = true;
+        vector<float> row;
+        int d = 0;
+        while (getline(templine, data, seperator)) {
+            if (first_col) {
+                first_col = false;
+                continue;
+            }
+            row.push_back(atof(data.c_str()));
+            d++;
+        }
+        m.push_back(row);
+        count++;
+    }
+    file.close();
+
+    int n = m.size();
+    int d =  m[0].size();
+
+    at::Tensor X = at::zeros({n, d}, at::kInt);
+    for(int i =0;i<n;i++){
+        for(int j =0;j<d;j++){
+            X[i][j] = m[i][j];
+        }
+    }
+
+    return X;
+}
+
 vector<vector<float>> load_gene(int n_max) {
 
     fstream file;

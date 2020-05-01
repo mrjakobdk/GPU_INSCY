@@ -17,11 +17,11 @@ INSCY(scy_tree, result, d_first)
                 result += Clustering(scy_tree)
  */
 
-int INSCYImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, vector<vector<float>> X, int n, float neighborhood_size, int *subspace,
+void INSCYImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, vector<vector<float>> X, int n, float neighborhood_size, int *subspace,
                   int subspace_size, float F, int num_obj, map<int, vector<int>> &result, int first_dim_no,
-                  int total_number_of_dim) {
+                  int total_number_of_dim, int &calls) {
     int dim_no = first_dim_no;
-    int calls = 1;
+    calls++;
     while (dim_no < total_number_of_dim) {
         int cell_no = 0;
         while (cell_no < scy_tree->number_of_cells) {
@@ -40,9 +40,9 @@ int INSCYImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, vector
             if (restricted_scy_tree->pruneRecursion()) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                calls += INSCYImplCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, subspace, subspace_size,
+                INSCYImplCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, subspace, subspace_size,
                                        F, num_obj, result,
-                                       dim_no + 1, total_number_of_dim);
+                                       dim_no + 1, total_number_of_dim, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 restricted_scy_tree->pruneRedundancy();//todo does nothing atm
@@ -81,6 +81,5 @@ int INSCYImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, vector
     }
     int total_inscy = pow(2, total_number_of_dim);
     printf("CPU-INSCY(%d): %d%%      \r", calls, int((result.size() * 100) / total_inscy));
-    return calls;
 }
 

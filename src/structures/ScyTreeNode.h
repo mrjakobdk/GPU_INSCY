@@ -25,7 +25,7 @@ public:
 
     int get_dims_idx();
 
-    ScyTreeNode(vector <vector<float>> X, int *subspace, int number_of_cells, int subspace_size, int n,
+    ScyTreeNode(float** X, int *subspace, int number_of_cells, int subspace_size, int n,
                 float neighborhood_size);
 
     ScyTreeNode *mergeWithNeighbors(ScyTreeNode *parent_SCYTree, int dim_no, int &cell_no);
