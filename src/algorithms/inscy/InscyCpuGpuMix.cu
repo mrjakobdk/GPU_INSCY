@@ -1,43 +1,36 @@
-#include <cmath>
-#include "InscyNodeCpu.h"
-#include "../clustering/ClusteringCpu.h"
+//
+// Created by mrjakobdk on 5/2/20.
+//
+
+#include "InscyCpuGpuMix.h"
 #include "../../utils/util.h"
+#include "../clustering/ClusteringGpu.h"
 
-/**
-INSCY(scy_tree, result, d_first)
-    for d_i = d_fist..d-1 do
-        for c_i = 0..c-1 do
-            scy_tree = restrict(scy_tree, [d_i, c_i])
-            scy_tree = mergeWithNeighbors(scy_tree)
-            if pruneRedundancy(scy_tree) do
-                INSCY(scy_tree, result, d_i + 1)
-                pruneRedundancy(scy_tree)
-                result += Clustering(scy_tree)
- */
+#include <cuda.h>
+#include <cuda_runtime.h>
 
-void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tensor X, int n, float neighborhood_size, int *subspace,
-               int subspace_size, float F, int num_obj, map<int, vector<int>> &result, int first_dim_no,
-               int total_number_of_dim, int &calls) {
+void InscyCpuGpuMix(ScyTreeNode *scy_tree, float *d_X, int n, int d, float neighborhood_size, int *subspace,
+                    int subspace_size, float F, int num_obj, map<int, vector<int>> &result, int first_dim_no,
+                    int total_number_of_dim, int &calls) {
     int dim_no = first_dim_no;
     calls++;
     while (dim_no < total_number_of_dim) {
         int cell_no = 0;
-        while (cell_no < scy_tree->number_of_cells) {
+        while (cell_no < scy_tree->get_number_of_cells()) {
             //restricted-tree := restrict(scy-tree, descriptor);
-            ScyTreeNode *restricted_scy_tree = scy_tree->restrict(dim_no, cell_no);
+            ScyTreeNode *restricted_scy_tree = dynamic_cast<ScyTreeNode *>(scy_tree->restrict(dim_no, cell_no));
 
             //restricted-tree := mergeWithNeighbors(restricted-tree);
             //updates cell_no if merged with neighbors
             restricted_scy_tree->mergeWithNeighbors(scy_tree, dim_no, cell_no);
 
-
             //pruneRecursion(restricted-tree); //prune sparse regions
             if (restricted_scy_tree->pruneRecursion()) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                INSCYCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, subspace, subspace_size,
-                          F, num_obj, result,
-                          dim_no + 1, total_number_of_dim, calls);
+                InscyCpuGpuMix(restricted_scy_tree, d_X, n, d, neighborhood_size, subspace, subspace_size, F,
+                               num_obj,
+                               result, dim_no + 1, total_number_of_dim, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 restricted_scy_tree->pruneRedundancy();//todo does nothing atm
@@ -45,8 +38,12 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tenso
                 //result := DBClustering(restricted-tree) ∪ result;
                 int idx = restricted_scy_tree->get_dims_idx();
 
-                vector<int> new_clustering = INSCYClusteringImplCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, F,
-                                                                     num_obj);
+                ScyTreeArray *restricted_scy_tree_gpu = restricted_scy_tree->convert_to_ScyTreeArray();
+                restricted_scy_tree_gpu->copy_to_device();
+
+                vector<int> new_clustering = ClusteringGPU(restricted_scy_tree_gpu, d_X, n, d, neighborhood_size, F,
+                                                           num_obj);
+
                 if (result.count(idx)) {
                     vector<int> clustering = result[idx];
                     int m = v_max(clustering);
@@ -72,6 +69,5 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tenso
         dim_no++;
     }
     int total_inscy = pow(2, total_number_of_dim);
-    printf("CPU-INSCY(%d): %d%%      \r", calls, int((result.size() * 100) / total_inscy));
+    printf("InscyCpuGpuMix(%d): %d%%      \r", calls, int((result.size() * 100) / total_inscy));
 }
-

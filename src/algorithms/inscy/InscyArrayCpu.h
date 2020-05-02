@@ -6,9 +6,5 @@
 #define GPU_INSCY_INSCYARRAYCPU_H
 
 
-class InscyArrayCpu {
-
-};
-
 
 #endif //GPU_INSCY_INSCYARRAYCPU_H

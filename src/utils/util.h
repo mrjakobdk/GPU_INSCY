@@ -11,9 +11,15 @@
 #include <numeric>
 #include <vector>
 
+
+#include <ATen/ATen.h>
+#include <torch/extension.h>
+
 using namespace std;
 
 float *copy_to_device(vector <vector<float>> X, int number_of_points, int number_of_dims);
+
+float *copy_to_device(at::Tensor X, int number_of_points, int number_of_dims);
 
 __global__
 void print_array_gpu(int *x, int n);

@@ -6,9 +6,10 @@
 #define GPU_INSCY_CLUSTERINGGPUSTREAMS_H
 
 
-class ClusteringGpuStreams {
+#include "../../structures/ScyTreeArray.h"
 
-};
+vector<vector<int>> ClusteringGpuStream(vector<ScyTreeArray *>scy_tree_list, float *d_X, int n, int d, float neighborhood_size, float F,
+                                        int num_obj);
 
 
 #endif //GPU_INSCY_CLUSTERINGGPUSTREAMS_H

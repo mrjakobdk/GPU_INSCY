@@ -10,6 +10,8 @@
 #include <torch/extension.h>
 #include <math.h>
 
+#include "ScyTreeArray.h"
+
 class ScyTreeNode {
 public:
     int number_of_dims;
@@ -45,7 +47,7 @@ public:
 
     ScyTreeNode();
 
-    //SCYTreeGPU *convert_to_SCYTreeGPU();
+    ScyTreeArray * convert_to_ScyTreeArray();
 
     int get_number_of_cells();
 

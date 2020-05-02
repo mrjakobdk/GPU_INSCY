@@ -442,99 +442,6 @@ void ScyTreeNode::get_points_node(Node *node, vector<int> &result) {
     }
 }
 
-//SCYTreeGPU *ScyTreeNode::convert_to_SCYTreeGPU() {
-//    //printf("convert_to_SCYTreeGPU\n");
-//    SCYTreeGPU *scy_tree_GPU = new SCYTreeGPU(this->get_number_of_nodes(), this->number_of_dims, this->number_of_points,
-//                                              this->number_of_restricted_dims);
-//    scy_tree_GPU->number_of_cells = this->number_of_cells;
-//    scy_tree_GPU->number_of_restricted_dims = this->number_of_restricted_dims;
-//    scy_tree_GPU->h_dims = this->dims;
-//    scy_tree_GPU->h_restricted_dims = this->restricted_dims;
-//    scy_tree_GPU->cell_size = this->cell_size;
-//    scy_tree_GPU->is_s_connected = this->is_s_connected;
-//
-//    vector<Node *> next_nodes = vector<Node *>();
-//    next_nodes.push_back(this->root);
-//    scy_tree_GPU->h_dim_start[0] = 1;
-//
-//    int l = 0;
-//    int j = 0;
-//
-//    scy_tree_GPU->h_cells[j] = -1;
-//    scy_tree_GPU->h_counts[j] = this->number_of_points;
-//    scy_tree_GPU->h_parents[j] = 0;
-////    scy_tree_GPU->points_list[j] = root->points;
-//    for (int point :this->root->points) {
-//        scy_tree_GPU->h_points[l] = point;
-//        scy_tree_GPU->h_points_placement[l] = j;
-//        l++;
-//    }
-//    j++;
-//
-//
-//    for (int i = 0; i < this->number_of_dims; i++) {
-//
-//        vector<Node *> nodes = next_nodes;
-//        next_nodes = vector<Node *>();
-//        for (int k = 0; k < nodes.size(); k++) {
-//            Node *node = nodes[k];
-//            for (pair<const int, Node *> child_pair: node->children) {
-//                Node *child = child_pair.second;
-//                next_nodes.push_back(child);
-//                scy_tree_GPU->h_cells[j] = child->cell_no;
-//                scy_tree_GPU->h_counts[j] = child->count;
-//                scy_tree_GPU->h_parents[j] = i == 0 ? 0 : scy_tree_GPU->h_dim_start[i - 1] + k;
-////                scy_tree_GPU->points_list[j] = child->points;
-//                for (int point : child->points) {
-//                    scy_tree_GPU->h_points[l] = point;
-//                    scy_tree_GPU->h_points_placement[l] = j;
-//                    l++;
-//                }
-//                j++;
-//            }
-//            for (pair<const int, Node *> child_pair: node->s_connections) {
-//                Node *child = child_pair.second;
-//                next_nodes.push_back(child);
-//                scy_tree_GPU->h_cells[j] = child->cell_no;
-//                scy_tree_GPU->h_counts[j] = child->count;
-//                scy_tree_GPU->h_parents[j] = i == 0 ? 0 : scy_tree_GPU->h_dim_start[i - 1] + k;
-////                scy_tree_GPU->points_list[j] = child->points;
-//                j++;
-//            }
-//        }
-//        if (i < this->number_of_dims - 1)
-//            scy_tree_GPU->h_dim_start[i + 1] = j;
-//    }
-//
-////    for(int i=0; i<this->get_number_of_nodes();i++)
-////        scy_tree_GPU->h_node_order[i] = i;
-//
-////    for(int j = 0; j<scy_tree_GPU->get_number_of_nodes(); j++){
-////        if(scy_tree_GPU->points_list[j].size()>0) {
-////            printf("j=%d", j);
-////            for (int point :scy_tree_GPU->points_list[j]) {
-////                printf(", %d", point);
-////            }
-////
-////            printf("\n");
-////        }
-////    }
-////    j = -1;
-////    for(int l =0; l<scy_tree_GPU->get_count();l++){
-////        int point = scy_tree_GPU->h_points[l];
-////        if (j!=scy_tree_GPU->h_points_placement[l]) {
-////            printf("\n");
-////            j=scy_tree_GPU->h_points_placement[l];
-////            printf("j=%d", j);
-////        }
-////        printf(", %d", point);
-////    }
-////    printf("\n");
-//
-//
-//    return scy_tree_GPU;
-//}
-
 int ScyTreeNode::get_number_of_nodes() {
     return get_number_of_nodes_in_subtree(this->root);
 }
@@ -610,5 +517,67 @@ vector<int> ScyTreeNode::get_possible_neighbors(float *p,
     get_possible_neighbors_from(list, p, root, depth, subspace_index, subspace, subspace_size, neighborhood_size);
     //printf("get_possible_neighbors, size=%d\n", list.size());
     return list;
+}
+
+ScyTreeArray *ScyTreeNode::convert_to_ScyTreeArray() {
+    ScyTreeArray *scy_tree_array = new ScyTreeArray(this->get_number_of_nodes(), this->number_of_dims, this->number_of_restricted_dims,
+                                                    this->number_of_points, this->number_of_cells);
+
+    scy_tree_array->h_dims = this->dims;
+    scy_tree_array->h_restricted_dims = this->restricted_dims;
+    scy_tree_array->cell_size = this->cell_size;
+    scy_tree_array->is_s_connected = this->is_s_connected;
+
+    vector < Node * > next_nodes = vector<Node *>();
+    next_nodes.push_back(this->root);
+    scy_tree_array->h_dim_start[0] = 1;
+
+    int l = 0;
+    int j = 0;
+
+    scy_tree_array->h_cells[j] = -1;
+    scy_tree_array->h_counts[j] = this->number_of_points;
+    scy_tree_array->h_parents[j] = 0;
+    for (int point :this->root->points) {
+        scy_tree_array->h_points[l] = point;
+        scy_tree_array->h_points_placement[l] = j;
+        l++;
+    }
+    j++;
+
+
+    for (int i = 0; i < this->number_of_dims; i++) {
+
+        vector < Node * > nodes = next_nodes;
+        next_nodes = vector<Node *>();
+        for (int k = 0; k < nodes.size(); k++) {
+            Node *node = nodes[k];
+            for (pair<const int, Node *> child_pair: node->children) {
+                Node *child = child_pair.second;
+                next_nodes.push_back(child);
+                scy_tree_array->h_cells[j] = child->cell_no;
+                scy_tree_array->h_counts[j] = child->count;
+                scy_tree_array->h_parents[j] = i == 0 ? 0 : scy_tree_array->h_dim_start[i - 1] + k;
+                for (int point : child->points) {
+                    scy_tree_array->h_points[l] = point;
+                    scy_tree_array->h_points_placement[l] = j;
+                    l++;
+                }
+                j++;
+            }
+            for (pair<const int, Node *> child_pair: node->s_connections) {
+                Node *child = child_pair.second;
+                next_nodes.push_back(child);
+                scy_tree_array->h_cells[j] = child->cell_no;
+                scy_tree_array->h_counts[j] = child->count;
+                scy_tree_array->h_parents[j] = i == 0 ? 0 : scy_tree_array->h_dim_start[i - 1] + k;
+                j++;
+            }
+        }
+        if (i < this->number_of_dims - 1)
+            scy_tree_array->h_dim_start[i + 1] = j;
+    }
+
+    return scy_tree_array;
 }
 

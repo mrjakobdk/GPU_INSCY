@@ -4,6 +4,10 @@
 #include <thrust/device_vector.h>
 #include <numeric>
 
+#include <ATen/ATen.h>
+#include <torch/extension.h>
+
+
 #define SECTION_SIZE 64
 #define BLOCK_WIDTH 64
 
@@ -17,6 +21,15 @@ float *copy_to_device(vector<vector<float>> X, int number_of_points, int number_
         float *h_x_i = X[i].data();
         cudaMemcpy(&d_X[i*number_of_dims], h_x_i, sizeof(float) * number_of_dims, cudaMemcpyHostToDevice);
     }
+    return d_X;
+}
+
+
+
+float *copy_to_device(at::Tensor X, int number_of_points, int number_of_dims) {
+    float *d_X;
+    cudaMalloc(&d_X, sizeof(float) * number_of_points * number_of_dims);
+    cudaMemcpy(d_X, X.data_ptr<float>(), sizeof(float) * number_of_points * number_of_dims, cudaMemcpyHostToDevice);
     return d_X;
 }
 
