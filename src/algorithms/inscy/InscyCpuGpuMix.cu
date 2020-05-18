@@ -3,14 +3,17 @@
 //
 
 #include "InscyCpuGpuMix.h"
-#include "../../utils/util.h"
+#include <vector>
 #include "../clustering/ClusteringGpu.h"
+#include "../../structures/ScyTreeNode.h"
+#include "../../utils/util.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-void InscyCpuGpuMix(ScyTreeNode *scy_tree, float *d_X, int n, int d, float neighborhood_size, int *subspace,
-                    int subspace_size, float F, int num_obj, map<int, vector<int>> &result, int first_dim_no,
+void InscyCpuGpuMix(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, float *d_X, int n, int d, float neighborhood_size, int *subspace,
+                    int subspace_size, float F, int num_obj, int min_size, map<int, vector<int>> &result,
+                    int first_dim_no,
                     int total_number_of_dim, int &calls) {
     int dim_no = first_dim_no;
     calls++;
@@ -25,12 +28,12 @@ void InscyCpuGpuMix(ScyTreeNode *scy_tree, float *d_X, int n, int d, float neigh
             restricted_scy_tree->mergeWithNeighbors(scy_tree, dim_no, cell_no);
 
             //pruneRecursion(restricted-tree); //prune sparse regions
-            if (restricted_scy_tree->pruneRecursion()) {
+            if (restricted_scy_tree->pruneRecursion(min_size, neighborhood_tree, X, neighborhood_size,
+                                                    subspace, subspace_size, F, num_obj, n)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                InscyCpuGpuMix(restricted_scy_tree, d_X, n, d, neighborhood_size, subspace, subspace_size, F,
-                               num_obj,
-                               result, dim_no + 1, total_number_of_dim, calls);
+                InscyCpuGpuMix(restricted_scy_tree,neighborhood_tree, X, d_X, n, d, neighborhood_size, subspace, subspace_size, F,
+                               num_obj, min_size, result, dim_no + 1, total_number_of_dim, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 restricted_scy_tree->pruneRedundancy();//todo does nothing atm
@@ -60,7 +63,7 @@ void InscyCpuGpuMix(ScyTreeNode *scy_tree, float *d_X, int n, int d, float neigh
                         result[idx] = clustering;
                     }
                 } else {
-                    result.insert(pair<int, vector<int>>(idx, new_clustering));
+                    result.insert(pair < int, vector < int >> (idx, new_clustering));
                 }
             }
             cell_no++;

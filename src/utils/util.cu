@@ -9,7 +9,17 @@
 
 
 #define SECTION_SIZE 64
+#define SECTION_SIZE_LARGE 512
 #define BLOCK_WIDTH 64
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
+    if (code != cudaSuccess) {
+        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
 
 
 using namespace std;
@@ -151,14 +161,81 @@ void inclusive_scan(int *x, int *y, int n) {
     if (n > SECTION_SIZE) {
         int *S;
         cudaMalloc((void **) &S, numBlocks * sizeof(int));
+        gpuErrchk(cudaPeekAtLastError());
         scan_kernel_eff_large1 << < numBlocks, SECTION_SIZE >> > (x, y, S, n);
+        gpuErrchk(cudaPeekAtLastError());
         inclusive_scan(S, S, numBlocks);
+        gpuErrchk(cudaPeekAtLastError());
         scan_kernel_eff_large3 << < numBlocks, SECTION_SIZE >> > (y, S, n);
-        cudaFree(S);
+        gpuErrchk(cudaPeekAtLastError());
+        //cudaFree(S);//todo fix -maybe reuse S
+        gpuErrchk(cudaPeekAtLastError());
     } else {
+        gpuErrchk(cudaPeekAtLastError());
         scan_kernel_eff << < numBlocks, SECTION_SIZE >> > (x, y, n);
+        gpuErrchk(cudaPeekAtLastError());
     }
 }
+
+void inclusive_scan_cpu(int *d_x, int *d_y, int n) {
+    int * h_x = new int[n];
+    int * h_y = new int[n];
+    cudaMemcpy(h_y, d_y, n*sizeof(int), cudaMemcpyDeviceToHost);
+
+    int tmp = 0;
+    for (int i=0;i<n;i++){
+        tmp += h_y[i];
+        h_x[i] = tmp;
+    }
+
+    cudaMemcpy(d_x, h_x, n*sizeof(int), cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+    delete h_x;
+    delete h_y;
+}
+
+__global__ void prescan(int *g_odata, int *g_idata, int n)
+{
+    //https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda
+    extern __shared__ float temp[];// allocated on invocation
+    int thid = threadIdx.x;
+    int offset = 1;
+    temp[2*thid] = g_idata[2*thid]; // load input into shared memory
+    temp[2*thid+1] = g_idata[2*thid+1];
+    for (int d = n>>1; d > 0; d >>= 1) // build sum in place up the tree
+    {
+        __syncthreads();
+        if (thid < d)
+        {
+            int ai = offset*(2*thid+1)-1;
+            int bi = offset*(2*thid+2)-1;
+            temp[bi] += temp[ai];
+        }
+        offset *= 2;
+    }
+    if (thid == 0) { temp[n - 1] = 0; } // clear the last element
+    for (int d = 1; d < n; d *= 2) // traverse down tree & build scan
+    {
+        offset >>= 1;
+        __syncthreads();
+        if (thid < d)
+        {
+            int ai = offset*(2*thid+1)-1;
+            int bi = offset*(2*thid+2)-1;
+            float t = temp[ai];
+            temp[ai] = temp[bi];
+            temp[bi] += t;
+        }
+    }
+    __syncthreads();
+    g_odata[2*thid] = temp[2*thid]; // write results to device memory
+    g_odata[2*thid+1] = temp[2*thid+1];
+}
+
+void inclusive_scan_v2(int *x, int *y, int n) {
+
+}
+
 
 void inclusive_scan_async(int *x, int *y, int n, cudaStream_t stream) {
     int numBlocks = n / BLOCK_WIDTH;

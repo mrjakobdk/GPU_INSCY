@@ -4,18 +4,25 @@
 
 #include "InscyCpuGpuMixClStream.h"
 #include "../clustering/ClusteringGpuStreams.h"
+#include "../../structures/ScyTreeNode.h"
+#include "../../structures/ScyTreeArray.h"
+#include "../../utils/util.h"
+#include <vector>
+#include <map>
 
 
-void InscyCpuGpuMixClStream(ScyTreeNode *scy_tree, float *d_X, int n, int d, float neighborhood_size, int *subspace,
-                    int subspace_size, float F, int num_obj, map<int, vector<int>> &result, int first_dim_no,
-                    int total_number_of_dim, int &calls) {
-
+void
+InscyCpuGpuMixClStream(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, float *d_X, int n, int d,
+                       float neighborhood_size, int *subspace,
+                       int subspace_size, float F, int num_obj, int min_size,
+                       std::map<int, std::vector<int>> &result, int first_dim_no,
+                       int total_number_of_dim, int &calls) {
 
 
     int dim_no = first_dim_no;
     calls++;
 
-    vector<ScyTreeArray *> scy_tree_list;
+    std::vector < ScyTreeArray * > scy_tree_list;
 
     while (dim_no < total_number_of_dim) {
         int cell_no = 0;
@@ -28,12 +35,13 @@ void InscyCpuGpuMixClStream(ScyTreeNode *scy_tree, float *d_X, int n, int d, flo
             restricted_scy_tree->mergeWithNeighbors(scy_tree, dim_no, cell_no);
 
             //pruneRecursion(restricted-tree); //prune sparse regions
-            if (restricted_scy_tree->pruneRecursion()) {
+            if (restricted_scy_tree->pruneRecursion(min_size, neighborhood_tree, X, neighborhood_size,
+                                                    subspace, subspace_size, F, num_obj, n)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                InscyCpuGpuMixClStream(restricted_scy_tree, d_X, n, d, neighborhood_size, subspace, subspace_size, F,
-                               num_obj,
-                               result, dim_no + 1, total_number_of_dim, calls);
+                InscyCpuGpuMixClStream(restricted_scy_tree, neighborhood_tree, X, d_X, n, d, neighborhood_size,
+                                       subspace, subspace_size, F,
+                                       num_obj, min_size, result, dim_no + 1, total_number_of_dim, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 restricted_scy_tree->pruneRedundancy();//todo does nothing atm
@@ -49,8 +57,9 @@ void InscyCpuGpuMixClStream(ScyTreeNode *scy_tree, float *d_X, int n, int d, flo
     }
 
     //result := DBClustering(restricted-tree) ∪ result;
-    vector<vector<int>> new_clustering_list = ClusteringGpuStream(scy_tree_list, d_X, n, d, neighborhood_size, F,
-                                                             num_obj);
+    std::vector <std::vector<int>> new_clustering_list = ClusteringGpuStream(scy_tree_list, d_X, n, d,
+                                                                             neighborhood_size, F,
+                                                                             num_obj);
 
     for (int k = 0; k < scy_tree_list.size(); k++) {
         ScyTreeArray *restricted_scy_tree_gpu = scy_tree_list[k];
@@ -74,7 +83,7 @@ void InscyCpuGpuMixClStream(ScyTreeNode *scy_tree, float *d_X, int n, int d, flo
                 result[idx] = clustering;
             }
         } else {
-            result.insert(pair<int, vector<int>>(idx, new_clustering));
+            result.insert(pair < int, vector < int >> (idx, new_clustering));
         }
 
         delete restricted_scy_tree_gpu;

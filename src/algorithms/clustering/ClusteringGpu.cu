@@ -2,6 +2,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "../../utils/util.h"
 
 #define BLOCK_SIZE 512
 
@@ -27,9 +28,9 @@ float dist_gpu(int p_id, int q_id, float *X, int *subspace, int subspace_size, i
 __global__
 void
 find_neighborhood(int *d_neighborhoods, int *d_number_of_neighbors, float *X, int *d_points, int number_of_points,
-                          float neighborhood_size,
-                          int *subspace, int subspace_size,
-                          int d) {
+                  float neighborhood_size,
+                  int *subspace, int subspace_size,
+                  int d) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= number_of_points) return;
 
@@ -51,7 +52,7 @@ find_neighborhood(int *d_neighborhoods, int *d_number_of_neighbors, float *X, in
 
 __device__
 float phi_gpu(int p_id, int *d_neighborhood, float neighborhood_size, int number_of_neighbors,
-                      float *X, int *d_points, int *subspace, int subspace_size, int d) {
+              float *X, int *d_points, int *subspace, int subspace_size, int d) {
     float sum = 0;
     for (int j = 0; j < number_of_neighbors; j++) {
         int q_id = d_points[d_neighborhood[j]];
@@ -75,9 +76,20 @@ float gamma_gpu(double n) {
 }
 
 __device__
+double gamma_gpu(int n) {
+    if (n == 2) {
+        return 1.;
+    } else if (n == 1) {
+        return sqrt(PI);
+    }
+    return (n / 2. - 1.) * gamma_gpu(n - 2);
+}
+
+__device__
 float c_gpu(int subspace_size) {
     float r = pow(PI, subspace_size / 2.);
-    r = r / gamma_gpu(subspace_size / 2. + 1.);
+    //r = r / gamma_gpu(subspace_size / 2. + 1.);
+    r = r / gamma_gpu(subspace_size + 2);
     return r;
 }
 
@@ -91,24 +103,25 @@ float alpha_gpu(int subspace_size, float neighborhood_size, int n) {
 
 __device__
 float omega_gpu(int subspace_size) {
-    return 2.0 / (subspace_size + 0.2);
+    return 2.0 / (subspace_size + 2.0);
 }
 
 __global__
 void compute_is_dense(bool *d_is_dense, int *d_points, int number_of_points,
-                 int *d_neighborhoods, float neighborhood_size, int *d_number_of_neighbors,
-                 float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
+                      int *d_neighborhoods, float neighborhood_size, int *d_number_of_neighbors,
+                      float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_points) {
         int *d_neighborhood = &d_neighborhoods[i * number_of_points];
 
         int p_id = d_points[i];
         float p = phi_gpu(p_id, d_neighborhood, neighborhood_size, d_number_of_neighbors[i], X, d_points,
-                                  subspace,
-                                  subspace_size, d);
+                          subspace,
+                          subspace_size, d);
         float a = alpha_gpu(subspace_size, neighborhood_size, n);
         float w = omega_gpu(subspace_size);
-
+//        printf("%d, %f>=%f\n",p_id, p, max(F * a, num_obj * w));
+//        printf("F=%f, a=%f, num_obj=%d, w=%f\n", F, a, num_obj, w);
         d_is_dense[i] = p >= max(F * a, num_obj * w);
     }
 }
@@ -134,7 +147,7 @@ void disjoint_set_clustering(int *d_clustering, int *d_disjoint_set,
     __syncthreads();
 
     //for (int itr = 1; itr < number_of_points; itr *= 2) {
-    while(changed){
+    while (changed) {
         //disjoint_set_pass1
         __syncthreads();
         changed = 0;
@@ -168,9 +181,7 @@ void disjoint_set_clustering(int *d_clustering, int *d_disjoint_set,
     }
 
     //gather_clustering
-    for (int i = threadIdx.x;
-         i < number_of_points;
-         i += blockDim.x) {
+    for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
         d_clustering[d_points[i]] = d_disjoint_set[i];
     }
 }
@@ -187,8 +198,10 @@ void disjoint_set_clustering(int *d_clustering, int *d_disjoint_set,
  *          follow each point to the root to construct the clustering label
  *
  */
+
+//todo check minimum cluster size
 vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, float F,
-                                    int num_obj) {
+                          int num_obj) {
 
     int number_of_points = scy_tree->number_of_points;
     int number_of_restricted_dims = scy_tree->number_of_restricted_dims;
@@ -211,11 +224,15 @@ vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, floa
     int number_of_threads = min(number_of_points, BLOCK_SIZE);
 
     find_neighborhood << < number_of_blocks, number_of_threads >> >
-                                                     (d_neighborhoods, d_number_of_neighbors, d_X, scy_tree->d_points, number_of_points, neighborhood_size, scy_tree->d_restricted_dims, number_of_restricted_dims, d);
+                                             (d_neighborhoods, d_number_of_neighbors, d_X, scy_tree->d_points, number_of_points, neighborhood_size, scy_tree->d_restricted_dims, number_of_restricted_dims, d);
+
+
     compute_is_dense << < number_of_blocks, number_of_threads >> >
                                             (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size, d_number_of_neighbors, d_X, scy_tree->d_restricted_dims,
                                                     scy_tree->number_of_restricted_dims, F, n, num_obj, d);
 
+
+//    print_array_gpu<<<1, 1>>>(d_is_dense, number_of_points);
 
     disjoint_set_clustering << < 1, number_of_threads >> >
                                     (d_clustering, d_disjoint_set,
@@ -226,6 +243,11 @@ vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, floa
     cudaMemcpy(h_clustering, d_clustering, sizeof(int) * n, cudaMemcpyDeviceToHost);
 
     vector<int> labels(h_clustering, h_clustering + n);
+    cudaDeviceSynchronize();
+
+//    printf("\nn:%d\n", n);
+//    printf("number_of_threads:%d\n", number_of_threads);
+//    print_array_gpu<<<1, 1>>>(d_clustering, n);
 
     cudaFree(d_neighborhoods);
     cudaFree(d_number_of_neighbors);

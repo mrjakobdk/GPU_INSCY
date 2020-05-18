@@ -1,17 +1,16 @@
 
-#include <torch/extension.h>
 #include "ClusteringCpu.h"
 #include "../../utils/util.h"
 #include "../../utils/util_data.h"
 #include "../../structures/ScyTreeNode.h"
+
+#include <torch/extension.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda_runtime.h>
 #include <math.h>
 #include <iostream>
 #include <numeric>
-//#include <windows.h>
-//#include <thrust/device_vector.h>
 #include <cuda_profiler_api.h>
 #include <queue>
 #include <iostream>
@@ -33,7 +32,7 @@ double gamma(double d);
 
 
 double omega(int subspace_size) {
-    return 2.0 / (subspace_size + 0.2);
+    return 2.0 / (subspace_size + 2.0);
 }
 
 double dist(int p_id, int q_id, at::Tensor X, int *subspace, int subspace_size) {
@@ -114,7 +113,8 @@ double gamma(int n) {
 
 double c(int subspace_size) {
     double r = pow(PI, subspace_size / 2.);
-    r = r / gamma(subspace_size / 2. + 1.);
+    //r = r / gamma(subspace_size / 2. + 1.);
+    r = r / gamma(subspace_size + 2);
     return r;
 }
 
@@ -131,10 +131,14 @@ bool dense(int point_id, vector<int> neighbors, float neighborhood_size, at::Ten
     float p = phi(point_id, neighbors, neighborhood_size, X, subspace, subspace_size);
     float a = alpha(subspace_size, neighborhood_size, n);
     float w = omega(subspace_size);
+
+//    printf("%d, %f>=%f\n",point_id, p, max(F * a, num_obj * w));
+//    printf("F=%f, a=%f, num_obj=%d, w=%f\n", F, a, num_obj, w);
     return p >= max(F * a, num_obj * w);
 }
 
 
+//todo check minimum cluster size
 vector<int>
 INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
                         float neighborhood_size, float F,

@@ -4,12 +4,13 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params={"n":300,
+params={"n":400,
         "neighborhood_size":0.15,
         "F": 10.,
         "num_obj" : 2,
+        "min_size": int(400 * 0.01),
         "subspace_size_min" : 2,
-        "subspace_size_max" : 13}
+        "subspace_size_max" : 10}
 
 print("Loading Glove...")
 t0 = time.time()

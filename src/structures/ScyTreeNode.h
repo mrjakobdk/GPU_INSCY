@@ -10,8 +10,9 @@
 #include <torch/extension.h>
 #include <math.h>
 
-#include "ScyTreeArray.h"
+//#include "ScyTreeArray.h"
 
+class ScyTreeArray; // forward declaration
 class ScyTreeNode {
 public:
     int number_of_dims;
@@ -35,9 +36,10 @@ public:
 
     ScyTreeNode *restrict(int dim_no, int cell_no);
 
-    vector <pair<int, int>> get_descriptors();
+    vector<pair<int, int>> get_descriptors();
 
-    bool pruneRecursion();
+    bool pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
+                        int* subspace, int subspace_size, float F, int num_obj, int n);
 
     void pruneRedundancy();
 
@@ -45,9 +47,11 @@ public:
 
     vector<int> get_points();
 
+    void get_leafs(Node *node, vector<Node *> leafs);
+
     ScyTreeNode();
 
-    ScyTreeArray * convert_to_ScyTreeArray();
+    ScyTreeArray *convert_to_ScyTreeArray();
 
     int get_number_of_cells();
 
@@ -84,6 +88,8 @@ private:
     void get_possible_neighbors_from(vector<int> &list, float *p, Node *child, int depth, int subspace_index,
                                      int *subspace, int subspace_size,
                                      float neighborhood_size);
+
+    void propergate_count(Node *node);
 };
 
 #endif //GPU_INSCY_SCYTREENODE_H

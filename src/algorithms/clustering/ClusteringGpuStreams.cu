@@ -16,7 +16,8 @@
 #include <sstream>
 #include <set>
 #include <map>
-
+#include "../../structures/ScyTreeArray.h"
+#include "../../utils/util.h"
 
 #define BLOCK_SIZE 128
 
@@ -91,11 +92,23 @@ float gamma_gpu_streams(double n) {
 }
 
 __device__
+double gamma_gpu_streams(int n) {
+    if (n == 2) {
+        return 1.;
+    } else if (n == 1) {
+        return sqrt(PI);
+    }
+    return (n / 2. - 1.) * gamma_gpu_streams(n - 2);
+}
+
+__device__
 float c_gpu_streams(int subspace_size) {
     float r = pow(PI, subspace_size / 2.);
-    r = r / gamma_gpu_streams(subspace_size / 2. + 1.);
+    //r = r / gamma_gpu(subspace_size / 2. + 1.);
+    r = r / gamma_gpu_streams(subspace_size + 2);
     return r;
 }
+
 
 __device__
 float alpha_gpu_streams(int subspace_size, float neighborhood_size, int n) {
@@ -107,7 +120,7 @@ float alpha_gpu_streams(int subspace_size, float neighborhood_size, int n) {
 
 __device__
 float omega_gpu_streams(int subspace_size) {
-    return 2.0 / (subspace_size + 0.2);
+    return 2.0 / (subspace_size + 2.0);
 }
 
 __global__
@@ -204,8 +217,10 @@ void disjoint_set_clustering_streams(int *d_clustering, int *d_disjoint_set,
  *          follow each point to the root to construct the clustering label
  *
  */
-vector<vector<int>>
-ClusteringGpuStream(vector<ScyTreeArray *> scy_tree_list, float *d_X, int n, int d, float neighborhood_size,
+
+//todo check minimum cluster size
+std::vector<std::vector<int>>
+ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n, int d, float neighborhood_size,
                     float F,
                     int num_obj) {
 
@@ -292,6 +307,8 @@ ClusteringGpuStream(vector<ScyTreeArray *> scy_tree_list, float *d_X, int n, int
     int *h_clustering = new int[n];
     for (int k = 0; k < number_of_scy_trees; k++) {
         cudaMemcpy(h_clustering, d_clustering_list[k], sizeof(int) * n, cudaMemcpyDeviceToHost);
+//        printf("%d\n", n);
+//        print_array_gpu<<<1,1>>>(d_clustering_list[k], n);
 
         vector<int> labels(h_clustering, h_clustering + n);
         result.push_back(labels);

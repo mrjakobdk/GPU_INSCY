@@ -1,9 +1,10 @@
-#include "ScyTreeNode.h"
-//#include "SCYTreeImplGPU.h"
-#include "../utils/util.h"
-//#include <windows.h>
+
 #include <ATen/ATen.h>
 #include <torch/extension.h>
+#include "ScyTreeNode.h"
+#include "../utils/util.h"
+#include "ScyTreeArray.h"
+#include "../algorithms/clustering/ClusteringCpu.h"
 
 int ScyTreeNode::get_dims_idx() {
     int sum = 0;
@@ -271,7 +272,7 @@ vector <pair<int, int>> ScyTreeNode::get_descriptors() {
  * @param min_size (smallest possible size for any subspace)
  * @return
  */
-int ScyTreeNode::pruneRecursionNode(Node *node, int min_size) {
+int ScyTreeNode::pruneRecursionNode(Node *node, int min_size) {//todo this seems wrong
     int total_pruned_count = 0;
 
     for (pair<const int, Node *> child_pair: node->children) {
@@ -298,9 +299,54 @@ int ScyTreeNode::pruneRecursionNode(Node *node, int min_size) {
     return total_pruned_count;//node->count should be zero because all the children should be larger than min_size
 }
 
-bool ScyTreeNode::pruneRecursion() {
-    //todo what should min_size be?
-    int min_size = 2;
+void ScyTreeNode::get_leafs(Node *node, vector<Node *> leafs) {
+    if (node->children.empty() && node->s_connections.empty()) {
+        leafs.push_back(node);
+    } else {
+        for (pair<const int, Node *> child_pair: node->children) {
+            Node *child = child_pair.second;
+            this->get_leafs(child, leafs);
+        }
+    }
+}
+
+void ScyTreeNode::propergate_count(Node *node) {
+    if (node->children.empty() && node->s_connections.empty()) {
+        // do nothing
+    } else {
+        node->count = 0;
+        for (pair<const int, Node *> child_pair: node->children) {
+            Node *child = child_pair.second;
+            this->propergate_count(child);
+            node->count += child->count;
+        }
+        //todo prune node if count < 0
+    }
+}
+
+bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
+                                 int* subspace, int subspace_size, float F, int num_obj, int n) {
+    //todo we need more than min_size
+    //todo weak density is >= max(minPoints, F*expDen(d)) could be computed while restricting.
+    vector < Node * > leafs;
+    this->get_leafs(this->root, leafs);
+    for (Node *leaf: leafs) {
+        vector<int> points;
+        for (int p_id: leaf->points) {
+            vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
+                                                 subspace_size);
+            if (neighbors.size() >= max(F * alpha(subspace_size, neighborhood_size, n), num_obj * omega(subspace_size))) {
+                points.push_back(p_id);
+            }
+        }
+        delete &leaf->points;
+        leaf->points = points;
+        leaf->count = points.size();
+    }
+    this->propergate_count(this->root);
+    this->number_of_points = this->root->count;
+
+
     return this->number_of_points >= min_size;
 }
 
@@ -520,7 +566,15 @@ vector<int> ScyTreeNode::get_possible_neighbors(float *p,
 }
 
 ScyTreeArray *ScyTreeNode::convert_to_ScyTreeArray() {
-    ScyTreeArray *scy_tree_array = new ScyTreeArray(this->get_number_of_nodes(), this->number_of_dims, this->number_of_restricted_dims,
+//    printf("convert_to_ScyTreeArray - start\n");
+    int number_of_nodes = this->get_number_of_nodes();
+//    printf("convert_to_ScyTreeArray - get_number_of_nodes\n");
+
+//    printf("\nhmm: %d, %d, %d, %d, %d\n", number_of_nodes, this->number_of_dims, this->number_of_restricted_dims, this->number_of_points,
+//           this->number_of_cells);
+
+    ScyTreeArray *scy_tree_array = new ScyTreeArray(number_of_nodes, this->number_of_dims,
+                                                    this->number_of_restricted_dims,
                                                     this->number_of_points, this->number_of_cells);
 
     scy_tree_array->h_dims = this->dims;

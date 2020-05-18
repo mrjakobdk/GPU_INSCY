@@ -1,6 +1,8 @@
 #include <cmath>
+#include <vector>
 #include "InscyNodeCpu.h"
 #include "../clustering/ClusteringCpu.h"
+#include "../../structures/ScyTreeNode.h"
 #include "../../utils/util.h"
 
 /**
@@ -14,9 +16,8 @@ INSCY(scy_tree, result, d_first)
                 pruneRedundancy(scy_tree)
                 result += Clustering(scy_tree)
  */
-
 void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tensor X, int n, float neighborhood_size, int *subspace,
-               int subspace_size, float F, int num_obj, map<int, vector<int>> &result, int first_dim_no,
+               int subspace_size, float F, int num_obj, int min_size, map<int, vector<int>> &result, int first_dim_no,
                int total_number_of_dim, int &calls) {
     int dim_no = first_dim_no;
     calls++;
@@ -32,11 +33,12 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tenso
 
 
             //pruneRecursion(restricted-tree); //prune sparse regions
-            if (restricted_scy_tree->pruneRecursion()) {
+            if (restricted_scy_tree->pruneRecursion(min_size, neighborhood_tree, X, neighborhood_size,
+                    subspace, subspace_size, F, num_obj, n)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 INSCYCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, subspace, subspace_size,
-                          F, num_obj, result,
+                          F, num_obj, min_size, result,
                           dim_no + 1, total_number_of_dim, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
