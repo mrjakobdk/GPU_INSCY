@@ -1,8 +1,9 @@
-#include "ClusteringGpu.h"
+#include "ClusteringGpu.cuh"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include "../../utils/util.h"
+#include "../../structures/ScyTreeArray.h"
 
 #define BLOCK_SIZE 512
 

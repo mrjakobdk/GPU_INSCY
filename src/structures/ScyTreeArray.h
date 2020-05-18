@@ -79,10 +79,7 @@ public:
 
     ScyTreeArray *restrict_gpu(int dim_no, int cell_no);
 
-    bool pruneRecursion_gpu(int min_size) {
-        //todo we need more than min_size - but maybe do it in restrict instead
-        return this->number_of_points >= min_size;
-    }
+    bool pruneRecursion_gpu(int min_size);
 
     void pruneRedundancy_gpu() {
         //todo

@@ -34,10 +34,11 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tenso
 
             //pruneRecursion(restricted-tree); //prune sparse regions
             if (restricted_scy_tree->pruneRecursion(min_size, neighborhood_tree, X, neighborhood_size,
-                    subspace, subspace_size, F, num_obj, n)) {
+                                                    scy_tree->restricted_dims, scy_tree->number_of_restricted_dims, F,
+                                                    num_obj, n, subspace_size)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                INSCYCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, subspace, subspace_size,
+                INSCYCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, scy_tree->restricted_dims, scy_tree->number_of_restricted_dims,
                           F, num_obj, min_size, result,
                           dim_no + 1, total_number_of_dim, calls);
 

@@ -9,8 +9,8 @@
 #include <functional>
 #include <iostream>
 #include <vector>
-
 #include "util.h"
+
 
 struct cmp : public binary_function<int, int, bool> {
 

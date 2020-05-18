@@ -5,13 +5,12 @@
 #ifndef GPU_INSCY_SCYTREENODE_H
 #define GPU_INSCY_SCYTREENODE_H
 
-#include "Node.h"
 #include <ATen/ATen.h>
 #include <torch/extension.h>
 #include <math.h>
 
 //#include "ScyTreeArray.h"
-
+class Node;
 class ScyTreeArray; // forward declaration
 class ScyTreeNode {
 public:
@@ -39,7 +38,7 @@ public:
     vector<pair<int, int>> get_descriptors();
 
     bool pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
-                        int* subspace, int subspace_size, float F, int num_obj, int n);
+                        int* subspace, int subspace_size, float F, int num_obj, int n, int d);
 
     void pruneRedundancy();
 

@@ -4,7 +4,7 @@
 
 #include "InscyArrayGpu.h"
 #include "../clustering/ClusteringGpuStreams.h"
-#include "../clustering/ClusteringGpu.h"
+#include "../clustering/ClusteringGpu.cuh"
 #include "../../structures/ScyTreeArray.h"
 #include "../../utils/util.h"
 

@@ -2,8 +2,10 @@
 #include "../utils/RestrictUtils.h"
 #include "../utils/MergeUtil.h"
 #include "../utils/util.h"
+#include "../algorithms/clustering/ClusteringGpu.cuh"
 
 #define BLOCKSIZE 16
+#define BLOCK_SIZE 512
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
@@ -14,12 +16,10 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
 }
 
 /*Check for safe return of all calls to the device */
-void CUDA_SAFE_CALL(cudaError_t call)
-{
+void CUDA_SAFE_CALL(cudaError_t call) {
     cudaError_t ret = call;
     //printf("RETURN FROM THE CUDA CALL:%d\t:",ret);
-    switch(ret)
-    {
+    switch (ret) {
         case cudaSuccess:
             //              printf("Success\n");
             break;
@@ -41,31 +41,28 @@ void CUDA_SAFE_CALL(cudaError_t call)
                                     exit(-1);
                                     break;
                                     }                       */
-        default:
-        {
-            printf(" ERROR at line :%i.%d' ' %s\n",__LINE__,ret,cudaGetErrorString(ret));
+        default: {
+            printf(" ERROR at line :%i.%d' ' %s\n", __LINE__, ret, cudaGetErrorString(ret));
             exit(-1);
             break;
         }
     }
 }
 
-__global__ void PrefixSum(int *dInArray, int *dOutArray, int arrayLen, int threadDim)
-{
+__global__ void PrefixSum(int *dInArray, int *dOutArray, int arrayLen, int threadDim) {
     //http://www.tezu.ernet.in/dcompsc/facility/HPCC/hypack/gpgpu-nvidia-cuda-prog-hypack-2013/gpu-comp-nvidia-cuda-num-comp-codes/cuda-prefix-sum.cu
     int tidx = threadIdx.x;
     int tidy = threadIdx.y;
     int tindex = (threadDim * tidx) + tidy;
     int maxNumThread = threadDim * threadDim;
     int pass = 0;
-    int count ;
+    int count;
     int curEleInd;
     int tempResult = 0;
 
-    while( (curEleInd = (tindex + maxNumThread * pass))  < arrayLen )
-    {
+    while ((curEleInd = (tindex + maxNumThread * pass)) < arrayLen) {
         tempResult = 0;
-        for( count = 0; count < curEleInd; count++)
+        for (count = 0; count < curEleInd; count++)
             tempResult += dInArray[count];
         dOutArray[curEleInd] = tempResult;
         pass++;
@@ -890,4 +887,93 @@ void ScyTreeArray::print() {
            this->number_of_nodes, this->number_of_points, this->number_of_dims, this->number_of_restricted_dims,
            this->number_of_cells);
     printf("\n");
+}
+
+//__global__
+//void
+//find_neighborhood_prune(int *d_neighborhoods, int *d_number_of_neighbors, float *X, int *d_points, int number_of_points,
+//                  float neighborhood_size,
+//                  int *subspace, int subspace_size,
+//                  int d) {
+//    int i = blockIdx.x * blockDim.x + threadIdx.x;
+//    if (i >= number_of_points) return;
+//
+//    int *d_neighborhood = &d_neighborhoods[i * number_of_points];
+//    int number_of_neighbors = 0;
+//    int p_id = d_points[i];
+//    for (int j = 0; j < number_of_points; j++) {
+//        int q_id = d_points[j];
+//        if (p_id != q_id) {
+//            float distance = dist_gpu(p_id, q_id, X, subspace, subspace_size, d);
+//            if (neighborhood_size >= distance) {
+//                d_neighborhood[number_of_neighbors] = j;//q_id;
+//                number_of_neighbors++;
+//            }
+//        }
+//    }
+//    d_number_of_neighbors[i] = number_of_neighbors;
+//}
+//
+//__global__
+//void compute_is_weak_dense_prune(bool *d_is_dense, int *d_points, int number_of_points,
+//                      int *d_neighborhoods, float neighborhood_size, int *d_number_of_neighbors,
+//                      float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
+//    int i = blockIdx.x * blockDim.x + threadIdx.x;
+//    if (i < number_of_points) {
+//        int *d_neighborhood = &d_neighborhoods[i * number_of_points];
+//
+//        int p_id = d_points[i];
+//        float p = phi_gpu(p_id, d_neighborhood, neighborhood_size, d_number_of_neighbors[i], X, d_points,
+//                          subspace, subspace_size, d);
+//        float a = alpha_gpu(d, neighborhood_size, n);
+//        float w = omega_gpu(d);
+//        d_is_dense[i] = p >= max(F * a, num_obj * w);
+//    }
+//}
+
+bool ScyTreeArray::pruneRecursion_gpu(int min_size){//, float *d_X, int n, int d, float neighborhood_size, float F,
+    //int num_obj) {
+    //todo we need more than min_size - but maybe do it in restrict instead
+
+    //todo is weak dense
+
+    //todo inclusive scan
+
+    //todo get size and move
+
+
+
+//    int *d_neighborhoods; // number_of_points x number_of_points
+//    int *d_number_of_neighbors; // number_of_points //todo maybe not needed
+//    int *d_is_dense; // number_of_points
+//    int *d_new_position; // number_of_points
+//    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * number_of_points);
+//    cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points);
+//    cudaMalloc(&d_is_dense, sizeof(int) * number_of_points);
+//    cudaMalloc(&d_new_position, sizeof(int) * number_of_points);
+//
+//    int number_of_blocks = number_of_points / BLOCK_SIZE;
+//    if (number_of_points % BLOCK_SIZE) number_of_blocks++;
+//    int number_of_threads = min(number_of_points, BLOCK_SIZE);
+//
+//    find_neighborhood_prune << < number_of_blocks, number_of_threads >> >
+//                                             (d_neighborhoods, d_number_of_neighbors, d_X, this->d_points, number_of_points, neighborhood_size, this->d_restricted_dims, number_of_restricted_dims, d);
+//
+//
+//    compute_is_weak_dense_prune << < number_of_blocks, number_of_threads >> >
+//                                            (d_is_dense, this->d_points, number_of_points, d_neighborhoods, neighborhood_size, d_number_of_neighbors, d_X, this->d_restricted_dims,
+//                                                    this->number_of_restricted_dims, F, n, num_obj, d);
+//
+//    inclusive_scan(d_new_position, d_is_dense, number_of_points);
+//
+//
+//    move_pruned_points<<<1, BLOCK_SIZE, number_of_points*sizeof(int)>>>(this->d_points, this->d_points_placement,
+//                                                                        d_new_position, d_is_dense, number_of_points);
+//
+//    int *h_tmp = new int[1];
+//    h_tmp[0] = 0;
+//    cudaMemcpy(h_tmp, d_new_position + number_of_points - 1, sizeof(int), cudaMemcpyDeviceToHost);
+//    this->number_of_points = h_tmp[0];
+
+    return this->number_of_points >= min_size;
 }

@@ -1,9 +1,10 @@
 
 #include <ATen/ATen.h>
 #include <torch/extension.h>
+#include "Node.h"
 #include "ScyTreeNode.h"
-#include "../utils/util.h"
 #include "ScyTreeArray.h"
+#include "../utils/util.h"
 #include "../algorithms/clustering/ClusteringCpu.h"
 
 int ScyTreeNode::get_dims_idx() {
@@ -325,7 +326,7 @@ void ScyTreeNode::propergate_count(Node *node) {
 }
 
 bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
-                                 int* subspace, int subspace_size, float F, int num_obj, int n) {
+                                 int* subspace, int subspace_size, float F, int num_obj, int n, int d) {
     //todo we need more than min_size
     //todo weak density is >= max(minPoints, F*expDen(d)) could be computed while restricting.
     vector < Node * > leafs;
@@ -335,7 +336,10 @@ bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, a
         for (int p_id: leaf->points) {
             vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
                                                  subspace_size);
-            if (neighbors.size() >= max(F * alpha(subspace_size, neighborhood_size, n), num_obj * omega(subspace_size))) {
+            float p = phi(p_id, neighbors, neighborhood_size, X, subspace, subspace_size);
+            float a = alpha(d, neighborhood_size, n);
+            float w = omega(d);
+            if (neighbors.size() >= max(F * a, num_obj * w)) {
                 points.push_back(p_id);
             }
         }

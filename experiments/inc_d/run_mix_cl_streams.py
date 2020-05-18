@@ -1,5 +1,4 @@
 import sys
-
 sys.path.append('../GPU_INSCY')
 import python.inscy as INSCY
 import time
@@ -11,7 +10,7 @@ params = {"n": 400,
           "num_obj": 2,
           "min_size": int(400 * 0.01),
           "subspace_size_min": 2,
-          "subspace_size_max": 8}
+          "subspace_size_max": 7}
 
 print("Loading Glove...")
 t0 = time.time()
@@ -20,14 +19,17 @@ print("Finished loading Glove, took: %.4fs" % (time.time() - t0))
 
 print("Running INSCY on the CPU. ")
 print()
-subspace_sizes = list(range(params["subspace_size_min"], params["subspace_size_max"] + 1))
+subspace_sizes = list(range(params["subspace_size_min"], params["subspace_size_max"]+1))
 times = []
+
+subspaces, clusterings = INSCY.run_cpu_gpu_mix_cl_steam(X[:, :2], params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
+
 for subspace_size in subspace_sizes:
+    X_ = X[:, :subspace_size].clone()
     t0 = time.time()
-    subspaces, clusterings = INSCY.run_cpu(X[:, :subspace_size], params["neighborhood_size"], params["F"],
-                                           params["num_obj"], params["min_size"])
+    subspaces, clusterings = INSCY.run_cpu_gpu_mix_cl_steam(X[:, :subspace_size], params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
     times.append(time.time() - t0)
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
 
-np.savez('plot_data/inc_d_const_n=300_cpu.npz', subspace_sizes=subspace_sizes, times=times, params=params)
+np.savez('plot_data/inc_d/const_n=300_mix_cl_streams.npz', subspace_sizes=subspace_sizes, times=times, params=params)

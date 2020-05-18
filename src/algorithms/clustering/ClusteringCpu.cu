@@ -90,7 +90,6 @@ float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tens
     }
 
     return sum;
-
 }
 
 double gamma(double n) {

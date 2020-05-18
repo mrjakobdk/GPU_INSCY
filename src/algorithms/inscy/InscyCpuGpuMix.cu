@@ -4,8 +4,9 @@
 
 #include "InscyCpuGpuMix.h"
 #include <vector>
-#include "../clustering/ClusteringGpu.h"
+#include "../clustering/ClusteringGpu.cuh"
 #include "../../structures/ScyTreeNode.h"
+#include "../../structures/ScyTreeArray.h"
 #include "../../utils/util.h"
 
 #include <cuda.h>
@@ -29,7 +30,7 @@ void InscyCpuGpuMix(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::T
 
             //pruneRecursion(restricted-tree); //prune sparse regions
             if (restricted_scy_tree->pruneRecursion(min_size, neighborhood_tree, X, neighborhood_size,
-                                                    subspace, subspace_size, F, num_obj, n)) {
+                                                    scy_tree->restricted_dims, scy_tree->number_of_restricted_dims, F, num_obj, n, subspace_size)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 InscyCpuGpuMix(restricted_scy_tree,neighborhood_tree, X, d_X, n, d, neighborhood_size, subspace, subspace_size, F,

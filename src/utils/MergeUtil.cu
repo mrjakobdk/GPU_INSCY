@@ -1,5 +1,6 @@
 #include "MergeUtil.h"
 
+#include "util.h"
 
 /*struct cmp : public binary_function<int, int, bool> {
 
