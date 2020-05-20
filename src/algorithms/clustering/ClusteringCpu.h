@@ -7,7 +7,11 @@
 
 #include <ATen/ATen.h>
 #include <torch/extension.h>
+#include <vector>
 
+using namespace std;
+
+// forward declaration
 class ScyTreeNode;
 
 vector<int>

@@ -38,13 +38,13 @@ void InscyArrayGpuStream(ScyTreeArray *scy_tree, float *d_X, int n, int d, float
 //            restricted_scy_tree->print();
 
             //restricted-tree := mergeWithNeighbors(restricted-tree);
-            restricted_scy_tree = restricted_scy_tree->mergeWithNeighbors_gpu(scy_tree, dim_no, cell_no);
+            restricted_scy_tree = restricted_scy_tree->mergeWithNeighbors_gpu1(scy_tree, dim_no, cell_no);
 //            printf("after mergeWithNeighbors\n");
 //            restricted_scy_tree->copy_to_host();
 //            restricted_scy_tree->print();
 
             //pruneRecursion(restricted-tree); //prune sparse regions
-            if (restricted_scy_tree->pruneRecursion_gpu(0)) {
+            if (restricted_scy_tree->pruneRecursion_gpu(min_size, d_X, n, d, neighborhood_size, F, num_obj)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 InscyArrayGpuStream(restricted_scy_tree, d_X, n, d, neighborhood_size, subspace, subspace_size,

@@ -143,6 +143,39 @@ compute_is_dense_streams(bool *d_is_dense, int *d_points, int number_of_points,
 }
 
 
+__global__
+void compute_is_dense_streams_new(bool *d_is_dense, int *d_points, int number_of_points,
+                                  float neighborhood_size,
+                                  float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < number_of_points) {
+        int p_id = d_points[i];
+//        float p = phi_gpu(p_id, d_neighborhood, neighborhood_size, d_number_of_neighbors[i], X, d_points,
+//                          subspace, subspace_size, d);
+
+        float p = 0;
+
+        for (int j = 0; j < n; j++) {
+            int q_id = j;
+            if (p_id != q_id) {
+                float distance = dist_gpu_streams(p_id, q_id, X, subspace, subspace_size, d);
+                if (neighborhood_size >= distance) {
+                    distance = distance / neighborhood_size;
+                    float sq = distance * distance;
+                    p += (1. - sq);
+                }
+            }
+        }
+
+        float a = alpha_gpu_streams(subspace_size, neighborhood_size, n);
+        float w = omega_gpu_streams(subspace_size);
+//        printf("%d:%d, %f>=%f\n", p_id, subspace_size, p, max(F * a, num_obj * w));
+//        printf("%d:%d, F=%f, a=%f, num_obj=%d, w=%f\n", p_id, subspace_size, F, a, num_obj, w);
+        d_is_dense[i] = p >= max(F * a, num_obj * w);
+    }
+}
+
+
 //for ref see: http://hpcg.purdue.edu/papers/Stava2011CCL.pdf
 __global__
 void disjoint_set_clustering_streams(int *d_clustering, int *d_disjoint_set,
@@ -219,7 +252,7 @@ void disjoint_set_clustering_streams(int *d_clustering, int *d_disjoint_set,
  */
 
 //todo check minimum cluster size
-std::vector<std::vector<int>>
+std::vector <std::vector<int>>
 ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n, int d, float neighborhood_size,
                     float F,
                     int num_obj) {
@@ -271,7 +304,7 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
         if (number_of_points % BLOCK_SIZE) number_of_blocks++;
         int number_of_threads = min(number_of_points, BLOCK_SIZE);
 
-        find_neighborhood_streams << < number_of_blocks, number_of_threads, 0, streams[k%10] >> >
+        find_neighborhood_streams << < number_of_blocks, number_of_threads, 0, streams[k % 10] >> >
                                                                                (d_neighborhoods_list[k], d_number_of_neighbors_list[k], d_X, scy_tree->d_points, number_of_points, neighborhood_size, scy_tree->d_restricted_dims, number_of_restricted_dims, d);
     }
     cudaDeviceSynchronize();
@@ -285,8 +318,11 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
         if (number_of_points % BLOCK_SIZE) number_of_blocks++;
         int number_of_threads = min(number_of_points, BLOCK_SIZE);
 
-        compute_is_dense_streams << < number_of_blocks, number_of_threads, 0, streams[k%10] >> >
-                                                                              (d_is_dense_list[k], scy_tree->d_points, number_of_points, d_neighborhoods_list[k], neighborhood_size, d_number_of_neighbors_list[k], d_X, scy_tree->d_restricted_dims,
+//        compute_is_dense_streams << < number_of_blocks, number_of_threads, 0, streams[k % 10] >> >
+//                                                                              (d_is_dense_list[k], scy_tree->d_points, number_of_points, d_neighborhoods_list[k], neighborhood_size, d_number_of_neighbors_list[k], d_X, scy_tree->d_restricted_dims,
+//                                                                                      scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+        compute_is_dense_streams_new << < number_of_blocks, number_of_threads, 0, streams[k % 10] >> >
+                                                                              (d_is_dense_list[k], scy_tree->d_points, number_of_points, neighborhood_size, d_X, scy_tree->d_restricted_dims,
                                                                                       scy_tree->number_of_restricted_dims, F, n, num_obj, d);
     }
     cudaDeviceSynchronize();
@@ -296,14 +332,14 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
         int number_of_points = scy_tree->number_of_points;
 
         int number_of_threads = min(number_of_points, BLOCK_SIZE);
-        disjoint_set_clustering_streams << < 1, number_of_threads, 0, streams[k%10] >> >
+        disjoint_set_clustering_streams << < 1, number_of_threads, 0, streams[k % 10] >> >
                                                                       (d_clustering_list[k], d_disjoint_set_list[k],
                                                                               d_neighborhoods_list[k], d_number_of_neighbors_list[k], d_is_dense_list[k],
                                                                               scy_tree->d_points, number_of_points);
     }
     cudaDeviceSynchronize();
 
-    vector<vector<int>> result;
+    vector <vector<int>> result;
     int *h_clustering = new int[n];
     for (int k = 0; k < number_of_scy_trees; k++) {
         cudaMemcpy(h_clustering, d_clustering_list[k], sizeof(int) * n, cudaMemcpyDeviceToHost);

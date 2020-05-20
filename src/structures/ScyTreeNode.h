@@ -8,10 +8,15 @@
 #include <ATen/ATen.h>
 #include <torch/extension.h>
 #include <math.h>
+#include <vector>
+#include <map>
 
-//#include "ScyTreeArray.h"
+using namespace std;
+
+// forward declaration
 class Node;
-class ScyTreeArray; // forward declaration
+class ScyTreeArray;
+
 class ScyTreeNode {
 public:
     int number_of_dims;
@@ -46,7 +51,7 @@ public:
 
     vector<int> get_points();
 
-    void get_leafs(Node *node, vector<Node *> leafs);
+    void get_leafs(Node *node, vector<Node *> &leafs);
 
     ScyTreeNode();
 

@@ -16,12 +16,15 @@ INSCY(scy_tree, result, d_first)
                 pruneRedundancy(scy_tree)
                 result += Clustering(scy_tree)
  */
-void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tensor X, int n, float neighborhood_size, int *subspace,
-               int subspace_size, float F, int num_obj, int min_size, map<int, vector<int>> &result, int first_dim_no,
-               int total_number_of_dim, int &calls) {
+void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tensor X, int n, float neighborhood_size, float F, int num_obj, int min_size, map<int, vector<int>> &result, int first_dim_no,
+               int d, int &calls) {
+
+//    printf("call: %d, first_dim_no: %d, points: %d\n", calls, first_dim_no, scy_tree->number_of_points);
+//    scy_tree->print();
+
     int dim_no = first_dim_no;
     calls++;
-    while (dim_no < total_number_of_dim) {
+    while (dim_no < d) {
         int cell_no = 0;
         while (cell_no < scy_tree->number_of_cells) {
             //restricted-tree := restrict(scy-tree, descriptor);
@@ -34,13 +37,13 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tenso
 
             //pruneRecursion(restricted-tree); //prune sparse regions
             if (restricted_scy_tree->pruneRecursion(min_size, neighborhood_tree, X, neighborhood_size,
-                                                    scy_tree->restricted_dims, scy_tree->number_of_restricted_dims, F,
-                                                    num_obj, n, subspace_size)) {
+                                                    restricted_scy_tree->restricted_dims, restricted_scy_tree->number_of_restricted_dims, F,
+                                                    num_obj, n, d)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                INSCYCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, scy_tree->restricted_dims, scy_tree->number_of_restricted_dims,
+                INSCYCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
                           F, num_obj, min_size, result,
-                          dim_no + 1, total_number_of_dim, calls);
+                          dim_no + 1, d, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 restricted_scy_tree->pruneRedundancy();//todo does nothing atm
@@ -74,7 +77,7 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tenso
 
         dim_no++;
     }
-    int total_inscy = pow(2, total_number_of_dim);
+    int total_inscy = pow(2, d);
     printf("CPU-INSCY(%d): %d%%      \r", calls, int((result.size() * 100) / total_inscy));
 }
 

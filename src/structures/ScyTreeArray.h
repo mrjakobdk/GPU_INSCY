@@ -66,8 +66,10 @@ public:
         cudaMemcpy(d_dim_start, h_dim_start, sizeof(int) * this->number_of_dims, cudaMemcpyHostToDevice);
         cudaMemcpy(d_dims, h_dims, sizeof(int) * this->number_of_dims, cudaMemcpyHostToDevice);
         cudaMemcpy(d_points, h_points, sizeof(int) * this->number_of_points, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_points_placement, h_points_placement, sizeof(int) * this->number_of_points,cudaMemcpyHostToDevice);
-        cudaMemcpy(d_restricted_dims, h_restricted_dims, sizeof(int) * this->number_of_restricted_dims,cudaMemcpyHostToDevice);
+        cudaMemcpy(d_points_placement, h_points_placement, sizeof(int) * this->number_of_points,
+                   cudaMemcpyHostToDevice);
+        cudaMemcpy(d_restricted_dims, h_restricted_dims, sizeof(int) * this->number_of_restricted_dims,
+                   cudaMemcpyHostToDevice);
         cudaDeviceSynchronize();
     }
 
@@ -75,11 +77,12 @@ public:
 
     ScyTreeArray *merge(ScyTreeArray *sibling_scy_tree);
 
-    ScyTreeArray *mergeWithNeighbors_gpu(ScyTreeArray *parent_scy_tree, int dim_no, int cell_no);
+    ScyTreeArray *mergeWithNeighbors_gpu1(ScyTreeArray *parent_scy_tree, int dim_no, int &cell_no);
 
     ScyTreeArray *restrict_gpu(int dim_no, int cell_no);
 
-    bool pruneRecursion_gpu(int min_size);
+    bool pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
+                            int num_obj);
 
     void pruneRedundancy_gpu() {
         //todo

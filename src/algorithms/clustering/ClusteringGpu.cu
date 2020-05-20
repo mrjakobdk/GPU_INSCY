@@ -9,6 +9,15 @@
 
 #define PI 3.14
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
+    if (code != cudaSuccess) {
+        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
+
 
 using namespace std;
 
@@ -128,6 +137,39 @@ void compute_is_dense(bool *d_is_dense, int *d_points, int number_of_points,
 }
 
 
+__global__
+void compute_is_dense_new(bool *d_is_dense, int *d_points, int number_of_points,
+                          float neighborhood_size,
+                          float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < number_of_points) {
+        int p_id = d_points[i];
+//        float p = phi_gpu(p_id, d_neighborhood, neighborhood_size, d_number_of_neighbors[i], X, d_points,
+//                          subspace, subspace_size, d);
+
+        float p = 0;
+
+        for (int j = 0; j < n; j++) {
+            int q_id = j;
+            if (p_id != q_id) {
+                float distance = dist_gpu(p_id, q_id, X, subspace, subspace_size, d);
+                if (neighborhood_size >= distance) {
+                    distance = distance / neighborhood_size;
+                    float sq = distance * distance;
+                    p += (1. - sq);
+                }
+            }
+        }
+
+        float a = alpha_gpu(subspace_size, neighborhood_size, n);
+        float w = omega_gpu(subspace_size);
+//        printf("%d:%d, %f>=%f\n", p_id, subspace_size, p, max(F * a, num_obj * w));
+//        printf("%d:%d, F=%f, a=%f, num_obj=%d, w=%f\n", p_id, subspace_size, F, a, num_obj, w);
+        d_is_dense[i] = p >= max(F * a, num_obj * w);
+    }
+}
+
+
 //for ref see: http://hpcg.purdue.edu/papers/Stava2011CCL.pdf
 __global__
 void disjoint_set_clustering(int *d_clustering, int *d_disjoint_set,
@@ -227,24 +269,32 @@ vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, floa
     find_neighborhood << < number_of_blocks, number_of_threads >> >
                                              (d_neighborhoods, d_number_of_neighbors, d_X, scy_tree->d_points, number_of_points, neighborhood_size, scy_tree->d_restricted_dims, number_of_restricted_dims, d);
 
+    gpuErrchk(cudaPeekAtLastError());
 
-    compute_is_dense << < number_of_blocks, number_of_threads >> >
-                                            (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size, d_number_of_neighbors, d_X, scy_tree->d_restricted_dims,
-                                                    scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+//    compute_is_dense << < number_of_blocks, number_of_threads >> >
+//                                            (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size, d_number_of_neighbors, d_X, scy_tree->d_restricted_dims,
+//                                                    scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+
+    compute_is_dense_new << < number_of_blocks, number_of_threads >> >
+                                                (d_is_dense, scy_tree->d_points, number_of_points, neighborhood_size, d_X, scy_tree->d_restricted_dims,
+                                                        scy_tree->number_of_restricted_dims, F, n, num_obj, d);
 
 
+    gpuErrchk(cudaPeekAtLastError());
 //    print_array_gpu<<<1, 1>>>(d_is_dense, number_of_points);
 
     disjoint_set_clustering << < 1, number_of_threads >> >
                                     (d_clustering, d_disjoint_set,
                                             d_neighborhoods, d_number_of_neighbors, d_is_dense,
                                             scy_tree->d_points, number_of_points);
+    gpuErrchk(cudaPeekAtLastError());
 
     int *h_clustering = new int[n];
     cudaMemcpy(h_clustering, d_clustering, sizeof(int) * n, cudaMemcpyDeviceToHost);
 
     vector<int> labels(h_clustering, h_clustering + n);
     cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
 //    printf("\nn:%d\n", n);
 //    printf("number_of_threads:%d\n", number_of_threads);
@@ -256,6 +306,7 @@ vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, floa
     cudaFree(d_disjoint_set);
     cudaFree(d_clustering);
     cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
     return labels;
 }

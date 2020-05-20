@@ -38,13 +38,12 @@ double omega(int subspace_size) {
 double dist(int p_id, int q_id, at::Tensor X, int *subspace, int subspace_size) {
     float* p = X[p_id].data_ptr<float>();
     float* q = X[q_id].data_ptr<float>();
-    double distance = 0;
+    double distance = 0.;
     for (int i = 0; i < subspace_size; i++) {
         int d_i = subspace[i];
         double diff = p[d_i] - q[d_i];
         distance += diff * diff;
     }
-
     return sqrt(distance);
 }
 
@@ -70,6 +69,7 @@ vector<int> neighborhood(ScyTreeNode *neighborhood_tree, int p_id, at::Tensor X,
             continue;
         }
         float distance = dist(p_id, q_id, X, subspace, subspace_size);
+//        printf("p_id: %d, q_id: %d, dist: %f\n",p_id, q_id, distance);
 
         if (neighborhood_size >= distance) {
             neighbors.push_back(q_id);
@@ -87,6 +87,7 @@ float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tens
         double d = dist(point_id, q_id, X, subspace, subspace_size) / neighborhood_size;
         double sq = d * d;
         sum += (1. - sq);
+//        printf("phi q_id: %d, d:%f\n", q_id, d);
     }
 
     return sum;
@@ -131,8 +132,8 @@ bool dense(int point_id, vector<int> neighbors, float neighborhood_size, at::Ten
     float a = alpha(subspace_size, neighborhood_size, n);
     float w = omega(subspace_size);
 
-//    printf("%d, %f>=%f\n",point_id, p, max(F * a, num_obj * w));
-//    printf("F=%f, a=%f, num_obj=%d, w=%f\n", F, a, num_obj, w);
+//    printf("%d:%d, %f>=%f\n",point_id, subspace_size, p, max(F * a, num_obj * w));
+//    printf("%d:%d, F=%f, a=%f, num_obj=%d, w=%f\n",point_id, subspace_size, F, a, num_obj, w);
     return p >= max(F * a, num_obj * w);
 }
 

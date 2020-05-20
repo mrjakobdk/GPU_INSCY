@@ -2,10 +2,11 @@
 #include "../utils/RestrictUtils.h"
 #include "../utils/MergeUtil.h"
 #include "../utils/util.h"
-#include "../algorithms/clustering/ClusteringGpu.cuh"
+//#include "../algorithms/clustering/ClusteringGpu.cuh"
 
 #define BLOCKSIZE 16
 #define BLOCK_SIZE 512
+#define PI 3.14
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
@@ -680,7 +681,7 @@ ScyTreeArray *ScyTreeArray::restrict_gpu(int dim_no, int cell_no) {
     return restricted_scy_tree;
 }
 
-ScyTreeArray *ScyTreeArray::mergeWithNeighbors_gpu(ScyTreeArray *parent_scy_tree, int dim_no, int cell_no) {
+ScyTreeArray *ScyTreeArray::mergeWithNeighbors_gpu1(ScyTreeArray *parent_scy_tree, int dim_no, int &cell_no) {
     if (!this->is_s_connected) {
         return this;
     }
@@ -889,50 +890,155 @@ void ScyTreeArray::print() {
     printf("\n");
 }
 
-//__global__
-//void
-//find_neighborhood_prune(int *d_neighborhoods, int *d_number_of_neighbors, float *X, int *d_points, int number_of_points,
-//                  float neighborhood_size,
-//                  int *subspace, int subspace_size,
-//                  int d) {
-//    int i = blockIdx.x * blockDim.x + threadIdx.x;
-//    if (i >= number_of_points) return;
-//
-//    int *d_neighborhood = &d_neighborhoods[i * number_of_points];
-//    int number_of_neighbors = 0;
-//    int p_id = d_points[i];
-//    for (int j = 0; j < number_of_points; j++) {
-//        int q_id = d_points[j];
-//        if (p_id != q_id) {
-//            float distance = dist_gpu(p_id, q_id, X, subspace, subspace_size, d);
-//            if (neighborhood_size >= distance) {
-//                d_neighborhood[number_of_neighbors] = j;//q_id;
-//                number_of_neighbors++;
-//            }
-//        }
-//    }
-//    d_number_of_neighbors[i] = number_of_neighbors;
-//}
-//
-//__global__
-//void compute_is_weak_dense_prune(bool *d_is_dense, int *d_points, int number_of_points,
-//                      int *d_neighborhoods, float neighborhood_size, int *d_number_of_neighbors,
-//                      float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
-//    int i = blockIdx.x * blockDim.x + threadIdx.x;
-//    if (i < number_of_points) {
-//        int *d_neighborhood = &d_neighborhoods[i * number_of_points];
-//
-//        int p_id = d_points[i];
-//        float p = phi_gpu(p_id, d_neighborhood, neighborhood_size, d_number_of_neighbors[i], X, d_points,
-//                          subspace, subspace_size, d);
-//        float a = alpha_gpu(d, neighborhood_size, n);
-//        float w = omega_gpu(d);
-//        d_is_dense[i] = p >= max(F * a, num_obj * w);
-//    }
-//}
 
-bool ScyTreeArray::pruneRecursion_gpu(int min_size){//, float *d_X, int n, int d, float neighborhood_size, float F,
-    //int num_obj) {
+__device__
+float dist_prune_gpu(int p_id, int q_id, float *X, int *subspace, int subspace_size, int d) {
+    float *p = &X[p_id * d];
+    float *q = &X[q_id * d];
+    double distance = 0;
+    for (int i = 0; i < subspace_size; i++) {
+        int d_i = subspace[i];
+        double diff = p[d_i] - q[d_i];
+        distance += diff * diff;
+    }
+    return sqrt(distance);//todo squared can be removed by sqrt(x)<=y => x<=y*y if x>=0, y>=0
+}
+
+
+__device__
+float phi_prune_gpu(int p_id, int *d_neighborhood, float neighborhood_size, int number_of_neighbors,
+                    float *X, int *d_points, int *subspace, int subspace_size, int d) {
+    float sum = 0;
+    for (int j = 0; j < number_of_neighbors; j++) {
+        int q_id = d_neighborhood[j];//d_points[d_neighborhood[j]];
+        if (q_id >= 0) {
+            float distance = dist_prune_gpu(p_id, q_id, X, subspace, subspace_size, d) / neighborhood_size;
+            float sq = distance * distance;
+            sum += (1. - sq);
+        }
+    }
+    return sum;
+}
+
+__device__
+double gamma_prune_gpu(int n) {
+    if (n == 2) {
+        return 1.;
+    } else if (n == 1) {
+        return sqrt(PI);
+    }
+    return (n / 2. - 1.) * gamma_prune_gpu(n - 2);
+}
+
+__device__
+float c_prune_gpu(int subspace_size) {
+    float r = pow(PI, subspace_size / 2.);
+    //r = r / gamma_gpu(subspace_size / 2. + 1.);
+    r = r / gamma_prune_gpu(subspace_size + 2);
+    return r;
+}
+
+__device__
+float alpha_prune_gpu(int subspace_size, float neighborhood_size, int n) {
+    float v = 1.;//todo v is missing?? what is it??
+    float r = 2 * n * pow(neighborhood_size, subspace_size) * c_prune_gpu(subspace_size);
+    r = r / (pow(v, subspace_size) * (subspace_size + 2));
+    return r;
+}
+
+__device__
+float omega_prune_gpu(int subspace_size) {
+    return 2.0 / (subspace_size + 2.0);
+}
+
+__global__
+void
+find_neighborhood_prune(int *d_neighborhoods, int *d_number_of_neighbors, float *X,
+                        int *d_points, int number_of_points, float neighborhood_size,
+                        int *subspace, int subspace_size, int n, int d) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= number_of_points) return;
+
+    int *d_neighborhood = &d_neighborhoods[i * n];//number_of_points];
+    int number_of_neighbors = 0;
+    int p_id = d_points[i];
+    for (int j = 0; j < n; j++) {//number_of_points; j++) {
+        int q_id = j;//d_points[j];
+        if (p_id != q_id) {
+            float distance = dist_prune_gpu(p_id, q_id, X, subspace, subspace_size, d);
+            if (neighborhood_size >= distance) {
+                d_neighborhood[number_of_neighbors] = j;//q_id;
+                number_of_neighbors++;
+            }
+        }
+    }
+    d_number_of_neighbors[i] = number_of_neighbors;
+}
+
+__global__
+void compute_is_weak_dense_prune(int *d_is_dense, int *d_points, int number_of_points,
+                                 int *d_neighborhoods, float neighborhood_size, int *d_number_of_neighbors,
+                                 float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < number_of_points) {
+        int *d_neighborhood = &d_neighborhoods[i * n];//number_of_points];
+
+        int p_id = d_points[i];
+        float p = phi_prune_gpu(p_id, d_neighborhood, neighborhood_size, d_number_of_neighbors[i], X, d_points,
+                                subspace, subspace_size, d);
+        float a = alpha_prune_gpu(d, neighborhood_size, n);
+        float w = omega_prune_gpu(d);
+//        printf("GPU p_id: %d, p: %f, max: %f, n_size:%d\n", p_id, p, max(F * a, num_obj * w), d_number_of_neighbors[i]);
+        d_is_dense[i] = (p >= max(F * a, num_obj * w) ? 1 : 0);
+    }
+}
+
+__global__
+void
+move_pruned_points(int *d_points, int *d_points_placement, int *d_new_position, int *d_is_dense, int number_of_points,
+                   int *d_counts, int *d_parents, int *d_dim_start, int number_of_nodes, int number_of_dims) {
+
+    for (int i = threadIdx.x; i < number_of_nodes; i += blockDim.x) {
+        if (d_counts[i] > 0) {
+            d_counts[i] = 0;
+        }
+    }
+
+    for (int i = 0; i < number_of_points; i += blockDim.x) {
+        int j = i + threadIdx.x;//needed to get all threads into the barrier
+        int new_pos = 0;
+        int point = 0;
+        int placement = 0;
+        if (j < number_of_points) {
+            new_pos = d_new_position[j] - 1;
+            point = d_points[j];
+            placement = d_points_placement[j];
+        }
+        __syncthreads();//this code looks strange, but we want all thread to reach this barrier
+        if (j < number_of_points && d_is_dense[j]) {
+            d_points[new_pos] = point;
+            d_points_placement[new_pos] = placement;
+            atomicAdd(&d_counts[placement], 1);
+        }
+    }
+
+    __syncthreads();
+
+    int leaf_start = number_of_dims > 0 ? d_dim_start[number_of_dims - 1] : 0;
+    for (int i = threadIdx.x + leaf_start; i < number_of_nodes; i += blockDim.x) {
+        int node = i;
+        int parent = d_parents[node];
+        int count = d_counts[node];
+        while (count > 0 && node > 0) {
+            atomicAdd(&d_counts[parent], count);
+            node = parent;
+            parent = d_parents[node];
+        }
+    }
+}
+
+bool ScyTreeArray::pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
+                                      int num_obj) {
     //todo we need more than min_size - but maybe do it in restrict instead
 
     //todo is weak dense
@@ -941,13 +1047,15 @@ bool ScyTreeArray::pruneRecursion_gpu(int min_size){//, float *d_X, int n, int d
 
     //todo get size and move
 
-
-
+//    if (this->number_of_points < min_size) {
+//        return false;
+//    }
+//
 //    int *d_neighborhoods; // number_of_points x number_of_points
 //    int *d_number_of_neighbors; // number_of_points //todo maybe not needed
 //    int *d_is_dense; // number_of_points
 //    int *d_new_position; // number_of_points
-//    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * number_of_points);
+//    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * n);//number_of_points);
 //    cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points);
 //    cudaMalloc(&d_is_dense, sizeof(int) * number_of_points);
 //    cudaMalloc(&d_new_position, sizeof(int) * number_of_points);
@@ -955,25 +1063,70 @@ bool ScyTreeArray::pruneRecursion_gpu(int min_size){//, float *d_X, int n, int d
 //    int number_of_blocks = number_of_points / BLOCK_SIZE;
 //    if (number_of_points % BLOCK_SIZE) number_of_blocks++;
 //    int number_of_threads = min(number_of_points, BLOCK_SIZE);
+////    printf("before number_of_points: %d\n", number_of_points);
 //
+//    gpuErrchk(cudaPeekAtLastError());
+////    printf("<<<%d, %d>>>\n", number_of_blocks, number_of_threads);
 //    find_neighborhood_prune << < number_of_blocks, number_of_threads >> >
-//                                             (d_neighborhoods, d_number_of_neighbors, d_X, this->d_points, number_of_points, neighborhood_size, this->d_restricted_dims, number_of_restricted_dims, d);
+//                                                   (d_neighborhoods, d_number_of_neighbors, d_X,
+//                                                           this->d_points, number_of_points, neighborhood_size,
+//                                                           this->d_restricted_dims, number_of_restricted_dims, n, d);
 //
+//
+//    cudaDeviceSynchronize();
+//    gpuErrchk(cudaPeekAtLastError());
 //
 //    compute_is_weak_dense_prune << < number_of_blocks, number_of_threads >> >
-//                                            (d_is_dense, this->d_points, number_of_points, d_neighborhoods, neighborhood_size, d_number_of_neighbors, d_X, this->d_restricted_dims,
-//                                                    this->number_of_restricted_dims, F, n, num_obj, d);
+//                                                       (d_is_dense, this->d_points, number_of_points, d_neighborhoods,
+//                                                               neighborhood_size, d_number_of_neighbors, d_X,
+//                                                               this->d_restricted_dims, this->number_of_restricted_dims,
+//                                                               F, n, num_obj, d);
 //
-//    inclusive_scan(d_new_position, d_is_dense, number_of_points);
+////    cudaDeviceSynchronize();
+////    print_array_gpu<<<1,1>>>(d_is_dense, number_of_points);
+////    cudaDeviceSynchronize();
+////    printf("\n");
+//    cudaDeviceSynchronize();
+//    gpuErrchk(cudaPeekAtLastError());
+//
+//    inclusive_scan(d_is_dense, d_new_position, number_of_points);
+////    cudaDeviceSynchronize();
+////    print_array_gpu<<<1,1>>>(d_new_position, number_of_points);
+////    cudaDeviceSynchronize();
+//    gpuErrchk(cudaPeekAtLastError());
 //
 //
-//    move_pruned_points<<<1, BLOCK_SIZE, number_of_points*sizeof(int)>>>(this->d_points, this->d_points_placement,
-//                                                                        d_new_position, d_is_dense, number_of_points);
+////    cudaDeviceSynchronize();
+////    printf("before d_counts:\n");
+////    print_array_gpu<<<1, 1>>>(d_counts, number_of_nodes);
+////    cudaDeviceSynchronize();
+////    printf("\n");
+////
+////    move_pruned_points<<<1, BLOCK_SIZE, number_of_points*sizeof(int)>>>(d_points, d_points_placement,
+////                                                                        d_new_position, d_is_dense, number_of_points,
+////                                                                        d_counts, d_parents, d_dim_start,
+////                                                                        number_of_nodes, number_of_dims);
 //
+//
+//    cudaDeviceSynchronize();
+////    printf("after d_counts:\n");
+////    print_array_gpu<<<1, 1>>>(d_counts, number_of_nodes);
+////    cudaDeviceSynchronize();
+////    printf("\n");
+//
+//    gpuErrchk(cudaPeekAtLastError());
 //    int *h_tmp = new int[1];
 //    h_tmp[0] = 0;
 //    cudaMemcpy(h_tmp, d_new_position + number_of_points - 1, sizeof(int), cudaMemcpyDeviceToHost);
-//    this->number_of_points = h_tmp[0];
+//    int puned_number_of_points = h_tmp[0];
+////    printf("after number_of_points: %d\n", number_of_points);
+//
+//    cudaFree(d_neighborhoods);
+//    cudaFree(d_number_of_neighbors);
+//    cudaFree(d_is_dense);
+//    cudaFree(d_new_position);
+//
+//    return puned_number_of_points >= min_size;
 
     return this->number_of_points >= min_size;
 }

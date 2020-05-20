@@ -29,29 +29,29 @@ vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int n
 
     int number_of_cells = 3;
     int n = X.size(0);
-    int subspace_size = X.size(1);
+    int d = X.size(1);
 
 
-    int *subspace = new int[subspace_size];
+    int *subspace = new int[d];
 
-    for (int i = 0; i < subspace_size; i++) {
+    for (int i = 0; i < d; i++) {
         subspace[i] = i;
     }
 
-    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size);
+    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, d, n, neighborhood_size);
 //    scy_tree->print();
-    ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
+    ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), d, n,
                                                      neighborhood_size);
 
     map<int, vector<int>> result;
 
     int calls = 0;
-    INSCYCPU2(scy_tree, neighborhood_tree, X, n, neighborhood_size, subspace, subspace_size, F, num_obj, min_size,
-              result, 0, subspace_size, calls);
+    INSCYCPU2(scy_tree, neighborhood_tree, X, n, neighborhood_size, F, num_obj, min_size,
+              result, 0, d, calls);
     printf("CPU-INSCY(%d): 100%%      \n", calls);
 
     vector<at::Tensor> tuple;
-    at::Tensor subspaces = at::zeros({result.size(), subspace_size}, at::kInt);
+    at::Tensor subspaces = at::zeros({result.size(), d}, at::kInt);
     at::Tensor clusterings = at::zeros({result.size(), n}, at::kInt);
     tuple.push_back(subspaces);
     tuple.push_back(clusterings);

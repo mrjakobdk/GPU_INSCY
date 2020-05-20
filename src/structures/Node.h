@@ -15,8 +15,8 @@ public:
     int count;
     int cell_no;
     bool is_leaf;
-    std::map<int, Node *> children;
-    std::map<int, Node *> s_connections;
+    map<int, Node *> children;
+    map<int, Node *> s_connections;
     vector<int> points;
 
     Node(int cell_no) :
