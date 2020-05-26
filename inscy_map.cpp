@@ -16,6 +16,7 @@
 #include "src/utils/util.h"
 #include "src/structures/ScyTreeNode.h"
 #include "src/structures/ScyTreeArray.h"
+#include "src/algorithms/inscy/InscyCompare.cuh"
 #include "src/algorithms/inscy/InscyNodeCpu.h"
 #include "src/algorithms/inscy/InscyCpuGpuMix.h"
 #include "src/algorithms/clustering/ClusteringGpu.cuh"
@@ -75,6 +76,59 @@ vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int n
 
     return tuple;
 }
+
+
+vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
+
+    int number_of_cells = 3;
+    int n = X.size(0);
+    int d = X.size(1);
+
+
+    int *subspace = new int[d];
+
+    for (int i = 0; i < d; i++) {
+        subspace[i] = i;
+    }
+
+    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, d, n, neighborhood_size);
+//    scy_tree->print();
+    ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), d, n,
+                                                     neighborhood_size);
+
+    map<int, vector<int>> result;
+
+    int calls = 0;
+    INSCYCompare(scy_tree, neighborhood_tree, X, n, neighborhood_size, F, num_obj, min_size,
+              result, 0, d, calls);
+    printf("CPU-INSCY(%d): 100%%      \n", calls);
+
+    vector<at::Tensor> tuple;
+    at::Tensor subspaces = at::zeros({result.size(), d}, at::kInt);
+    at::Tensor clusterings = at::zeros({result.size(), n}, at::kInt);
+    tuple.push_back(subspaces);
+    tuple.push_back(clusterings);
+
+    int j = 0;
+    for (auto p : result) {
+        int dims = p.first;
+        std::bitset<32> y(dims);
+        for (int i = 0; i < 32; i++) {
+            if (y[i] > 0) {
+                subspaces[j][i] = 1;
+            }
+        }
+        vector<int> clustering = p.second;
+        for (int i = 0; i < n; i++) {
+            clusterings[j][i] = clustering[i];
+        }
+        j++;
+    }
+
+
+    return tuple;
+}
+
 
 
 vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
@@ -210,6 +264,7 @@ vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int n
 //    scy_tree->print();
 //    printf("GPU-INSCY(Converting ScyTree...): 0%%      \n");
     ScyTreeArray *scy_tree_gpu = scy_tree->convert_to_ScyTreeArray();
+    printf("starting nodes: %d\n", scy_tree_gpu->number_of_nodes);
 //    printf("GPU-INSCY(Copying to Device...): 0%%      \n");
     scy_tree_gpu->copy_to_device();
 //    scy_tree_gpu->print();
@@ -309,6 +364,7 @@ vector<at::Tensor> run_gpu_stream(at::Tensor X, float neighborhood_size, float F
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m
 ) {
 m.def("run_cpu",    &run_cpu,    "");
+m.def("run_cmp",    &run_cmp,    "");
 m.def("run_cpu_gpu_mix",    &run_cpu_gpu_mix,    "");
 m.def("run_cpu_gpu_mix_cl_steam",    &run_cpu_gpu_mix_cl_steam,    "");
 m.def("run_gpu",    &run_gpu,    "");

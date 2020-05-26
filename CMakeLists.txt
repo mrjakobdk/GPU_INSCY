@@ -3,4 +3,4 @@ project(GPU_INSCY)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(inscy_map inscy_map.cpp src/algorithms/inscy/InscyCpuGpuMixClStream.cu)
+add_executable(inscy_map inscy_map.cpp src/algorithms/inscy/InscyCpuGpuMixClStream.cu src/algorithms/inscy/InscyCompare.cu src/algorithms/inscy/InscyCompare.cuh)

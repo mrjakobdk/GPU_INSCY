@@ -5,8 +5,6 @@
 #ifndef GPU_INSCY_SCYTREEARRAY_H
 #define GPU_INSCY_SCYTREEARRAY_H
 
-#define BLOCK_WIDTH 64
-
 class ScyTreeArray {
 public:
 
@@ -23,6 +21,7 @@ public:
     //device variables
     int d_number_of_cells;
     int d_number_of_dims;
+
     int d_number_of_restricted_dims;
     int d_number_of_nodes;
     int d_number_of_points;
@@ -59,19 +58,7 @@ public:
     ScyTreeArray(int number_of_nodes, int number_of_dims, int number_of_restricted_dims, int number_of_points,
                  int number_of_cells);
 
-    void copy_to_device() {
-        cudaMemcpy(d_parents, h_parents, sizeof(int) * this->number_of_nodes, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_cells, h_cells, sizeof(int) * this->number_of_nodes, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_counts, h_counts, sizeof(int) * this->number_of_nodes, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_dim_start, h_dim_start, sizeof(int) * this->number_of_dims, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_dims, h_dims, sizeof(int) * this->number_of_dims, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_points, h_points, sizeof(int) * this->number_of_points, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_points_placement, h_points_placement, sizeof(int) * this->number_of_points,
-                   cudaMemcpyHostToDevice);
-        cudaMemcpy(d_restricted_dims, h_restricted_dims, sizeof(int) * this->number_of_restricted_dims,
-                   cudaMemcpyHostToDevice);
-        cudaDeviceSynchronize();
-    }
+    void copy_to_device();
 
     int get_dims_idx();
 

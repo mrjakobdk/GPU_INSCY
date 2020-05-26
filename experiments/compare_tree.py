@@ -5,13 +5,13 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params = {"n": 400,
+params = {"n": 200,
           "neighborhood_size": 0.15,
-          "F": 10.,
-          "num_obj": 2,
-          "min_size": int(400 * 0.01),
-          "subspace_size_min": 2,
-          "subspace_size_max": 10}
+          "F": 5.,
+          "num_obj": 10,
+          "min_size": 2,
+          "subspace_size_min": 10,
+          "subspace_size_max": 12}
 
 print("Loading Glove...")
 t0 = time.time()
@@ -25,10 +25,7 @@ times = []
 for subspace_size in subspace_sizes:
     X_ = X[:, :subspace_size].clone()
     t0 = time.time()
-    subspaces, clusterings = INSCY.run_cpu(X_, params["neighborhood_size"], params["F"],
+    subspaces, clusterings = INSCY.run_cmp(X_, params["neighborhood_size"], params["F"],
                                            params["num_obj"], params["min_size"])
-    times.append(time.time() - t0)
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
-
-np.savez('plot_data/inc_d/const_n=300_cpu.npz', subspace_sizes=subspace_sizes, times=times, params=params)

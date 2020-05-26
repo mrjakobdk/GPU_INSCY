@@ -10,7 +10,7 @@ params = {"sqrt(n_min)": 6,
           "neighborhood_size": 0.15,
           "F": 10.,
           "num_obj": 2,
-          "min_size": int(400 * 0.01),
+          "min_size": 0.01,
           "subspace_size": 5}
 
 print("Loading Glove...")
@@ -26,7 +26,7 @@ for n in ns:
     X_ = X[:n, :].clone()
     t0 = time.time()
     subspaces, clusterings = INSCY.run_cpu(X_, params["neighborhood_size"], params["F"],
-                                           params["num_obj"], params["min_size"])
+                                           params["num_obj"], max(1, int(n * params["min_size"])))
     times.append(time.time() - t0)
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()

@@ -10,7 +10,7 @@ params={"n": 400,
         "num_obj" : 2,
         "min_size": int(400 * 0.01),
         "subspace_size_min" : 2,
-        "subspace_size_max" : 7}
+        "subspace_size_max" : 10}
 
 print("Loading Glove...")
 t0 = time.time()
@@ -24,6 +24,7 @@ times = []
 subspaces, clusterings = INSCY.run_gpu(X[:, :2], params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
 for subspace_size in subspace_sizes:
     X_ = X[:, :subspace_size].clone()
+    print("d:",subspace_size)
     t0 = time.time()
     subspaces, clusterings = INSCY.run_gpu(X_, params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
     times.append(time.time() - t0)

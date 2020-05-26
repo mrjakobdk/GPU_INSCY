@@ -80,7 +80,14 @@ void merge_move(int *cells_1, int *cells_2, int *cells_3, int *parents_1, int *p
         counts_3[i_new] = -1;
     }
 
-    parents_3[i_new] = new_indecies[map_to_new[parents[i_old] + (i_per < n_1 ? 0 : n_1)]] - 1;
+    parents_3[i_new] = new_indecies[map_to_new[parents[i_old] + (i_per < n_1 ? 0 : n_1)]] -
+                       1;//todo should there actually be minus one?
+//    if (parents_3[i_new] == 74) {
+//        printf("\n\n it is 74 at i:%d, i_new:%d, i_old:%d, i_per:%d, parents[i_old]:%d, map_to_new[..]:%d, new_indecies[..]:%d\n\n",
+//               i, i_new, i_old, i_per, parents[i_old],
+//               map_to_new[parents[i_old] + (i_per < n_1 ? 0 : n_1)],
+//               new_indecies[map_to_new[parents[i_old] + (i_per < n_1 ? 0 : n_1)]]);
+//    }
 }
 
 __global__
@@ -122,13 +129,39 @@ merge_check_path_from_pivots(int start_1, int start_2, int end_1, int end_2, int
 
     //check
     for (int s = 0; s < step && i + s < end_1 + end_2; s++) {
+//        printf("test 1\n");
+//        printf("(m_1 < end_1 && m_2 < end_2), (%d < %d && %d < %d), s:%d\n", m_1, end_1, m_2, end_2, s);
         bool on = (m_1 < end_1 && m_2 < end_2) ? c(m_1, m_2) : (m_2 == end_2);
+        //todo i think there is a problem here!!! what if (m_2 == end_2) && (m_1 == end_1)
+//        printf("test 2\n");
+
+//        if (m_2 == 163) {
+//            printf("(m_1 < end_1 && m_2 < end_2), (%d < %d && %d < %d), s:%d\n", m_1, end_1, m_2, end_2, s);
+//            if (on) {
+//                printf("on\n");
+//            } else {
+//                printf("off\n");
+//            }
+//        }
 
         if (on) {
+
+//            if(map_to_new[m_1] != -99){
+//                printf("something went wrong here!\n");
+//                printf("(m_1 < end_1 && m_2 < end_2), (%d < %d && %d < %d), s:%d\n", m_1, end_1, m_2, end_2, s);
+//            }
+
             map_to_old[i + s] = m_1;
             map_to_new[m_1] = i + s;
             m_1++;
         } else {
+
+
+//            if(map_to_new[m_2 + n_1] != -99){
+//                printf("no, something went wrong here!\n");
+//                printf("(m_1 < end_1 && m_2 < end_2), (%d < %d && %d < %d), s:%d\n", m_1, end_1, m_2, end_2, s);
+//            }
+
             map_to_old[i + s] = m_2 + n_1;
             map_to_new[m_2 + n_1] = i + s;
             m_2++;
@@ -171,29 +204,34 @@ compute_is_included_from_path(int start_1, int start_2, int *is_included, int *m
         is_included[k] = 0;
         while (true) {
 
-            if ((count_i >= 0 && count_j == -1) || (count_i == -1 && count_j >= 0)) {
+            if ((count_i >= 0 && count_j < 0) || (count_i < 0 && count_j >= 0)) {
                 is_included[k] = 1;
-                return;
+                break;
             }
 
             if (cell_i != cell_j) {
                 is_included[k] = 1;
-                return;
+                break;
             }
 
             if (parent_i == 0 && parent_j == 0) {
-                return;
+                break;
             }
 
             if (parent_j == 0 || parent_i == 0) {
                 is_included[k] = 1;
-                return;
+                break;
             }
 
             cell_i = d_cells_l[parent_i];
             cell_j = d_cells_r[parent_j];
+            //todo new start
+            count_i = d_counts_l[parent_i];
+            count_j = d_counts_r[parent_j];
+            //todo new end
             parent_i = d_parents_l[parent_i];
             parent_j = d_parents_r[parent_j];
+
         }
     }
 }
@@ -250,6 +288,7 @@ merge_search_for_pivots(int start_1, int start_2, int end_1, int end_2, int *piv
             l_1 = m_1 + 1;
             l_2 = m_2 - 1;
         }
+
     }
     pivots_1[j] = m_1;
     pivots_2[j] = m_2;

@@ -15,6 +15,7 @@ inscy = load(name="inscy1",
                       "src/algorithms/clustering/ClusteringCpu.cu",
                       "src/algorithms/clustering/ClusteringGpu.cu",
                       "src/algorithms/clustering/ClusteringGpuStreams.cu",
+                      "src/algorithms/inscy/InscyCompare.cu",
                       "src/algorithms/inscy/InscyNodeCpu.cu",
                       "src/algorithms/inscy/InscyCpuGpuMix.cu",
                       "src/algorithms/inscy/InscyCpuGpuMixClStream.cu",
@@ -38,8 +39,25 @@ def normalize(x):
     #     normalised = torch.zeros(vector.size())
 
 
+def clean_up(subspaces, clusterings):
+    number_of_different_subspaces = clusterings.size()[0]
+    number_of_points = clusterings.size()[1]
+    print(clusterings)
+    for i in range(number_of_different_subspaces):
+        bins = {}
+        for j in range(number_of_points):
+            if clusterings[i, j] >= 0:
+                pass
+    return subspaces, clusterings
+
+
 def run_cpu(X, neighborhood_size, F, num_obj, min_size):
-    return inscy.run_cpu(X, neighborhood_size, F, num_obj, min_size)
+    subspaces, clusterings = inscy.run_cpu(X, neighborhood_size, F, num_obj, min_size)
+    return subspaces, clusterings#clean_up(subspaces, clusterings)
+
+
+def run_cmp(X, neighborhood_size, F, num_obj, min_size):
+    return inscy.run_cmp(X, neighborhood_size, F, num_obj, min_size)
 
 
 def run_cpu_gpu_mix(X, neighborhood_size, F, num_obj, min_size):

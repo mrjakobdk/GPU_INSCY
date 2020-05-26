@@ -5,13 +5,13 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params = {"n": 100,
-          "neighborhood_size": 0.15,
-          "F": 5.,
+params = {"n": 400,
+          "neighborhood_size": 0.10,
+          "F": 10.,
           "num_obj": 10,
-          "min_size": 2,
+          "min_size": 4,
           "subspace_size_min": 2,
-          "subspace_size_max": 7}
+          "subspace_size_max": 9}
 
 print("Loading Glove...")
 t0 = time.time()
@@ -51,5 +51,5 @@ for subspace_size in subspace_sizes:
             if clusterings_cpu[i, j] >= 0 and clusterings_gpu[i, j] >= 0:
                 in_clus += 1
     print("diff:", diff, "in cluster:", in_clus)
-    if diff > 0:
-        break
+    # if diff > 0:
+    #     break

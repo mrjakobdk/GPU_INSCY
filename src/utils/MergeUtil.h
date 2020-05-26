@@ -37,15 +37,37 @@ struct cmp : public binary_function<int, int, bool> {
      */
     __device__
     bool operator()(const int i, const int j) const {
-
+//        if (i > 900 && j == 240) {
+//            printf("\ntest init\n\n");
+//        }
+//        printf("i:%d, j:%d\n",i,j);
         int c_i = c_1[i];
         int c_j = c_2[j];
         int p_i = p_1[i];
         int p_j = p_2[j];
         int count_i = count_1[i];
         int count_j = count_2[j];
-        int new_p_i = new_indecies[map_to_new[p_i]];
-        int new_p_j = new_indecies[map_to_new[p_j + n_1]];
+//        printf("c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d\n",
+//               c_i, c_j, p_i, p_j, count_i, count_j);
+        int map_i = map_to_new[p_i];
+        int map_j = map_to_new[p_j + n_1];
+//        printf("c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d, map_i:%d, map_j:%d\n",
+//               c_i, c_j, p_i, p_j, count_i, count_j, map_i, map_j);
+        int new_p_i = new_indecies[map_i];
+        int new_p_j = new_indecies[map_j];
+
+//        if(map_i<0 || map_j<0 || new_p_i<0 || new_p_j<0){
+//            printf("\n\n %d, %d, %d, %d\n\n", map_i, map_j, new_p_i, new_p_j);
+//        }
+
+//        printf("c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d, map_i:%d, map_j:%d, new_p_i:%d, new_p_j:%d\n",
+//               c_i, c_j, p_i, p_j, count_i, count_j, map_i, map_j, new_p_i, new_p_j);
+
+//        if (j == 163) {
+//            printf("\ntest 0\n");
+//            printf("c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d, map_i:%d, map_j:%d, new_p_i:%d, new_p_j:%d\n",
+//                   c_i, c_j, p_i, p_j, count_i, count_j, map_i, map_j, new_p_i, new_p_j);
+//        }
 
         if (p_i == i && p_j == j) //if both is root
             return false;
@@ -53,8 +75,16 @@ struct cmp : public binary_function<int, int, bool> {
             return true;
         if (p_j == j) //only´j is root
             return false;
-        if (new_p_i != new_p_j)//parents are not the same
+
+
+//        if (i > 900 && j == 240) {
+//            printf("\ntest 1\n\n");
+//        }
+
+        if (new_p_i != new_p_j) {//parents are not the same
             return new_p_i < new_p_j;
+        }
+
         //they have the same parent
         if (count_i > -1 && count_j > -1)//both are not s-connection
             return c_i < c_j;//order by cell_no

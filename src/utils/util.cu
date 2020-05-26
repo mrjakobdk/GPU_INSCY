@@ -50,7 +50,7 @@ void print_array_gpu(int *x, int n) {
             printf(" ");
         if (x[i] < 100)
             printf(" ");
-        printf("%d ", (int) x[i]);
+        printf("%d ", x[i]);
     }
     printf("\n");
 }
@@ -81,6 +81,9 @@ void scan_kernel_eff(int *x, int *y, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) {
         XY[threadIdx.x] = x[i];
+//        if(x[i]<0){
+//            printf("\n\nnegative number encountered!!!\n\n");
+//        }
     }
 
     for (unsigned int stride = 1; stride <= blockDim.x; stride *= 2) {
@@ -115,6 +118,9 @@ void scan_kernel_eff_large1(int *x, int *y, int *S, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) {
         XY[threadIdx.x] = x[i];
+//        if(x[i]<0){
+//            printf("\n\nnegative number encountered!!!\n\n");
+//        }
     }
 
     for (unsigned int stride = 1; stride <= blockDim.x; stride *= 2) {

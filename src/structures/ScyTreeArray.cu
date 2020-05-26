@@ -74,6 +74,105 @@ __global__ void PrefixSum(int *dInArray, int *dOutArray, int arrayLen, int threa
 
 #define BLOCK_WIDTH 64
 
+__global__
+void
+merge_search_for_pivots_new(int block_idx_x, int block_dim_x, int thread_idx_x, int start_1, int start_2, int end_1,
+                            int end_2, int *pivots_1,
+                            int *pivots_2,
+                            int number_of_nodes_1,
+                            int number_of_nodes_2,
+                            int number_of_nodes_total,
+                            int step, cmp c) {
+    //this is very close to the code from:
+    //https://web.cs.ucdavis.edu/~amenta/f15/GPUmp.pdf: GPU Merge Path - A GPU Merging Algorithm
+    //also see Merge path - parallel merging made simple. In Parallel and Distributed Processing Symposium, International,may2012.
+    int j = block_idx_x * block_dim_x + thread_idx_x;
+    int i = j * step;
+    int length_1 = end_1 - start_1;
+    int length_2 = end_2 - start_2;
+
+    if (i >= length_1 + length_2)
+        return;
+
+    //binary search
+    int r_1 = min(end_1, start_1 + i);
+    int r_2 = start_2 + max(0, i - (length_1));
+    int l_1 = start_1 + max(0, i - (length_2));
+    int l_2 = min(end_2, start_2 + i);
+    int m_1 = 0;
+    int m_2 = 0;
+
+    if (i == 132) {
+        printf("i:%d, j:%d, start_1: %d, start_2: %d, end_1: %d, end_2: %d\n", i, j, start_1, start_2, end_1, end_2);
+
+        int offset = (r_1 - l_1) / 2;
+        m_1 = r_1 - offset;
+        m_2 = r_2 + offset;
+
+        printf("m_1: %d, m_2: %d, r_1: %d, l_1: %d\n", m_1, m_2, r_1, l_1);
+        bool not_above = (m_2 == 0 || m_1 == end_1 || !c(m_1, m_2 - 1));
+        bool left_off = (m_1 == 0 || m_2 == end_2 || c(m_1 - 1, m_2));
+        if (not_above) {
+            printf("not_above %d\n", i);
+            if (left_off) {
+                printf("left_off %d\n", i);
+            } else {
+                printf("not_left_off %d\n", i);
+            }
+        } else {
+            printf("above %d\n", i);
+        }
+        for (int x = m_1 - 2; x < m_1 + 3; x++) {
+            for (int y = m_2 - 2; y < m_2 + 3; y++) {
+                if (x >= end_1 || y >= end_2 || x < start_1 || y < start_2) {
+                    printf("- ");
+                } else if (c(x, y)) {
+                    printf("1 ");
+                } else {
+                    printf("0 ");
+                }
+            }
+            printf("\n");
+        }
+    }
+
+    while (true) {//L <= R:
+        int offset = (r_1 - l_1) / 2;
+        m_1 = r_1 - offset;
+        m_2 = r_2 + offset;
+
+        bool not_above = (m_2 == 0 || m_1 == end_1 || !c(m_1, m_2 - 1));
+        bool left_off = (m_1 == 0 || m_2 == end_2 || c(m_1 - 1, m_2));
+
+
+        if (not_above) {
+            if (left_off) {
+                break;
+            } else {
+                r_1 = m_1 - 1;
+                r_2 = m_2 + 1;
+            }
+        } else {
+            l_1 = m_1 + 1;
+            l_2 = m_2 - 1;
+        }
+
+
+    }
+
+    pivots_1[j] = m_1;
+    pivots_2[j] = m_2;
+}
+
+__global__
+void print_c(cmp c, int i, int j) {
+    if (c(i, j)) {
+        printf("1 ");
+    } else {
+        printf("0 ");
+    }
+}
+
 void merge_using_gpu(int *d_parents_1, int *d_cells_1, int *d_counts_1,
                      int *d_dim_start_1, int *d_dims_1, int *d_restricted_dims_1,
                      int *d_points_1, int *d_points_placement_1,
@@ -103,17 +202,47 @@ void merge_using_gpu(int *d_parents_1, int *d_cells_1, int *d_counts_1,
     int *d_is_included;
     int *d_new_indecies;
     cudaMalloc(&d_map_to_new, n_total * sizeof(int));
-    cudaMemset(d_map_to_new, -1, n_total * sizeof(int));
+    cudaMemset(d_map_to_new, -99, n_total * sizeof(int));
+    cudaDeviceSynchronize();
+    memset << < 1, 1 >> > (d_map_to_new, 0, 1);//q
+    memset << < 1, 1 >> > (d_map_to_new, 0 + n_1, 0);//q
+
     cudaMalloc(&d_map_to_old, n_total * sizeof(int));
-    cudaMemset(d_map_to_old, -1, n_total * sizeof(int));
+    cudaMemset(d_map_to_old, -88, n_total * sizeof(int));
+    cudaDeviceSynchronize();
+    memset << < 1, 1 >> > (d_map_to_old, 1, 0);//q
+    memset << < 1, 1 >> > (d_map_to_old, 0, 0 + n_1);//q
+
     cudaMalloc(&d_is_included, n_total * sizeof(int));
-    cudaMemset(d_is_included, -1, n_total * sizeof(int));
-    cudaMemset(d_is_included, 1, sizeof(int));//root should always be included
+    cudaMemset(d_is_included, -77, n_total * sizeof(int));
+    memset << < 1, 1 >> > (d_is_included, 0, 1);//root should always be included
+    memset << < 1, 1 >> > (d_is_included, 1, 0);//q
+
     cudaMalloc(&d_new_indecies, n_total * sizeof(int));
     cudaMemset(d_new_indecies, 0, n_total * sizeof(int));
+    cudaDeviceSynchronize();
+    memset << < 1, 1 >> > (d_new_indecies, 0, 1);//q
+    memset << < 1, 1 >> > (d_new_indecies, 1, 1);//q
 
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
+
+//    printf("d_new_indecies\n");
+//    print_array_gpu<<< 1, 1 >>>(d_new_indecies, n_total);
+//    cudaDeviceSynchronize();
+//    gpuErrchk(cudaPeekAtLastError());
+//    printf("d_map_to_new\n");
+//    print_array_gpu<<< 1, 1 >>>(d_map_to_new, n_total);
+//    cudaDeviceSynchronize();
+//    gpuErrchk(cudaPeekAtLastError());
+//    printf("d_map_to_old\n");
+//    print_array_gpu<<< 1, 1 >>>(d_map_to_old, n_total);
+//    cudaDeviceSynchronize();
+//    gpuErrchk(cudaPeekAtLastError());
+//    printf("d_is_included\n");
+//    print_array_gpu<<< 1, 1 >>>(d_is_included, n_total);
+//    cudaDeviceSynchronize();
+//    gpuErrchk(cudaPeekAtLastError());
 
     int *h_dim_start_1 = new int[d_1];
     int *h_dim_start_2 = new int[d_2];
@@ -134,7 +263,7 @@ void merge_using_gpu(int *d_parents_1, int *d_cells_1, int *d_counts_1,
 
     gpuErrchk(cudaPeekAtLastError());
 
-    for (int d_i = -1; d_i < d_1; d_i++) {
+    for (int d_i = -1; d_i < d_1; d_i++) {//todo root always has the same result, so it can be avoided
 
         int start_1 = d_i == -1 ? 0 : h_dim_start_1[d_i];
         int start_2 = d_i == -1 ? 0 : h_dim_start_2[d_i];
@@ -147,32 +276,113 @@ void merge_using_gpu(int *d_parents_1, int *d_cells_1, int *d_counts_1,
         numBlocks = length / (BLOCK_WIDTH * step);
         if (length % (BLOCK_WIDTH * step)) numBlocks++;
 
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+
+//        if (numBlocks == 5) {
+//            printf("\nn_1:%d, n_2:%d\n", n_1, n_2);
+//            print_array(h_dim_start_1, d_1);
+//            print_array(h_dim_start_2, d_2);
+//            printf("d_new_indecies\n");
+//            print_array_gpu<<< 1, 1 >>>(d_new_indecies, n_total);
+//            cudaDeviceSynchronize();
+//            gpuErrchk(cudaPeekAtLastError());
+//            printf("d_map_to_new\n");
+//            print_array_gpu<<< 1, 1 >>>(d_map_to_new, n_total);
+//            cudaDeviceSynchronize();
+//            gpuErrchk(cudaPeekAtLastError());
+//            printf("d_is_included\n");
+//            print_array_gpu<<< 1, 1 >>>(d_is_included, n_total);
+//            cudaDeviceSynchronize();
+//            gpuErrchk(cudaPeekAtLastError());
+//            printf("d_parents_1\n");
+//            print_array_gpu<<< 1, 1 >>>(d_parents_1, n_1);
+//            cudaDeviceSynchronize();
+//            gpuErrchk(cudaPeekAtLastError());
+//            printf("d_parents_2\n");
+//            print_array_gpu<<< 1, 1 >>>(d_parents_2, n_2);
+//            cudaDeviceSynchronize();
+//            gpuErrchk(cudaPeekAtLastError());
+//            printf("(%d, %d), (%d, %d)\n", start_1, end_1, start_2, end_2);
+//            printf("<<<%d, %d>>>\n", numBlocks, BLOCK_WIDTH);
+//
+////            cmp c(d_new_indecies, d_map_to_new, d_parents_1, d_parents_2,
+////                  d_cells_1, d_cells_2, d_counts_1, d_counts_2, n_1);
+////
+////            for (int i = -1; i < d_1; i++) {
+////
+////                int s_1 = i == -1 ? 0 : h_dim_start_1[i];
+////                int s_2 = i == -1 ? 0 : h_dim_start_2[i];
+////                int e_1 = i == -1 ? 1 : (i + 1 < d_1 ? h_dim_start_1[i + 1] : n_1);
+////                int e_2 = i == -1 ? 1 : (i + 1 < d_1 ? h_dim_start_2[i + 1] : n_2);
+////                for (int i = s_1; i < e_1; i++) {
+////                    for (int j = s_2; j < e_2; j++) {
+////                        print_c <<<1, 1 >>>(c, i, j);
+////                        cudaDeviceSynchronize();
+////                        gpuErrchk(cudaPeekAtLastError());
+////                    }
+////                    printf("\n");
+////                }
+////                printf("\n");
+////                printf("\n");
+////            }
+//
+//            for (int block_idx_x = 0; block_idx_x < numBlocks; block_idx_x++) {
+//                printf("%d\n\n", block_idx_x);
+//                for (int thread_idx_x = 0; thread_idx_x < BLOCK_WIDTH; thread_idx_x++) {
+//                    merge_search_for_pivots_new << < 1, 1 >> >
+//                                                        (block_idx_x, BLOCK_WIDTH, thread_idx_x, start_1, start_2, end_1, end_2, pivots_1, pivots_2, n_1, n_2, n_total, step,
+//                                                                cmp(d_new_indecies, d_map_to_new, d_parents_1,
+//                                                                    d_parents_2, d_cells_1, d_cells_2, d_counts_1,
+//                                                                    d_counts_2, n_1));
+//                    cudaDeviceSynchronize();
+//                    gpuErrchk(cudaPeekAtLastError());
+//                }
+//            }
+//        } else {
+//            printf("n_1:%d, n_2:%d, n_total:%d\n", n_1, n_2, n_total);
         merge_search_for_pivots << < numBlocks, BLOCK_WIDTH >> >
                                                 (start_1, start_2, end_1, end_2, pivots_1, pivots_2, n_1, n_2, n_total, step,
-                                                        cmp(d_new_indecies, d_map_to_new, d_parents_1, d_parents_2,
-                                                            d_cells_1,
-                                                            d_cells_2, d_counts_1, d_counts_2, n_1));
+                                                        cmp(d_new_indecies, d_map_to_new, d_parents_1,
+                                                            d_parents_2,
+                                                            d_cells_1, d_cells_2, d_counts_1, d_counts_2, n_1));
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+//        }
+        cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
 
         merge_check_path_from_pivots << < numBlocks, BLOCK_WIDTH >> >
                                                      (start_1, start_2, end_1, end_2, d_map_to_old, d_map_to_new, pivots_1, pivots_2, n_1, n_2, n_total, step,
-                                                             cmp(d_new_indecies, d_map_to_new, d_parents_1, d_parents_2,
-                                                                 d_cells_1,
-                                                                 d_cells_2, d_counts_1, d_counts_2, n_1));
+                                                             cmp(d_new_indecies, d_map_to_new, d_parents_1,
+                                                                 d_parents_2,
+                                                                 d_cells_1, d_cells_2, d_counts_1, d_counts_2,
+                                                                 n_1));
+        cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
+
 
         numBlocks = length / BLOCK_WIDTH;
         if (length % BLOCK_WIDTH) numBlocks++;
         compute_is_included_from_path << < numBlocks, BLOCK_WIDTH >> >
                                                       (start_1, start_2, d_is_included, d_map_to_old, d_parents_1, d_parents_2, d_cells_1, d_cells_2, d_counts_1, d_counts_2, n_1, end_total);
 
+        cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
-        inclusive_scan(d_is_included, d_new_indecies, end_total);
+
+        cudaMemset(d_new_indecies, 0, n_total * sizeof(int));
+
+        cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
-        //cudaDeviceSynchronize();
+
+        inclusive_scan(d_is_included, d_new_indecies, n_total);
+
+        cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
     }
 
+    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
     cudaDeviceSynchronize();
@@ -188,12 +398,19 @@ void merge_using_gpu(int *d_parents_1, int *d_cells_1, int *d_counts_1,
 
     //update parent id, cells and count
 
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_parents_3, n_3 * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_cells_3, n_3 * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_counts_3, n_3 * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemset(d_counts_3, 0, n_3 * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_dim_start_3, d_3 * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_dims_3, d_3 * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_restricted_dims_3, number_of_restricted_dims_3 * sizeof(int));
 
     gpuErrchk(cudaPeekAtLastError());
@@ -202,7 +419,10 @@ void merge_using_gpu(int *d_parents_1, int *d_cells_1, int *d_counts_1,
     numBlocks = n_total / BLOCK_WIDTH;
     if (n_total % BLOCK_WIDTH) numBlocks++;
     merge_move << < numBlocks, BLOCK_WIDTH >> >
-                               (d_cells_1, d_cells_2, d_cells_3, d_parents_1, d_parents_2, d_parents_3, d_counts_1, d_counts_2, d_counts_3, d_new_indecies, d_map_to_new, d_map_to_old, n_total, n_1);
+                               (d_cells_1, d_cells_2, d_cells_3,
+                                       d_parents_1, d_parents_2, d_parents_3,
+                                       d_counts_1, d_counts_2, d_counts_3,
+                                       d_new_indecies, d_map_to_new, d_map_to_old, n_total, n_1);
 
 
     gpuErrchk(cudaPeekAtLastError());
@@ -245,9 +465,62 @@ void merge_using_gpu(int *d_parents_1, int *d_cells_1, int *d_counts_1,
             d_new_indecies, d_map_to_new);
 
 
+    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
+
+    if (n_3 == 1033) {
+//        printf("\n\nMerged - Look here n=%d\nd_parents:\n", n_3);
+//        print_array_gpu<<<1, 1>>>(d_parents_3, n_3);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//
+//        printf("d_new_indecies:\n");
+//        print_array_gpu<<<1, 1>>>(d_new_indecies, n_total);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//
+//        printf("d_is_included:\n");
+//        print_array_gpu<<<1, 1>>>(d_is_included, n_total);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//
+//        printf("d_map_to_new:\n");
+//        print_array_gpu<<<1, 1>>>(d_map_to_new, n_total);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//
+//        printf("d_map_to_old:\n");
+//        print_array_gpu<<<1, 1>>>(d_map_to_old, n_total);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+
+//        cmp c(d_new_indecies, d_map_to_new, d_parents_1, d_parents_2,
+//                  d_cells_1, d_cells_2, d_counts_1, d_counts_2, n_1);
+//
+//        for (int i = -1; i < d_1; i++) {
+//
+//            int s_1 = i == -1 ? 0 : h_dim_start_1[i];
+//            int s_2 = i == -1 ? 0 : h_dim_start_2[i];
+//            int e_1 = i == -1 ? 1 : (i + 1 < d_1 ? h_dim_start_1[i + 1] : n_1);
+//            int e_2 = i == -1 ? 1 : (i + 1 < d_1 ? h_dim_start_2[i + 1] : n_2);
+//            for (int i = s_1; i < e_1; i++) {
+//                for (int j = s_2; j < e_2; j++) {
+//                    print_c <<<1, 1 >>>(c, i, j);
+//                    cudaDeviceSynchronize();
+//                    gpuErrchk(cudaPeekAtLastError());
+//                }
+//                printf("\n");
+//            }
+//            printf("\n");
+//            printf("\n");
+//        }
+    }
+
+
     cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+
 
     cudaFree(d_map_to_old);
     cudaFree(d_map_to_new);
@@ -330,7 +603,8 @@ ScyTreeArray *restrict(ScyTreeArray *scy_tree, int dim_no, int cell_no) {
         if (lvl_size % BLOCK_WIDTH) number_of_blocks++;
         dim3 grid_down(number_of_blocks);
         restrict_dim_prop_down_first << < grid_down, block >> > (scy_tree->d_parents, scy_tree->d_counts,
-                scy_tree->d_cells, d_is_included, d_new_counts, cell_no, lvl_size, scy_tree->h_dim_start[dim_i + 1]);
+                scy_tree->d_cells, d_is_included, d_new_counts, cell_no, lvl_size, scy_tree->h_dim_start[dim_i +
+                                                                                                         1]);
     }
 
     gpuErrchk(cudaPeekAtLastError());
@@ -400,6 +674,7 @@ ScyTreeArray *restrict(ScyTreeArray *scy_tree, int dim_no, int cell_no) {
                                                  d_new_indecies, d_is_included, scy_tree->number_of_nodes);
 
 
+    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
     if (restricted_scy_tree->number_of_dims > 0) {
@@ -424,6 +699,7 @@ ScyTreeArray *restrict(ScyTreeArray *scy_tree, int dim_no, int cell_no) {
     //cudaDeviceSynchronize();
 
 
+    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
     int *d_is_point_included, *d_point_new_indecies;
@@ -450,20 +726,18 @@ ScyTreeArray *restrict(ScyTreeArray *scy_tree, int dim_no, int cell_no) {
 //    dim3 dimGrid(1,1);
 //    PrefixSum<<<dimGrid,dimBlock>>>(d_point_new_indecies,d_is_point_included,number_of_points,BLOCKSIZE);
 
-    CUDA_SAFE_CALL(cudaDeviceSynchronize());
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 //    printf("d_is_point_included:\n");
 //    print_array_gpu<<<1,1>>>(d_is_point_included, number_of_points);
 
 
-    gpuErrchk(cudaPeekAtLastError());
 
     move_points << < number_of_blocks, BLOCK_WIDTH >> > (scy_tree->d_parents, scy_tree->d_points,
             scy_tree->d_points_placement, restricted_scy_tree->d_points, restricted_scy_tree->d_points_placement,
             d_point_new_indecies, d_new_indecies, d_is_point_included, number_of_points, restricted_dim_is_leaf);
 
     cudaDeviceSynchronize();
-
-
     gpuErrchk(cudaPeekAtLastError());
 
     //todo cudaFree() temps
@@ -475,8 +749,31 @@ ScyTreeArray *restrict(ScyTreeArray *scy_tree, int dim_no, int cell_no) {
 //    gpuErrchk(cudaPeekAtLastError());
 
     cudaDeviceSynchronize();
-
     gpuErrchk(cudaPeekAtLastError());
+
+//    if (restricted_scy_tree->number_of_nodes == 970 || restricted_scy_tree->number_of_nodes == 1033) {
+//        printf("\n\nLook here n=%d\nd_parents:\n", restricted_scy_tree->number_of_nodes);
+//        print_array_gpu<<<1, 1>>>(restricted_scy_tree->d_parents, restricted_scy_tree->number_of_nodes);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//
+//        printf("d_new_indecies:\n");
+//        print_array_gpu<<<1, 1>>>(d_new_indecies, scy_tree->number_of_nodes);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//
+//        printf("d_is_included:\n");
+//        print_array_gpu<<<1, 1>>>(d_is_included, scy_tree->number_of_nodes);
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//
+//        printf("d_parents:\n");
+//        print_array_gpu<<<1, 1>>>(scy_tree->d_parents, scy_tree->number_of_nodes);
+//        cudaDeviceSynchronize();
+//
+//        printf("old size:%d\n", scy_tree->number_of_nodes);
+//    }
+
     return restricted_scy_tree;
 }
 
@@ -690,7 +987,7 @@ ScyTreeArray *ScyTreeArray::mergeWithNeighbors_gpu1(ScyTreeArray *parent_scy_tre
     ScyTreeArray *restricted_scy_tree = this;
     while (restricted_scy_tree->is_s_connected && cell_no < this->number_of_cells - 1) {
         cell_no++;
-//        printf("%d\n",cell_no);
+//        printf("cell_no:%d\n", cell_no);
         gpuErrchk(cudaPeekAtLastError());
         restricted_scy_tree = parent_scy_tree->restrict_gpu(dim_no, cell_no);
         gpuErrchk(cudaPeekAtLastError());
@@ -737,6 +1034,7 @@ ScyTreeArray *ScyTreeArray::merge(ScyTreeArray *sibling_scy_tree) {
                                                      d_dim_start_3, d_dims_3, d_restricted_dims_3,
                                                      d_points_3, d_points_placement_3);
 
+
     gpuErrchk(cudaPeekAtLastError());
 
     return merged_scy_tree;
@@ -754,8 +1052,13 @@ int ScyTreeArray::get_dims_idx() {
     return sum;
 }
 
-ScyTreeArray::ScyTreeArray(int number_of_nodes, int number_of_dims, int number_of_restricted_dims, int number_of_points,
-                           int number_of_cells) {
+ScyTreeArray::ScyTreeArray(int
+                           number_of_nodes, int
+                           number_of_dims, int
+                           number_of_restricted_dims, int
+                           number_of_points,
+                           int
+                           number_of_cells) {
     this->number_of_nodes = number_of_nodes;
     this->number_of_dims = number_of_dims;
     this->number_of_restricted_dims = number_of_restricted_dims;
@@ -815,8 +1118,13 @@ ScyTreeArray::ScyTreeArray(int number_of_nodes, int number_of_dims, int number_o
     cudaMemset(this->d_points_placement, 0, number_of_points * sizeof(int));
 }
 
-ScyTreeArray::ScyTreeArray(int number_of_nodes, int number_of_dims, int number_of_restricted_dims, int number_of_points,
-                           int number_of_cells, int *d_cells, int *d_parents, int *d_counts, int *d_dim_start,
+ScyTreeArray::ScyTreeArray(int
+                           number_of_nodes, int
+                           number_of_dims, int
+                           number_of_restricted_dims, int
+                           number_of_points,
+                           int
+                           number_of_cells, int *d_cells, int *d_parents, int *d_counts, int *d_dim_start,
                            int *d_dims, int *d_restricted_dims, int *d_points, int *d_points_placement) {
 
 //    printf("\nScyTreeArray - large - number_of_nodes:%d, number_of_dims:%d, number_of_restricted_dims:%d, number_of_points:%d, number_of_cells:%d\n", number_of_nodes, number_of_dims, number_of_restricted_dims, number_of_points,
@@ -871,14 +1179,31 @@ ScyTreeArray::ScyTreeArray(int number_of_nodes, int number_of_dims, int number_o
 }
 
 void ScyTreeArray::copy_to_host() {
-    cudaMemcpy(h_parents, d_parents, sizeof(int) * number_of_nodes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_cells, d_cells, sizeof(int) * number_of_nodes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_counts, d_counts, sizeof(int) * number_of_nodes, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_dim_start, d_dim_start, sizeof(int) * number_of_dims, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_dims, d_dims, sizeof(int) * number_of_dims, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_points, d_points, sizeof(int) * number_of_points, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_points_placement, d_points_placement, sizeof(int) * number_of_points, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_restricted_dims, d_restricted_dims, sizeof(int) * number_of_restricted_dims, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_parents, d_parents, sizeof(int) * this->number_of_nodes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_cells, d_cells, sizeof(int) * this->number_of_nodes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_counts, d_counts, sizeof(int) * this->number_of_nodes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_dim_start, d_dim_start, sizeof(int) * this->number_of_dims, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_dims, d_dims, sizeof(int) * this->number_of_dims, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_points, d_points, sizeof(int) * this->number_of_points, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_points_placement, d_points_placement, sizeof(int) * this->number_of_points,
+               cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_restricted_dims, d_restricted_dims, sizeof(int) * this->number_of_restricted_dims,
+               cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+}
+
+void ScyTreeArray::copy_to_device() {
+    cudaMemcpy(d_parents, h_parents, sizeof(int) * this->number_of_nodes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_cells, h_cells, sizeof(int) * this->number_of_nodes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_counts, h_counts, sizeof(int) * this->number_of_nodes, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_dim_start, h_dim_start, sizeof(int) * this->number_of_dims, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_dims, h_dims, sizeof(int) * this->number_of_dims, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_points, h_points, sizeof(int) * this->number_of_points, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_points_placement, h_points_placement, sizeof(int) * this->number_of_points,
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(d_restricted_dims, h_restricted_dims, sizeof(int) * this->number_of_restricted_dims,
+               cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
 }
 
 void ScyTreeArray::print() {
@@ -995,7 +1320,8 @@ void compute_is_weak_dense_prune(int *d_is_dense, int *d_points, int number_of_p
 
 __global__
 void
-move_pruned_points(int *d_points, int *d_points_placement, int *d_new_position, int *d_is_dense, int number_of_points,
+move_pruned_points(int *d_points, int *d_points_placement, int *d_new_position, int *d_is_dense,
+                   int number_of_points,
                    int *d_counts, int *d_parents, int *d_dim_start, int number_of_nodes, int number_of_dims) {
 
     for (int i = threadIdx.x; i < number_of_nodes; i += blockDim.x) {
@@ -1047,86 +1373,86 @@ bool ScyTreeArray::pruneRecursion_gpu(int min_size, float *d_X, int n, int d, fl
 
     //todo get size and move
 
-//    if (this->number_of_points < min_size) {
-//        return false;
-//    }
-//
-//    int *d_neighborhoods; // number_of_points x number_of_points
-//    int *d_number_of_neighbors; // number_of_points //todo maybe not needed
-//    int *d_is_dense; // number_of_points
-//    int *d_new_position; // number_of_points
-//    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * n);//number_of_points);
-//    cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points);
-//    cudaMalloc(&d_is_dense, sizeof(int) * number_of_points);
-//    cudaMalloc(&d_new_position, sizeof(int) * number_of_points);
-//
-//    int number_of_blocks = number_of_points / BLOCK_SIZE;
-//    if (number_of_points % BLOCK_SIZE) number_of_blocks++;
-//    int number_of_threads = min(number_of_points, BLOCK_SIZE);
-////    printf("before number_of_points: %d\n", number_of_points);
-//
-//    gpuErrchk(cudaPeekAtLastError());
-////    printf("<<<%d, %d>>>\n", number_of_blocks, number_of_threads);
-//    find_neighborhood_prune << < number_of_blocks, number_of_threads >> >
-//                                                   (d_neighborhoods, d_number_of_neighbors, d_X,
-//                                                           this->d_points, number_of_points, neighborhood_size,
-//                                                           this->d_restricted_dims, number_of_restricted_dims, n, d);
-//
-//
-//    cudaDeviceSynchronize();
-//    gpuErrchk(cudaPeekAtLastError());
-//
-//    compute_is_weak_dense_prune << < number_of_blocks, number_of_threads >> >
-//                                                       (d_is_dense, this->d_points, number_of_points, d_neighborhoods,
-//                                                               neighborhood_size, d_number_of_neighbors, d_X,
-//                                                               this->d_restricted_dims, this->number_of_restricted_dims,
-//                                                               F, n, num_obj, d);
-//
-////    cudaDeviceSynchronize();
-////    print_array_gpu<<<1,1>>>(d_is_dense, number_of_points);
-////    cudaDeviceSynchronize();
-////    printf("\n");
-//    cudaDeviceSynchronize();
-//    gpuErrchk(cudaPeekAtLastError());
-//
-//    inclusive_scan(d_is_dense, d_new_position, number_of_points);
-////    cudaDeviceSynchronize();
-////    print_array_gpu<<<1,1>>>(d_new_position, number_of_points);
-////    cudaDeviceSynchronize();
-//    gpuErrchk(cudaPeekAtLastError());
-//
-//
-////    cudaDeviceSynchronize();
-////    printf("before d_counts:\n");
-////    print_array_gpu<<<1, 1>>>(d_counts, number_of_nodes);
-////    cudaDeviceSynchronize();
-////    printf("\n");
-////
-////    move_pruned_points<<<1, BLOCK_SIZE, number_of_points*sizeof(int)>>>(d_points, d_points_placement,
-////                                                                        d_new_position, d_is_dense, number_of_points,
-////                                                                        d_counts, d_parents, d_dim_start,
-////                                                                        number_of_nodes, number_of_dims);
-//
-//
-//    cudaDeviceSynchronize();
-////    printf("after d_counts:\n");
-////    print_array_gpu<<<1, 1>>>(d_counts, number_of_nodes);
-////    cudaDeviceSynchronize();
-////    printf("\n");
-//
-//    gpuErrchk(cudaPeekAtLastError());
-//    int *h_tmp = new int[1];
-//    h_tmp[0] = 0;
-//    cudaMemcpy(h_tmp, d_new_position + number_of_points - 1, sizeof(int), cudaMemcpyDeviceToHost);
-//    int puned_number_of_points = h_tmp[0];
-////    printf("after number_of_points: %d\n", number_of_points);
-//
-//    cudaFree(d_neighborhoods);
-//    cudaFree(d_number_of_neighbors);
-//    cudaFree(d_is_dense);
-//    cudaFree(d_new_position);
-//
-//    return puned_number_of_points >= min_size;
+    if (this->number_of_points < min_size) {
+        return false;
+    }
 
-    return this->number_of_points >= min_size;
+    int *d_neighborhoods; // number_of_points x number_of_points
+    int *d_number_of_neighbors; // number_of_points //todo maybe not needed
+    int *d_is_dense; // number_of_points
+    int *d_new_position; // number_of_points
+    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * n);//number_of_points);
+    cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points);
+    cudaMalloc(&d_is_dense, sizeof(int) * number_of_points);
+    cudaMalloc(&d_new_position, sizeof(int) * number_of_points);
+
+    int number_of_blocks = number_of_points / BLOCK_SIZE;
+    if (number_of_points % BLOCK_SIZE) number_of_blocks++;
+    int number_of_threads = min(number_of_points, BLOCK_SIZE);
+//    printf("before number_of_points: %d\n", number_of_points);
+
+    gpuErrchk(cudaPeekAtLastError());
+//    printf("<<<%d, %d>>>\n", number_of_blocks, number_of_threads);
+    find_neighborhood_prune << < number_of_blocks, number_of_threads >> >
+                                                   (d_neighborhoods, d_number_of_neighbors, d_X,
+                                                           this->d_points, number_of_points, neighborhood_size,
+                                                           this->d_restricted_dims, number_of_restricted_dims, n, d);
+
+
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+
+    compute_is_weak_dense_prune << < number_of_blocks, number_of_threads >> >
+                                                       (d_is_dense, this->d_points, number_of_points, d_neighborhoods,
+                                                               neighborhood_size, d_number_of_neighbors, d_X,
+                                                               this->d_restricted_dims, this->number_of_restricted_dims,
+                                                               F, n, num_obj, d);
+
+//    cudaDeviceSynchronize();
+//    print_array_gpu<<<1,1>>>(d_is_dense, number_of_points);
+//    cudaDeviceSynchronize();
+//    printf("\n");
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+
+    inclusive_scan(d_is_dense, d_new_position, number_of_points);
+//    cudaDeviceSynchronize();
+//    print_array_gpu<<<1,1>>>(d_new_position, number_of_points);
+//    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+
+
+//    cudaDeviceSynchronize();
+//    printf("before d_counts:\n");
+//    print_array_gpu<<<1, 1>>>(d_counts, number_of_nodes);
+//    cudaDeviceSynchronize();
+//    printf("\n");
+//
+//    move_pruned_points<<<1, BLOCK_SIZE, number_of_points*sizeof(int)>>>(d_points, d_points_placement,
+//                                                                        d_new_position, d_is_dense, number_of_points,
+//                                                                        d_counts, d_parents, d_dim_start,
+//                                                                        number_of_nodes, number_of_dims);
+
+
+    cudaDeviceSynchronize();
+//    printf("after d_counts:\n");
+//    print_array_gpu<<<1, 1>>>(d_counts, number_of_nodes);
+//    cudaDeviceSynchronize();
+//    printf("\n");
+
+    gpuErrchk(cudaPeekAtLastError());
+    int *h_tmp = new int[1];
+    h_tmp[0] = 0;
+    cudaMemcpy(h_tmp, d_new_position + number_of_points - 1, sizeof(int), cudaMemcpyDeviceToHost);
+    int puned_number_of_points = h_tmp[0];
+//    printf("after number_of_points: %d\n", number_of_points);
+
+    cudaFree(d_neighborhoods);
+    cudaFree(d_number_of_neighbors);
+    cudaFree(d_is_dense);
+    cudaFree(d_new_position);
+
+    return puned_number_of_points >= min_size;
+
+//    return this->number_of_points >= min_size;
 }
