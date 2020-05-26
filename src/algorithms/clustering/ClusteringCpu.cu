@@ -186,7 +186,7 @@ INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, a
             if (is_dense) {
                 labels[p_id] = label;
                 clustered_count++;
-                for (int q_id : neighbors) {
+                for (int q_id : neighbors) {//todo should we actually add all neighbors to the que? should it not just be neighbors in the tree?
                     if (labels[q_id] == -1) {
                         labels[q_id] = -2;
                         q.push(q_id);

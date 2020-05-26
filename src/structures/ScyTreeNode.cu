@@ -359,16 +359,16 @@ bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, a
                 is_weak_dense[i] = false;
             }
         }
-//        for (int i = leaf->points.size() - 1; i >= 0; i--) {
-//            if (!is_weak_dense[i]) {
-//                leaf->points.erase(leaf->points.begin() + i);
-//            }
-//        }
+        for (int i = leaf->points.size() - 1; i >= 0; i--) {
+            if (!is_weak_dense[i]) {
+                leaf->points.erase(leaf->points.begin() + i);
+            }
+        }
 //        leaf->points = points;
-//        leaf->count = leaf->points.size();
+        leaf->count = leaf->points.size();
     }
-//    this->propergate_count(this->root);
-//    this->number_of_points = this->root->count;
+    this->propergate_count(this->root);
+    this->number_of_points = this->root->count;
 //
     return pruned_size >= min_size;
 

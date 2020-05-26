@@ -39,21 +39,46 @@ def normalize(x):
     #     normalised = torch.zeros(vector.size())
 
 
-def clean_up(subspaces, clusterings):
+def clean_up(subspaces, clusterings, min_size):
     number_of_different_subspaces = clusterings.size()[0]
     number_of_points = clusterings.size()[1]
     print(clusterings)
+    empty_subspaces = [None] * number_of_different_subspaces
     for i in range(number_of_different_subspaces):
         bins = {}
         for j in range(number_of_points):
-            if clusterings[i, j] >= 0:
-                pass
-    return subspaces, clusterings
+            cluster = clusterings[i, j].item()
+            if cluster >= 0:
+                if cluster in bins:
+                    bins[cluster] += 1
+                else:
+                    bins[cluster] = 1
+        # print(subspaces[i], bins)
+        count = 0
+        for bin in bins.keys():
+            bin_size = bins[bin]
+            if bin_size < min_size:
+                clusterings[i][clusterings[i] == bin] = -1
+            else:
+                count += 1
+        empty_subspaces[i] = count > 0
+        # bins = {}
+        # for j in range(number_of_points):
+        #     cluster = clusterings[i, j].item()
+        #     if cluster >= 0:
+        #         if cluster in bins:
+        #             bins[cluster] += 1
+        #         else:
+        #             bins[cluster] = 1
+        # print(subspaces[i], bins)
+
+
+    return subspaces[empty_subspaces], clusterings[empty_subspaces]
 
 
 def run_cpu(X, neighborhood_size, F, num_obj, min_size):
     subspaces, clusterings = inscy.run_cpu(X, neighborhood_size, F, num_obj, min_size)
-    return subspaces, clusterings#clean_up(subspaces, clusterings)
+    return clean_up(subspaces, clusterings, min_size)
 
 
 def run_cmp(X, neighborhood_size, F, num_obj, min_size):
@@ -61,19 +86,23 @@ def run_cmp(X, neighborhood_size, F, num_obj, min_size):
 
 
 def run_cpu_gpu_mix(X, neighborhood_size, F, num_obj, min_size):
-    return inscy.run_cpu_gpu_mix(X, neighborhood_size, F, num_obj, min_size)
+    subspaces, clusterings = inscy.run_cpu_gpu_mix(X, neighborhood_size, F, num_obj, min_size)
+    return clean_up(subspaces, clusterings, min_size)
 
 
 def run_cpu_gpu_mix_cl_steam(X, neighborhood_size, F, num_obj, min_size):
-    return inscy.run_cpu_gpu_mix_cl_steam(X, neighborhood_size, F, num_obj, min_size)
+    subspaces, clusterings = inscy.run_cpu_gpu_mix_cl_steam(X, neighborhood_size, F, num_obj, min_size)
+    return clean_up(subspaces, clusterings, min_size)
 
 
 def run_gpu(X, neighborhood_size, F, num_obj, min_size):
-    return inscy.run_gpu(X, neighborhood_size, F, num_obj, min_size)
+    subspaces, clusterings = inscy.run_gpu(X, neighborhood_size, F, num_obj, min_size)
+    return clean_up(subspaces, clusterings, min_size)
 
 
 def run_gpu_stream(X, neighborhood_size, F, num_obj, min_size):
-    return inscy.run_gpu_stream(X, neighborhood_size, F, num_obj, min_size)
+    subspaces, clusterings = inscy.run_gpu_stream(X, neighborhood_size, F, num_obj, min_size)
+    return clean_up(subspaces, clusterings, min_size)
 
 
 def load_glove(n_max, d_max):
