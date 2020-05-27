@@ -26,9 +26,9 @@
 
 using namespace std;
 
-vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
+vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
-    int number_of_cells = 3;
+    //int number_of_cells = 3;
     int n = X.size(0);
     int d = X.size(1);
 
@@ -78,9 +78,9 @@ vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int n
 }
 
 
-vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
+vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
-    int number_of_cells = 3;
+    //int number_of_cells = 3;
     int n = X.size(0);
     int d = X.size(1);
 
@@ -131,9 +131,9 @@ vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int n
 
 
 
-vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
+vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
-    int number_of_cells = 3;
+    //int number_of_cells = 3;
     int n = X.size(0);
     int subspace_size = X.size(1);
 
@@ -186,9 +186,9 @@ vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float 
 }
 
 
-vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
+vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
-    int number_of_cells = 3;
+    //int number_of_cells = 3;
     int n = X.size(0);
     int subspace_size = X.size(1);
 
@@ -240,9 +240,9 @@ vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_siz
 }
 
 
-vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
+vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
-    int number_of_cells = 3;
+    //int number_of_cells = 3;
     int n = X.size(0);
     int subspace_size = X.size(1);
 
@@ -301,9 +301,9 @@ vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int n
     return tuple;
 }
 
-vector<at::Tensor> run_gpu_stream(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size) {
+vector<at::Tensor> run_gpu_stream(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
-    int number_of_cells = 3;
+    //int number_of_cells = 3;
     int n = X.size(0);
     int subspace_size = X.size(1);
 

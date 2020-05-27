@@ -329,50 +329,56 @@ bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, a
                                  int *subspace, int subspace_size, float F, int num_obj, int n, int d) {
     //todo we need more than min_size
     //todo weak density is >= max(minPoints, F*expDen(d)) could be computed while restricting.
-    vector < Node * > leafs;
-    this->get_leafs(this->root, leafs);
-
-//    printf("subspace of size %d:\n", subspace_size);
-//    print_array(subspace,subspace_size);
+//    vector < Node * > leafs;
+//    this->get_leafs(this->root, leafs);
 //
-//    printf("leafs:%d\n", leafs.size());
-    int pruned_size = 0;
-    for (Node *leaf: leafs) {
-//        printf("leaf->count:%d\n", leaf->count);
-//        vector<int> points;
-        bool is_weak_dense[leaf->points.size()];
-        //for (int p_id: leaf->points) {
-        for (int i = 0; i < leaf->points.size(); i++) {
-            int p_id = leaf->points[i];
-            vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
-                                                 subspace_size);
-
-            float p = phi(p_id, neighbors, neighborhood_size, X, subspace, subspace_size);
-            float a = alpha(d, neighborhood_size, n);
-            float w = omega(d);
-//            printf("CPU p_id: %d, p: %f, max: %f, n_size:%d\n", p_id, p, max(F * a, num_obj * w), neighbors.size());
-            if (p >= max(F * a, num_obj * w)) {
-//                points.push_back(p_id);
-                pruned_size++;
-                is_weak_dense[i] = true;
-            } else {
-                is_weak_dense[i] = false;
-            }
-        }
-        for (int i = leaf->points.size() - 1; i >= 0; i--) {
-            if (!is_weak_dense[i]) {
-                leaf->points.erase(leaf->points.begin() + i);
-            }
-        }
-//        leaf->points = points;
-        leaf->count = leaf->points.size();
-    }
-    this->propergate_count(this->root);
-    this->number_of_points = this->root->count;
+//    float a = alpha(d, neighborhood_size, n);
+//    float w = omega(d);
 //
-    return pruned_size >= min_size;
+////    printf("subspace of size %d:\n", subspace_size);
+////    print_array(subspace,subspace_size);
+////
+////    printf("leafs:%d\n", leafs.size());
+//    int pruned_size = 0;
+//    for (Node *leaf: leafs) {
+////        printf("leaf->count:%d\n", leaf->count);
+////        vector<int> points;
+//        bool is_weak_dense[leaf->points.size()];
+//        //for (int p_id: leaf->points) {
+//        int count = 0;
+//        for (int i = 0; i < leaf->points.size(); i++) {
+//            int p_id = leaf->points[i];
+//            vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
+//                                                 subspace_size);
+//
+//            float p = phi(p_id, neighbors, neighborhood_size, X, subspace, subspace_size);
+//
+//            if (subspace_size == d - 1) {
+//                print_array(subspace, subspace_size);
+//                printf("CPU p_id: %d, p: %f, max: %f, n_size:%d\n", p_id, p, max(F * a, num_obj * w), neighbors.size());
+//            }
+//            if (p >= max(F * a, num_obj * w)) {
+////                points.push_back(p_id);
+//                pruned_size++;
+//                count++;
+//                is_weak_dense[i] = true;
+//            } else {
+//                is_weak_dense[i] = false;
+//            }
+//        }
+////        for (int i = leaf->points.size() - 1; i >= 0; i--) {
+////            if (!is_weak_dense[i]) {
+////                leaf->points.erase(leaf->points.begin() + i);
+////            }
+////        }
+//        leaf->count = count;
+//    }
+//    this->propergate_count(this->root);
+//    this->number_of_points = this->root->count;
+////
+//    return pruned_size >= min_size;
 
-//    return this->number_of_points >= min_size;
+    return this->number_of_points >= min_size;
 }
 
 void ScyTreeNode::pruneRedundancy() {
