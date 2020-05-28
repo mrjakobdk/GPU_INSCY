@@ -51,7 +51,7 @@ void InscyArrayGpuStream(ScyTreeArray *scy_tree, float *d_X, int n, int d, float
                               F, num_obj, min_size, result, dim_no + 1, total_number_of_dim, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                restricted_scy_tree->pruneRedundancy_gpu();//todo does nothing atm
+                restricted_scy_tree->pruneRedundancy_gpu(0.5, 1000);//todo does nothing atm
 
                 scy_tree_list.push_back(restricted_scy_tree);
 

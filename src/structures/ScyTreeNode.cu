@@ -104,6 +104,46 @@ ScyTreeNode::ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int s
     this->root = root;
 }
 
+ScyTreeNode::ScyTreeNode(vector<int> points, at::Tensor X, int *subspace, int number_of_cells, int subspace_size,
+                         int n, float neighborhood_size) {
+    float v = 1.;
+    this->number_of_cells = number_of_cells;
+    this->cell_size = v / this->number_of_cells;
+    this->dims = subspace;
+    this->number_of_dims = subspace_size;
+    this->number_of_restricted_dims = 0;
+
+    Node *root = new Node(-1);
+    int node_counter = 0;
+    for (int i :points) {
+        root->count += 1;
+        Node *node = root;
+        //printf("constructing SCY-tree: %d%%\r", int((i * 100) / X.size()));
+        float *x_i = X[i].data_ptr<float>();
+
+        for (int j = 0; j < number_of_dims; j++) {
+
+            //computing cell no
+            float x_ij = x_i[this->dims[j]];
+            int cell_no = this->get_cell_no(x_ij);
+
+            //update cell
+            Node *child = set_node(node, cell_no, node_counter);
+            child->count += 1;
+
+            //construct/update s-connection
+            this->construct_s_connection(neighborhood_size, node_counter, node, x_i, j, x_ij, cell_no);
+            node = child;
+        }
+        node->points.push_back(i);
+        node->is_leaf = true;
+    }
+    //printf("constructing SCY-tree: 100%%\n");
+    //printf("nodes in SCY-tree: %d\n", node_counter);
+    this->number_of_points = root->count;
+    this->root = root;
+}
+
 bool
 ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cell_no, int depth,
                            bool &s_connection_found) {
@@ -327,8 +367,7 @@ void ScyTreeNode::propergate_count(Node *node) {
 
 bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
                                  int *subspace, int subspace_size, float F, int num_obj, int n, int d) {
-    //todo we need more than min_size
-    //todo weak density is >= max(minPoints, F*expDen(d)) could be computed while restricting.
+
 //    vector < Node * > leafs;
 //    this->get_leafs(this->root, leafs);
 //
@@ -381,8 +420,9 @@ bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, a
     return this->number_of_points >= min_size;
 }
 
-void ScyTreeNode::pruneRedundancy() {
-    //todo not implemented
+bool ScyTreeNode::pruneRedundancy(float r, int max_number_of_previous_clustered_points) {
+    return true;
+    //return this->number_of_points >= r * max_number_of_previous_clustered_points;
 }
 
 ScyTreeNode::ScyTreeNode() {//todo not god to have public

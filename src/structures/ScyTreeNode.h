@@ -15,6 +15,7 @@ using namespace std;
 
 // forward declaration
 class Node;
+
 class ScyTreeArray;
 
 class ScyTreeNode {
@@ -36,6 +37,9 @@ public:
     ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int subspace_size, int n,
                 float neighborhood_size);
 
+    ScyTreeNode(vector<int> points, at::Tensor X, int *subspace, int number_of_cells, int subspace_size, int n,
+                float neighborhood_size);
+
     ScyTreeNode *mergeWithNeighbors(ScyTreeNode *parent_SCYTree, int dim_no, int &cell_no);
 
     ScyTreeNode *restrict(int dim_no, int cell_no);
@@ -43,9 +47,9 @@ public:
     vector<pair<int, int>> get_descriptors();
 
     bool pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
-                        int* subspace, int subspace_size, float F, int num_obj, int n, int d);
+                        int *subspace, int subspace_size, float F, int num_obj, int n, int d);
 
-    void pruneRedundancy();
+    bool pruneRedundancy(float r, int max_number_of_previous_clustered_points);
 
     void print();
 

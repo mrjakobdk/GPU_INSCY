@@ -46,30 +46,32 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode * neighborhood_tree, at::Tenso
                           dim_no + 1, d, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                restricted_scy_tree->pruneRedundancy();//todo does nothing atm
+                if (restricted_scy_tree->pruneRedundancy(0.5, 1000)) {//todo does nothing atm
 
-                //result := DBClustering(restricted-tree) ∪ result;
-                int idx = restricted_scy_tree->get_dims_idx();
+                    //result := DBClustering(restricted-tree) ∪ result;
+                    int idx = restricted_scy_tree->get_dims_idx();
 
-                vector<int> new_clustering = INSCYClusteringImplCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size, F,
-                                                                     num_obj);
-                if (result.count(idx)) {
-                    vector<int> clustering = result[idx];
-                    int m = v_max(clustering);
-                    if (m < 0) {
-                        result[idx] = new_clustering;
-                    } else {
-                        for (int i = 0; i < n; i++) {
-                            if (new_clustering[i] == -2) {
-                                clustering[i] = new_clustering[i];
-                            } else if (new_clustering[i] >= 0) {
-                                clustering[i] = m + 1 + new_clustering[i];
+                    vector<int> new_clustering = INSCYClusteringImplCPU2(restricted_scy_tree, neighborhood_tree, X, n,
+                                                                         neighborhood_size, F,
+                                                                         num_obj);
+                    if (result.count(idx)) {
+                        vector<int> clustering = result[idx];
+                        int m = v_max(clustering);
+                        if (m < 0) {
+                            result[idx] = new_clustering;
+                        } else {
+                            for (int i = 0; i < n; i++) {
+                                if (new_clustering[i] == -2) {
+                                    clustering[i] = new_clustering[i];
+                                } else if (new_clustering[i] >= 0) {
+                                    clustering[i] = m + 1 + new_clustering[i];
+                                }
                             }
+                            result[idx] = clustering;
                         }
-                        result[idx] = clustering;
+                    } else {
+                        result.insert(pair < int, vector < int >> (idx, new_clustering));
                     }
-                } else {
-                    result.insert(pair<int, vector<int>>(idx, new_clustering));
                 }
             }
             cell_no++;

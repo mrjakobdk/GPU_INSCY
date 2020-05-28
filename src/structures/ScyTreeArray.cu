@@ -1365,20 +1365,13 @@ move_pruned_points(int *d_points, int *d_points_placement, int *d_new_position, 
 
 bool ScyTreeArray::pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
                                       int num_obj) {
-    //todo we need more than min_size - but maybe do it in restrict instead
-
-    //todo is weak dense
-
-    //todo inclusive scan
-
-    //todo get size and move
 
 //    if (this->number_of_points < min_size) {
 //        return false;
 //    }
 //
 //    int *d_neighborhoods; // number_of_points x number_of_points
-//    int *d_number_of_neighbors; // number_of_points //todo maybe not needed
+//    int *d_number_of_neighbors; // number_of_points
 //    int *d_is_dense; // number_of_points
 //    int *d_new_position; // number_of_points
 //    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * n);//number_of_points);
@@ -1455,4 +1448,9 @@ bool ScyTreeArray::pruneRecursion_gpu(int min_size, float *d_X, int n, int d, fl
 //    return puned_number_of_points >= min_size;
 
     return this->number_of_points >= min_size;
+}
+
+bool ScyTreeArray::pruneRedundancy_gpu(float r, int max_number_of_previous_clustered_points) {
+//    return this->number_of_points >= r * max_number_of_previous_clustered_points;
+return true;
 }

@@ -44,7 +44,7 @@ InscyCpuGpuMixClStream(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
                                        num_obj, min_size, result, dim_no + 1, total_number_of_dim, calls);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                restricted_scy_tree->pruneRedundancy();//todo does nothing atm
+                restricted_scy_tree->pruneRedundancy( 0.5, 1000);//todo does nothing atm
 
                 ScyTreeArray *restricted_scy_tree_gpu = restricted_scy_tree->convert_to_ScyTreeArray();
                 restricted_scy_tree_gpu->copy_to_device();

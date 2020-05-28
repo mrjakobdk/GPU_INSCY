@@ -271,13 +271,13 @@ vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, floa
 
     gpuErrchk(cudaPeekAtLastError());
 
-//    compute_is_dense << < number_of_blocks, number_of_threads >> >
-//                                            (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size, d_number_of_neighbors, d_X, scy_tree->d_restricted_dims,
-//                                                    scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+    compute_is_dense << < number_of_blocks, number_of_threads >> >
+                                            (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size, d_number_of_neighbors, d_X, scy_tree->d_restricted_dims,
+                                                    scy_tree->number_of_restricted_dims, F, n, num_obj, d);
 
-    compute_is_dense_new << < number_of_blocks, number_of_threads >> >
-                                                (d_is_dense, scy_tree->d_points, number_of_points, neighborhood_size, d_X, scy_tree->d_restricted_dims,
-                                                        scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+//    compute_is_dense_new << < number_of_blocks, number_of_threads >> >
+//                                                (d_is_dense, scy_tree->d_points, number_of_points, neighborhood_size, d_X, scy_tree->d_restricted_dims,
+//                                                        scy_tree->number_of_restricted_dims, F, n, num_obj, d);
 
 
     gpuErrchk(cudaPeekAtLastError());

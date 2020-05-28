@@ -78,6 +78,35 @@ vector<int> neighborhood(ScyTreeNode *neighborhood_tree, int p_id, at::Tensor X,
     return neighbors;
 }
 
+vector<int> neighborhood(vector<int> possible_neighbors, int p_id, at::Tensor X,
+                         float neighborhood_size, int *subspace, int subspace_size) {
+    vector<int> neighbors;
+
+    //get_possible_neighbors(neighborhood_size, X[p_id]);//todo just all points in scy_tree
+
+
+    //printf("Possible neighbors size: %d\n", possible_neighbors.size());
+
+    float* p = X[p_id].data_ptr<float>();
+    //printf("neighborhood 1\n");
+
+    int count = 0;
+
+    for (int q_id: possible_neighbors) {
+        count++;
+        if (p_id == q_id) {//todo exclude or include your self?
+            continue;
+        }
+        float distance = dist(p_id, q_id, X, subspace, subspace_size);
+//        printf("p_id: %d, q_id: %d, dist: %f\n",p_id, q_id, distance);
+
+        if (neighborhood_size >= distance) {
+            neighbors.push_back(q_id);
+        }
+    }
+    return neighbors;
+}
+
 float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tensor X, int *subspace,
           int subspace_size) {
 
@@ -156,7 +185,13 @@ INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, a
     int clustered_count = 0;
     int prev_clustered_count = 0;
     int next_cluster_label = 1;
-    for (int i : scy_tree->get_points()) {
+    vector<int> points = scy_tree->get_points();
+
+    int d = X.size(1);
+    neighborhood_tree = new ScyTreeNode(points, X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
+                                                     neighborhood_size);
+
+    for (int i : points) {
 
         if (labels[i] != -1) {//already checked
             continue;
@@ -176,6 +211,8 @@ INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, a
             //todo would it be faster to use a tree to restrict the neighborhood?
             vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
                                                  subspace_size);
+//            vector<int> neighbors = neighborhood(points, p_id, X, neighborhood_size, subspace,
+//                                                 subspace_size);
 
 
             //printf("%d neighborhood: ",p_id);

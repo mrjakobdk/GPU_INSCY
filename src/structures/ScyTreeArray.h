@@ -71,9 +71,7 @@ public:
     bool pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
                             int num_obj);
 
-    void pruneRedundancy_gpu() {
-        //todo
-    }
+    bool pruneRedundancy_gpu(float r, int max_number_of_previous_clustered_points);
 
     int get_lvl_size(int dim_i);
 
