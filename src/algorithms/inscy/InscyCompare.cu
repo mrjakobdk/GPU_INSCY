@@ -2,13 +2,17 @@
 // Created by mrjakobdk on 5/26/20.
 //
 #include <cmath>
-#include <vector>
-#include <map>
 #include "../clustering/ClusteringCpu.h"
 #include "../../structures/ScyTreeNode.h"
 #include "../../structures/ScyTreeArray.h"
 #include "../../utils/util.h"
 #include "InscyCompare.cuh"
+
+
+#include <map>
+#include <vector>
+
+using namespace std;
 
 bool compare_arrays(int *array_1, int *array_2, int n) {
     bool identical = true;
@@ -186,7 +190,7 @@ void compare(ScyTreeArray *scy_tree_1, ScyTreeArray *scy_tree_2) {
 }
 
 void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size,
-                  float F, int num_obj, int min_size, map<int, vector<int>> &result, int first_dim_no,
+                  float F, int num_obj, int min_size, map<vector < int > , vector<int>, vec_cmp> &result, int first_dim_no,
                   int d, int &calls) {
 
 //    printf("call: %d, first_dim_no: %d, points: %d\n", calls, first_dim_no, scy_tree->number_of_points);
@@ -199,12 +203,19 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
     calls++;
     while (dim_no < d) {
         int cell_no = 0;
+
+        vector<int> subspace_clustering(n, -1);
+        vector<int> subspace;
+
         while (cell_no < scy_tree->number_of_cells) {
             //restricted-tree := restrict(scy-tree, descriptor);
             ScyTreeNode *restricted_scy_tree = scy_tree->restrict(dim_no, cell_no);
             ScyTreeArray *restricted_scy_tree_conv = restricted_scy_tree->convert_to_ScyTreeArray();
             ScyTreeArray *restricted_scy_tree_gpu = scy_tree_gpu->restrict_gpu(dim_no, cell_no);
             restricted_scy_tree_gpu->copy_to_host();
+
+            subspace = vector<int>(restricted_scy_tree->restricted_dims, restricted_scy_tree->restricted_dims +
+                                                                         restricted_scy_tree->number_of_restricted_dims);
 
 //            printf("After restrict:\n");
             compare(restricted_scy_tree_gpu, restricted_scy_tree_conv);
@@ -215,7 +226,8 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
             int cell_no_gpu = cell_no;
             restricted_scy_tree->mergeWithNeighbors(scy_tree, dim_no, cell_no);
             restricted_scy_tree_conv = restricted_scy_tree->convert_to_ScyTreeArray();
-            restricted_scy_tree_gpu = restricted_scy_tree_gpu->mergeWithNeighbors_gpu1(scy_tree_gpu, dim_no, cell_no_gpu);
+            restricted_scy_tree_gpu = restricted_scy_tree_gpu->mergeWithNeighbors_gpu1(scy_tree_gpu, dim_no,
+                                                                                       cell_no_gpu);
             restricted_scy_tree_gpu->copy_to_host();
 
 //            printf("After merge:\n");
@@ -229,41 +241,43 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
                                                     num_obj, n, d)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
+                map<vector<int>, vector<int>, vec_cmp> sub_result;
                 INSCYCompare(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
-                             F, num_obj, min_size, result,
+                             F, num_obj, min_size, sub_result,
                              dim_no + 1, d, calls);
+                result.insert(sub_result.begin(),sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                restricted_scy_tree->pruneRedundancy(0.5, 1000);//todo does nothing atm
+                restricted_scy_tree->pruneRedundancy(0.5, sub_result);//todo does nothing atm
 
                 //result := DBClustering(restricted-tree) ∪ result;
                 int idx = restricted_scy_tree->get_dims_idx();
 
-                vector<int> new_clustering = INSCYClusteringImplCPU2(restricted_scy_tree, neighborhood_tree, X, n,
-                                                                     neighborhood_size, F,
-                                                                     num_obj);
-                if (result.count(idx)) {
-                    vector<int> clustering = result[idx];
-                    int m = v_max(clustering);
-                    if (m < 0) {
-                        result[idx] = new_clustering;
-                    } else {
-                        for (int i = 0; i < n; i++) {
-                            if (new_clustering[i] == -2) {
-                                clustering[i] = new_clustering[i];
-                            } else if (new_clustering[i] >= 0) {
-                                clustering[i] = m + 1 + new_clustering[i];
-                            }
-                        }
-                        result[idx] = clustering;
-                    }
-                } else {
-                    result.insert(pair < int, vector < int >> (idx, new_clustering));
-                }
+                INSCYClusteringImplCPU(restricted_scy_tree, neighborhood_tree, X, n,
+                                        neighborhood_size, F,
+                                        num_obj, subspace_clustering);
+//                if (result.count(idx)) {
+//                    vector<int> clustering = result[idx];
+//                    int m = v_max(clustering);
+//                    if (m < 0) {
+//                        result[idx] = new_clustering;
+//                    } else {
+//                        for (int i = 0; i < n; i++) {
+//                            if (new_clustering[i] == -2) {
+//                                clustering[i] = new_clustering[i];
+//                            } else if (new_clustering[i] >= 0) {
+//                                clustering[i] = m + 1 + new_clustering[i];
+//                            }
+//                        }
+//                        result[idx] = clustering;
+//                    }
+//                } else {
+//                    result.insert(pair < int, vector < int >> (idx, new_clustering));
+//                }
             }
             cell_no++;
         }
-
+        result.insert(pair < vector < int > , vector < int >> (subspace, subspace_clustering));
         dim_no++;
     }
     int total_inscy = pow(2, d);

@@ -5,10 +5,15 @@
 #ifndef GPU_INSCY_INSCYCOMPARE_CUH
 #define GPU_INSCY_INSCYCOMPARE_CUH
 
+#include <map>
+#include <vector>
+
+using namespace std;
 
 class ScyTreeNode;
+struct vec_cmp;
 void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size,
-               float F, int num_obj, int min_size, std::map<int, std::vector<int>> &result,
+               float F, int num_obj, int min_size, map<vector < int >, vector<int>, vec_cmp> &result,
                int first_dim_no, int total_number_of_dim, int &calls);
 
 

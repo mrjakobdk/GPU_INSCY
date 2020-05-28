@@ -4,7 +4,9 @@
 #include "../../utils/util_data.h"
 #include "../../structures/ScyTreeNode.h"
 
+#include <ATen/ATen.h>
 #include <torch/extension.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda_runtime.h>
@@ -36,8 +38,8 @@ double omega(int subspace_size) {
 }
 
 double dist(int p_id, int q_id, at::Tensor X, int *subspace, int subspace_size) {
-    float* p = X[p_id].data_ptr<float>();
-    float* q = X[q_id].data_ptr<float>();
+    float *p = X[p_id].data_ptr<float>();
+    float *q = X[q_id].data_ptr<float>();
     double distance = 0.;
     for (int i = 0; i < subspace_size; i++) {
         int d_i = subspace[i];
@@ -56,7 +58,7 @@ vector<int> neighborhood(ScyTreeNode *neighborhood_tree, int p_id, at::Tensor X,
 
     //printf("Possible neighbors size: %d\n", possible_neighbors.size());
 
-    float* p = X[p_id].data_ptr<float>();
+    float *p = X[p_id].data_ptr<float>();
     //printf("neighborhood 1\n");
     vector<int> possible_neighbors = neighborhood_tree->get_possible_neighbors(p, subspace, subspace_size,
                                                                                neighborhood_size);
@@ -87,7 +89,7 @@ vector<int> neighborhood(vector<int> possible_neighbors, int p_id, at::Tensor X,
 
     //printf("Possible neighbors size: %d\n", possible_neighbors.size());
 
-    float* p = X[p_id].data_ptr<float>();
+    float *p = X[p_id].data_ptr<float>();
     //printf("neighborhood 1\n");
 
     int count = 0;
@@ -168,10 +170,10 @@ bool dense(int point_id, vector<int> neighbors, float neighborhood_size, at::Ten
 
 
 //todo check minimum cluster size
-vector<int>
-INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
-                        float neighborhood_size, float F,
-                        int num_obj) {
+void
+INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
+                       float neighborhood_size, float F,
+                       int num_obj, vector<int> &subspace_clustering) {
     int *subspace = scy_tree->restricted_dims;
     int subspace_size = scy_tree->number_of_restricted_dims;
 
@@ -181,19 +183,20 @@ INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, a
 //    printf("point 5: ");
 //    print_array(X[5].data(), X[5].size());
 
-    vector<int> labels(n, -1);
+//    vector<int> labels(n, -1);
+
     int clustered_count = 0;
     int prev_clustered_count = 0;
-    int next_cluster_label = 1;
+    int next_cluster_label = max(0, v_max(subspace_clustering)) + 1; //1;
     vector<int> points = scy_tree->get_points();
 
     int d = X.size(1);
     neighborhood_tree = new ScyTreeNode(points, X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
-                                                     neighborhood_size);
+                                        neighborhood_size);
 
     for (int i : points) {
 
-        if (labels[i] != -1) {//already checked
+        if (subspace_clustering[i] != -1) {//already checked
             continue;
         }
 
@@ -221,11 +224,11 @@ INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, a
             bool is_dense = dense(p_id, neighbors, neighborhood_size, X, subspace, subspace_size, F, n, num_obj);
             //printf("%d is dense: %d\n", p_id, is_dense);
             if (is_dense) {
-                labels[p_id] = label;
+                subspace_clustering[p_id] = label;
                 clustered_count++;
                 for (int q_id : neighbors) {//todo should we actually add all neighbors to the que? should it not just be neighbors in the tree?
-                    if (labels[q_id] == -1) {
-                        labels[q_id] = -2;
+                    if (subspace_clustering[q_id] == -1) {
+                        subspace_clustering[q_id] = -2;
                         q.push(q_id);
                     }
                 }
@@ -235,5 +238,27 @@ INSCYClusteringImplCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, a
             next_cluster_label++;
         }
     }
-    return labels;
+//    return labels;
+}
+
+bool vec_cmp::operator()(const vector<int> &a, const vector<int> &b) const {
+//    int i = 0;
+//    while (a[i] == b[i]) {
+//        i++;
+//        if (i >= min(a.size(), b.size())) {
+//            return a.size() < b.size();
+//        }
+//    }
+//    return a[i] > b[i];
+    int i = a.size()-1;
+    int j = b.size()-1;
+    while ( a[i] == b[j]) {
+        i--;
+        j--;
+        if (i<0 || j<0){
+            return i<j;
+        }
+    }
+
+    return a[i] < b[j];
 }

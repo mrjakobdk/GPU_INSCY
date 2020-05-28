@@ -420,9 +420,81 @@ bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, a
     return this->number_of_points >= min_size;
 }
 
-bool ScyTreeNode::pruneRedundancy(float r, int max_number_of_previous_clustered_points) {
-    return true;
-    //return this->number_of_points >= r * max_number_of_previous_clustered_points;
+bool subspace_of(vector<int> subspace, vector<int> subspace_mark) {
+    int i = 0;
+    int j = 0;
+    while (j < subspace_mark.size() && i < subspace.size()) {
+        if (subspace[i] == subspace_mark[j]) {
+            i++;
+            j++;
+        } else {
+            j++;
+        }
+    }
+    return i == subspace.size();
+}
+
+bool ScyTreeNode::pruneRedundancy(float r, map <vector<int>, vector<int>, vec_cmp> result) {
+
+    int max_min_size = 0;
+
+    vector<int> subspace(this->restricted_dims, this->restricted_dims +
+                                                this->number_of_restricted_dims);
+    vector<int> max_min_subspace;
+
+    for (std::pair <vector<int>, vector<int>> subspace_clustering : result) {
+
+
+        // find sizes of clusters
+        vector<int> subspace_mark = subspace_clustering.first;
+        if (subspace_of(subspace, subspace_mark)) {
+
+            vector<int> clustering_mark = subspace_clustering.second;
+            map<int, int> cluster_sizes;
+            for (int cluster_id: clustering_mark) {
+                if (cluster_id >= 0) {
+                    if (cluster_sizes.count(cluster_id)) {
+                        cluster_sizes[cluster_id]++;
+                    } else {
+                        cluster_sizes.insert(pair<int, int>(cluster_id, 1));
+                    }
+                }
+            }
+
+
+            // find the minimum size for each subspace
+            int min_size = -1;
+            for (std::pair<int, int> cluster_size : cluster_sizes) {
+                int size = cluster_size.second;
+//                printf("size:%d ",size);
+                if (min_size == -1 || size < min_size) {//todo this min size should only be for clusters covering the region in question
+                    min_size = size;
+                }
+            }
+//            printf("min_size: %d\n", min_size);
+
+            // find the maximum minimum size for each subspace
+            if (min_size > max_min_size) {
+                max_min_size = min_size;
+                max_min_subspace = subspace_mark;
+            }
+        }
+    }
+//    printf("max_min_size: %d\n", max_min_size);
+
+    if (max_min_size == 0) {
+        return true;
+    }
+//    printf("max_min_size: %d\n", max_min_size);
+
+    if (this->number_of_points * r > max_min_size * 1.) {
+        return true;
+    } else {
+        print_array(subspace, subspace.size());
+        printf("were pruned due too:");
+        print_array(max_min_subspace, max_min_subspace.size());
+        return false;
+    }
 }
 
 ScyTreeNode::ScyTreeNode() {//todo not god to have public

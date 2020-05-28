@@ -27,12 +27,12 @@ for subspace_size in subspace_sizes:
     t0 = time.time()
     X_ = X[:, :subspace_size].clone()
     subspaces_cpu, clusterings_cpu = INSCY.run_cpu(X_, params["neighborhood_size"], params["F"], params["num_obj"],
-                                                   params["min_size"], 1)
+                                                   params["min_size"], 1.)
     print("Finished CPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
     t0 = time.time()
     subspaces_gpu, clusterings_gpu = INSCY.run_gpu(X_, params["neighborhood_size"], params["F"], params["num_obj"],
-                                                   params["min_size"], 1)
+                                                   params["min_size"])
     print("Finished GPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
 
@@ -43,10 +43,10 @@ for subspace_size in subspace_sizes:
     for i in range(len(clusterings_cpu)):
         for j in range(params["n"]):
             if clusterings_cpu[i, j] < 0 and clusterings_gpu[i, j] >= 0:
-                print("missing in cpu",i,j)
+                # print("missing in cpu",i,j)
                 diff += 1
             if clusterings_cpu[i, j] >= 0 and clusterings_gpu[i, j] < 0:
-                print("missing in gpu",i,j)
+                # print("missing in gpu",i,j)
                 diff += 1
             if clusterings_cpu[i, j] >= 0 and clusterings_gpu[i, j] >= 0:
                 in_clus += 1

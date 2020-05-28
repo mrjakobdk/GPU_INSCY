@@ -4,7 +4,7 @@ import time
 
 t0 = time.time()
 print("Compiling our c++/cuda code, this usually takes 1-2 min. ")
-inscy = load(name="inscy1",
+inscy = load(name="inscy",
              sources=["inscy_map.cpp",
                       "src/utils/util.cu",
                       "src/utils/util_data.cu",
@@ -72,14 +72,13 @@ def clean_up(subspaces, clusterings, min_size):
                     bins[cluster] = 1
         print(subspaces[i], bins)
 
-
     return subspaces[empty_subspaces], clusterings[empty_subspaces]
 
 
-def run_cpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
-    subspaces, clusterings = inscy.run_cpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells)
-    #return clean_up(subspaces, clusterings, min_size)
-    return subspaces, clusterings
+def run_cpu(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
+    subspaces, clusterings = inscy.run_cpu(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
+    return clean_up(subspaces, clusterings, min_size)
+    # return subspaces, clusterings
 
 
 def run_cmp(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
@@ -88,25 +87,25 @@ def run_cmp(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
 
 def run_cpu_gpu_mix(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
     subspaces, clusterings = inscy.run_cpu_gpu_mix(X, neighborhood_size, F, num_obj, min_size, number_of_cells)
-    #return clean_up(subspaces, clusterings, min_size)
+    # return clean_up(subspaces, clusterings, min_size)
     return subspaces, clusterings
 
 
 def run_cpu_gpu_mix_cl_steam(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
     subspaces, clusterings = inscy.run_cpu_gpu_mix_cl_steam(X, neighborhood_size, F, num_obj, min_size, number_of_cells)
-    #return clean_up(subspaces, clusterings, min_size)
+    # return clean_up(subspaces, clusterings, min_size)
     return subspaces, clusterings
 
 
 def run_gpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells)
-    #return clean_up(subspaces, clusterings, min_size)
-    return subspaces, clusterings
+    return clean_up(subspaces, clusterings, min_size)
+    # return subspaces, clusterings
 
 
 def run_gpu_stream(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_stream(X, neighborhood_size, F, num_obj, min_size, number_of_cells)
-    #return clean_up(subspaces, clusterings, min_size)
+    # return clean_up(subspaces, clusterings, min_size)
     return subspaces, clusterings
 
 

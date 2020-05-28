@@ -7,6 +7,7 @@
 
 #include <ATen/ATen.h>
 #include <torch/extension.h>
+
 #include <math.h>
 #include <vector>
 #include <map>
@@ -17,6 +18,8 @@ using namespace std;
 class Node;
 
 class ScyTreeArray;
+
+struct vec_cmp;
 
 class ScyTreeNode {
 public:
@@ -49,7 +52,7 @@ public:
     bool pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
                         int *subspace, int subspace_size, float F, int num_obj, int n, int d);
 
-    bool pruneRedundancy(float r, int max_number_of_previous_clustered_points);
+    bool pruneRedundancy(float r, map<vector<int>, vector<int>, vec_cmp> max_number_of_previous_clustered_points);
 
     void print();
 

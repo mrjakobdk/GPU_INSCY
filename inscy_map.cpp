@@ -20,13 +20,15 @@
 #include "src/algorithms/inscy/InscyNodeCpu.h"
 #include "src/algorithms/inscy/InscyCpuGpuMix.h"
 #include "src/algorithms/clustering/ClusteringGpu.cuh"
+#include "src/algorithms/clustering/ClusteringCpu.h"
 #include "src/algorithms/inscy/InscyCpuGpuMixClStream.h"
 #include "src/algorithms/inscy/InscyArrayGpu.h"
 #include "src/algorithms/inscy/InscyArrayGpuStream.h"
 
 using namespace std;
 
-vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
+vector<at::Tensor>
+run_cpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -44,11 +46,11 @@ vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int n
     ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), d, n,
                                                      neighborhood_size);
 
-    map<int, vector<int>> result;
+    map<vector<int>, vector<int>, vec_cmp> result;
 
     int calls = 0;
     INSCYCPU2(scy_tree, neighborhood_tree, X, n, neighborhood_size, F, num_obj, min_size,
-              result, 0, d, calls);
+              result, 0, d, r, calls);
     printf("CPU-INSCY(%d): 100%%      \n", calls);
 
     vector<at::Tensor> tuple;
@@ -59,12 +61,9 @@ vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int n
 
     int j = 0;
     for (auto p : result) {
-        int dims = p.first;
-        std::bitset<32> y(dims);
-        for (int i = 0; i < 32; i++) {
-            if (y[i] > 0) {
-                subspaces[j][i] = 1;
-            }
+        vector<int> dims = p.first;
+        for (int dim: dims) {
+            subspaces[j][dim] = 1;
         }
         vector<int> clustering = p.second;
         for (int i = 0; i < n; i++) {
@@ -78,7 +77,8 @@ vector<at::Tensor> run_cpu(at::Tensor X, float neighborhood_size, float F, int n
 }
 
 
-vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
+vector<at::Tensor>
+run_cmp(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -96,11 +96,11 @@ vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int n
     ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), d, n,
                                                      neighborhood_size);
 
-    map<int, vector<int>> result;
+    map<vector<int>, vector<int>, vec_cmp> result;
 
     int calls = 0;
     INSCYCompare(scy_tree, neighborhood_tree, X, n, neighborhood_size, F, num_obj, min_size,
-              result, 0, d, calls);
+                 result, 0, d, calls);
     printf("CPU-INSCY(%d): 100%%      \n", calls);
 
     vector<at::Tensor> tuple;
@@ -111,12 +111,9 @@ vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int n
 
     int j = 0;
     for (auto p : result) {
-        int dims = p.first;
-        std::bitset<32> y(dims);
-        for (int i = 0; i < 32; i++) {
-            if (y[i] > 0) {
-                subspaces[j][i] = 1;
-            }
+        vector<int> dims = p.first;
+        for (int dim: dims) {
+            subspaces[j][dim] = 1;
         }
         vector<int> clustering = p.second;
         for (int i = 0; i < n; i++) {
@@ -130,8 +127,8 @@ vector<at::Tensor> run_cmp(at::Tensor X, float neighborhood_size, float F, int n
 }
 
 
-
-vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
+vector<at::Tensor>
+run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -150,10 +147,11 @@ vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float 
 
     float *d_X = copy_to_device(X, n, subspace_size);
 
-    map<int, vector<int>> result;
+    map<vector<int>, vector<int>, vec_cmp> result;
 
     int calls = 0;
-    InscyCpuGpuMix(scy_tree, neighborhood_tree, X, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj, min_size,
+    InscyCpuGpuMix(scy_tree, neighborhood_tree, X, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F,
+                   num_obj, min_size,
                    result, 0,
                    subspace_size, calls);
 
@@ -167,12 +165,9 @@ vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float 
 
     int j = 0;
     for (auto p : result) {
-        int dims = p.first;
-        std::bitset<32> y(dims);
-        for (int i = 0; i < 32; i++) {
-            if (y[i] > 0) {
-                subspaces[j][i] = 1;
-            }
+        vector<int> dims = p.first;
+        for (int dim: dims) {
+            subspaces[j][dim] = 1;
         }
         vector<int> clustering = p.second;
         for (int i = 0; i < n; i++) {
@@ -186,7 +181,8 @@ vector<at::Tensor> run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float 
 }
 
 
-vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
+vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size,
+                                            int number_of_cells) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -205,10 +201,11 @@ vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_siz
 
     float *d_X = copy_to_device(X, n, subspace_size);
 
-    map<int, vector<int>> result;
+    map<vector<int>, vector<int>, vec_cmp> result;
 
     int calls = 0;
-    InscyCpuGpuMixClStream(scy_tree, neighborhood_tree, X, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj,
+    InscyCpuGpuMixClStream(scy_tree, neighborhood_tree, X, d_X, n, subspace_size, neighborhood_size, subspace,
+                           subspace_size, F, num_obj,
                            min_size, result, 0, subspace_size, calls);
 
     printf("CPU-GPU-MIX-CL-STREANS-INSCY(%d): 100%%      \n", calls);
@@ -221,12 +218,9 @@ vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_siz
 
     int j = 0;
     for (auto p : result) {
-        int dims = p.first;
-        std::bitset<32> y(dims);
-        for (int i = 0; i < 32; i++) {
-            if (y[i] > 0) {
-                subspaces[j][i] = 1;
-            }
+        vector<int> dims = p.first;
+        for (int dim: dims) {
+            subspaces[j][dim] = 1;
         }
         vector<int> clustering = p.second;
         for (int i = 0; i < n; i++) {
@@ -240,7 +234,8 @@ vector<at::Tensor> run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_siz
 }
 
 
-vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
+vector<at::Tensor>
+run_gpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -258,7 +253,7 @@ vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int n
 
     float *d_X = copy_to_device(X, n, subspace_size);
 
-    map<int, vector<int>> result;
+    map<vector<int>, vector<int>, vec_cmp> result;
 
     int calls = 0;
 //    scy_tree->print();
@@ -270,7 +265,8 @@ vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int n
 //    scy_tree_gpu->print();
 
 //    printf("GPU-INSCY(0): 0%%      \n");
-    InscyArrayGpu(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj, min_size, result,
+    InscyArrayGpu(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj, min_size,
+                  result,
                   0, subspace_size, calls);
 
     printf("GPU-INSCY(%d): 100%%      \n", calls);
@@ -283,12 +279,9 @@ vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int n
 
     int j = 0;
     for (auto p : result) {
-        int dims = p.first;
-        std::bitset<32> y(dims);
-        for (int i = 0; i < 32; i++) {
-            if (y[i] > 0) {
-                subspaces[j][i] = 1;
-            }
+        vector<int> dims = p.first;
+        for (int dim: dims) {
+            subspaces[j][dim] = 1;
         }
         vector<int> clustering = p.second;
         for (int i = 0; i < n; i++) {
@@ -301,7 +294,8 @@ vector<at::Tensor> run_gpu(at::Tensor X, float neighborhood_size, float F, int n
     return tuple;
 }
 
-vector<at::Tensor> run_gpu_stream(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
+vector<at::Tensor>
+run_gpu_stream(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -319,7 +313,7 @@ vector<at::Tensor> run_gpu_stream(at::Tensor X, float neighborhood_size, float F
 
     float *d_X = copy_to_device(X, n, subspace_size);
 
-    map<int, vector<int>> result;
+    map<vector<int>, vector<int>, vec_cmp> result;
 
     int calls = 0;
 //    scy_tree->print();
@@ -330,7 +324,8 @@ vector<at::Tensor> run_gpu_stream(at::Tensor X, float neighborhood_size, float F
 //    scy_tree_gpu->print();
 
 //    printf("GPU-INSCY(0): 0%%      \n");
-    InscyArrayGpuStream(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj, min_size,
+    InscyArrayGpuStream(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj,
+                        min_size,
                         result, 0, subspace_size, calls);
 
     printf("GPU-INSCY(%d): 100%%      \n", calls);
@@ -343,12 +338,9 @@ vector<at::Tensor> run_gpu_stream(at::Tensor X, float neighborhood_size, float F
 
     int j = 0;
     for (auto p : result) {
-        int dims = p.first;
-        std::bitset<32> y(dims);
-        for (int i = 0; i < 32; i++) {
-            if (y[i] > 0) {
-                subspaces[j][i] = 1;
-            }
+        vector<int> dims = p.first;
+        for (int dim: dims) {
+            subspaces[j][dim] = 1;
         }
         vector<int> clustering = p.second;
         for (int i = 0; i < n; i++) {

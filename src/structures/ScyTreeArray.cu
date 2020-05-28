@@ -2,6 +2,7 @@
 #include "../utils/RestrictUtils.h"
 #include "../utils/MergeUtil.h"
 #include "../utils/util.h"
+#include "../algorithms/clustering/ClusteringCpu.h"
 //#include "../algorithms/clustering/ClusteringGpu.cuh"
 
 #define BLOCKSIZE 16
@@ -1450,7 +1451,7 @@ bool ScyTreeArray::pruneRecursion_gpu(int min_size, float *d_X, int n, int d, fl
     return this->number_of_points >= min_size;
 }
 
-bool ScyTreeArray::pruneRedundancy_gpu(float r, int max_number_of_previous_clustered_points) {
+bool ScyTreeArray::pruneRedundancy_gpu(float r, map<vector<int>, vector<int>, vec_cmp> max_number_of_previous_clustered_points) {
 //    return this->number_of_points >= r * max_number_of_previous_clustered_points;
 return true;
 }
