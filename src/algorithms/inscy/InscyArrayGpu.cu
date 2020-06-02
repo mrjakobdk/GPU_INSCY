@@ -80,21 +80,22 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
                                          restricted_scy_tree->h_restricted_dims +
                                          restricted_scy_tree->number_of_restricted_dims);
 
-                    if (result.count(subspace)) {
-                        vector<int> clustering = result[subspace];
-                        int m = v_max(clustering);
-                        for (int i = 0; i < n; i++) {
-                            if (subspace_clustering[i] == -2) {
-                                clustering[i] = subspace_clustering[i];
-                            } else if (subspace_clustering[i] >= 0) {
-                                clustering[i] = subspace_clustering[i];
-                            }
-                        }
-
-                        result[subspace] = clustering;
-                    } else {
-                        result.insert(pair < vector < int > , vector < int >> (subspace, subspace_clustering));
-                    }
+//                    if (result.count(subspace)) {
+//                        vector<int> clustering = result[subspace];
+//                        int m = v_max(clustering);
+//                        for (int i = 0; i < n; i++) {
+//                            if (subspace_clustering[i] == -2) {
+//                                clustering[i] = subspace_clustering[i];
+//                            } else if (subspace_clustering[i] >= 0) {
+//                                clustering[i] = subspace_clustering[i];
+//                            }
+//                        }
+//
+//                        result[subspace] = clustering;
+//                    } else {
+//                        result.insert(pair < vector < int > , vector < int >> (subspace, subspace_clustering));
+//                    }
+                    join(result, subspace_clustering, subspace, min_size, 1.1);
                 }
             } else {
                 // delete restricted_scy_tree;

@@ -77,8 +77,8 @@ def clean_up(subspaces, clusterings, min_size):
 
 def run_cpu(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_cpu(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
-    return clean_up(subspaces, clusterings, min_size)
-    # return subspaces, clusterings
+    # return clean_up(subspaces, clusterings, min_size)
+    return subspaces, clusterings
 
 
 def run_cmp(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
@@ -99,8 +99,8 @@ def run_cpu_gpu_mix_cl_steam(X, neighborhood_size, F, num_obj, min_size, number_
 
 def run_gpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells)
-    return clean_up(subspaces, clusterings, min_size)
-    # return subspaces, clusterings
+    # return clean_up(subspaces, clusterings, min_size)
+    return subspaces, clusterings
 
 
 def run_gpu_stream(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):

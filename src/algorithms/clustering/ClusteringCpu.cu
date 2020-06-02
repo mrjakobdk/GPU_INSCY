@@ -173,7 +173,8 @@ bool dense(int point_id, vector<int> neighbors, float neighborhood_size, at::Ten
 void
 INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
                        float neighborhood_size, float F,
-                       int num_obj, vector<int> &subspace_clustering) {
+                       int num_obj, vector<int> &clustering, int min_size, float r,
+                       map <vector<int>, vector<int>, vec_cmp> result) {
     int *subspace = scy_tree->restricted_dims;
     int subspace_size = scy_tree->number_of_restricted_dims;
 
@@ -187,21 +188,24 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
 
     int clustered_count = 0;
     int prev_clustered_count = 0;
-    int next_cluster_label = max(0, v_max(subspace_clustering)) + 1; //1;
+    int next_cluster_label = max(0, v_max(clustering)) + 1; //1; //todo maybe +1 is not needed?
     vector<int> points = scy_tree->get_points();
 
     int d = X.size(1);
     neighborhood_tree = new ScyTreeNode(points, X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
                                         neighborhood_size);
 
+//    map<int, int> sizes;
+
     for (int i : points) {
 
-        if (subspace_clustering[i] != -1) {//already checked
+        if (clustering[i] != -1) {//already checked
             continue;
         }
 
         int label = next_cluster_label;
         prev_clustered_count = clustered_count;
+//        sizes.insert(pair<int, int>(label, 0));
         queue<int> q;
         q.push(i);
 
@@ -224,11 +228,12 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
             bool is_dense = dense(p_id, neighbors, neighborhood_size, X, subspace, subspace_size, F, n, num_obj);
             //printf("%d is dense: %d\n", p_id, is_dense);
             if (is_dense) {
-                subspace_clustering[p_id] = label;
+                clustering[p_id] = label;
+//                sizes[label]++;
                 clustered_count++;
                 for (int q_id : neighbors) {//todo should we actually add all neighbors to the que? should it not just be neighbors in the tree?
-                    if (subspace_clustering[q_id] == -1) {
-                        subspace_clustering[q_id] = -2;
+                    if (clustering[q_id] == -1) {
+                        clustering[q_id] = -2;
                         q.push(q_id);
                     }
                 }
@@ -239,26 +244,58 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
         }
     }
 //    return labels;
-}
 
-bool vec_cmp::operator()(const vector<int> &a, const vector<int> &b) const {
-//    int i = 0;
-//    while (a[i] == b[i]) {
-//        i++;
-//        if (i >= min(a.size(), b.size())) {
-//            return a.size() < b.size();
+
+    //todo remove redundant and to small clusters
+
+    //-todo find cluster sizes. - we just count this doing the clustering
+//    for (int p_id : points) {
+//        int cluster = clustering[p_id];
+//        if (cluster >= 0 && sizes[cluster] < min_size) {
+//            clustering[p_id] = -1;
 //        }
 //    }
-//    return a[i] > b[i];
-    int i = a.size()-1;
-    int j = b.size()-1;
-    while ( a[i] == b[j]) {
-        i--;
-        j--;
-        if (i<0 || j<0){
-            return i<j;
-        }
-    }
+//
+//    vector<int> subspace_R(scy_tree->restricted_dims, scy_tree->restricted_dims +
+//                                                    scy_tree->number_of_restricted_dims);
+//
+//    for (pair <vector<int>, vector<int>> subspace_clustering : result) {
+//
+//        vector<int> subspace_H = subspace_clustering.first;
+//        vector<int> clustering_H = subspace_clustering.second;
+//
+//        if (subspace_of(subspace_R, subspace_H)) {
+//
+//            map<int, int> sizes_H;
+//            set<int> to_be_removed;
+//            for (int cluster_id: clustering_H) {//todo this seems a bit expensive?
+//                if (cluster_id >= 0) {
+//                    if (sizes_H.count(cluster_id)) {
+//                        sizes_H[cluster_id]++;
+//                    } else {
+//                        sizes_H.insert(pair<int, int>(cluster_id, 1));
+//                    }
+//                }
+//            }
+//
+//            for (int p_id : points) {
+//                int cluster = clustering[p_id];
+//                int cluster_H = clustering_H[p_id];
+//                if (cluster >= 0 && cluster_H >= 0 && sizes[cluster] * r < sizes_H[cluster_H]) {
+//                    //subspace_clustering[p_id] = -1;//todo this could course problems - all points should be remove it a part of the cluster is covered by a large enough cluster.
+//                    to_be_removed.insert(cluster);
+//                }
+//            }
+//
+//            for (int p_id : points) {
+//                int cluster = clustering[p_id];
+//                if (cluster >= 0 && to_be_removed.find(cluster) != to_be_removed.end()) {//todo this seems a bit expensive to compute
+//                    clustering[p_id] = -1;
+//                }
+//            }
+//        }
+//    }
 
-    return a[i] < b[j];
 }
+
+

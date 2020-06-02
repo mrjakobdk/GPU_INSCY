@@ -420,20 +420,6 @@ bool ScyTreeNode::pruneRecursion(int min_size, ScyTreeNode *neighborhood_tree, a
     return this->number_of_points >= min_size;
 }
 
-bool subspace_of(vector<int> subspace, vector<int> subspace_mark) {
-    int i = 0;
-    int j = 0;
-    while (j < subspace_mark.size() && i < subspace.size()) {
-        if (subspace[i] == subspace_mark[j]) {
-            i++;
-            j++;
-        } else {
-            j++;
-        }
-    }
-    return i == subspace.size();
-}
-
 bool ScyTreeNode::pruneRedundancy(float r, map <vector<int>, vector<int>, vec_cmp> result) {
 
     int max_min_size = 0;

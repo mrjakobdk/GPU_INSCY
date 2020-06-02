@@ -80,4 +80,15 @@ vector<T> clone(vector<T> v_old);
 
 void zero(int *array, int n);
 
+bool subspace_of(vector<int> subspace, vector<int> subspace_mark);
+
+
+struct vec_cmp : public std::binary_function<vector<int>, vector<int>, bool> {
+    bool operator()(const vector<int> &a, const vector<int> &b) const;
+};
+
+
+void join(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, vector<int> subspace, int min_size, float r);
+
+
 #endif //CUDATEST_UTIL_H

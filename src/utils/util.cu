@@ -24,16 +24,15 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
 
 using namespace std;
 
-float *copy_to_device(vector<vector<float>> X, int number_of_points, int number_of_dims) {
+float *copy_to_device(vector <vector<float>> X, int number_of_points, int number_of_dims) {
     float *d_X;
     cudaMalloc(&d_X, sizeof(float) * number_of_points * number_of_dims);
     for (int i = 0; i < number_of_points; i++) {
         float *h_x_i = X[i].data();
-        cudaMemcpy(&d_X[i*number_of_dims], h_x_i, sizeof(float) * number_of_dims, cudaMemcpyHostToDevice);
+        cudaMemcpy(&d_X[i * number_of_dims], h_x_i, sizeof(float) * number_of_dims, cudaMemcpyHostToDevice);
     }
     return d_X;
 }
-
 
 
 float *copy_to_device(at::Tensor X, int number_of_points, int number_of_dims) {
@@ -58,7 +57,7 @@ void print_array_gpu(int *x, int n) {
 __global__
 void print_array_gpu(float *x, int n) {
     for (int i = 0; i < n; i++) {
-        printf("%f ",  x[i]);
+        printf("%f ", x[i]);
     }
     printf("\n");
 }
@@ -184,37 +183,35 @@ void inclusive_scan(int *x, int *y, int n) {
 }
 
 void inclusive_scan_cpu(int *d_x, int *d_y, int n) {
-    int * h_x = new int[n];
-    int * h_y = new int[n];
-    cudaMemcpy(h_y, d_y, n*sizeof(int), cudaMemcpyDeviceToHost);
+    int *h_x = new int[n];
+    int *h_y = new int[n];
+    cudaMemcpy(h_y, d_y, n * sizeof(int), cudaMemcpyDeviceToHost);
 
     int tmp = 0;
-    for (int i=0;i<n;i++){
+    for (int i = 0; i < n; i++) {
         tmp += h_y[i];
         h_x[i] = tmp;
     }
 
-    cudaMemcpy(d_x, h_x, n*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_x, h_x, n * sizeof(int), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
     delete h_x;
     delete h_y;
 }
 
-__global__ void prescan(int *g_odata, int *g_idata, int n)
-{
+__global__ void prescan(int *g_odata, int *g_idata, int n) {
     //https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-39-parallel-prefix-sum-scan-cuda
     extern __shared__ float temp[];// allocated on invocation
     int thid = threadIdx.x;
     int offset = 1;
-    temp[2*thid] = g_idata[2*thid]; // load input into shared memory
-    temp[2*thid+1] = g_idata[2*thid+1];
-    for (int d = n>>1; d > 0; d >>= 1) // build sum in place up the tree
+    temp[2 * thid] = g_idata[2 * thid]; // load input into shared memory
+    temp[2 * thid + 1] = g_idata[2 * thid + 1];
+    for (int d = n >> 1; d > 0; d >>= 1) // build sum in place up the tree
     {
         __syncthreads();
-        if (thid < d)
-        {
-            int ai = offset*(2*thid+1)-1;
-            int bi = offset*(2*thid+2)-1;
+        if (thid < d) {
+            int ai = offset * (2 * thid + 1) - 1;
+            int bi = offset * (2 * thid + 2) - 1;
             temp[bi] += temp[ai];
         }
         offset *= 2;
@@ -224,18 +221,17 @@ __global__ void prescan(int *g_odata, int *g_idata, int n)
     {
         offset >>= 1;
         __syncthreads();
-        if (thid < d)
-        {
-            int ai = offset*(2*thid+1)-1;
-            int bi = offset*(2*thid+2)-1;
+        if (thid < d) {
+            int ai = offset * (2 * thid + 1) - 1;
+            int bi = offset * (2 * thid + 2) - 1;
             float t = temp[ai];
             temp[ai] = temp[bi];
             temp[bi] += t;
         }
     }
     __syncthreads();
-    g_odata[2*thid] = temp[2*thid]; // write results to device memory
-    g_odata[2*thid+1] = temp[2*thid+1];
+    g_odata[2 * thid] = temp[2 * thid]; // write results to device memory
+    g_odata[2 * thid + 1] = temp[2 * thid + 1];
 }
 
 void inclusive_scan_v2(int *x, int *y, int n) {
@@ -249,7 +245,8 @@ void inclusive_scan_async(int *x, int *y, int n, cudaStream_t stream) {
 
     if (n > SECTION_SIZE) {
         int *S;
-        cudaMalloc((void **) &S, (n / SECTION_SIZE) * sizeof(int));//todo should be async, but that is not possible - maybe allocate for all earlier on
+        cudaMalloc((void **) &S, (n / SECTION_SIZE) *
+                                 sizeof(int));//todo should be async, but that is not possible - maybe allocate for all earlier on
         scan_kernel_eff_large1 << < numBlocks, BLOCK_WIDTH, 0, stream >> > (x, y, S, n);
         inclusive_scan_async(S, S, n / SECTION_SIZE, stream);
         scan_kernel_eff_large3 << < numBlocks, BLOCK_WIDTH, 0, stream >> > (y, S, n);
@@ -320,7 +317,7 @@ void populate(int *parents, int *cells, int *counts, int *dim_start, int *dims, 
 void print_scy_tree(int *parents, int *cells, int *counts, int *dim_start, int *dims, int d, int n) {
 
     printf("r:  %d/%d\n", cells[0], counts[0]);
-    if(d==0)
+    if (d == 0)
         return;
 
     int *leaf_count = new int[n];
@@ -474,7 +471,7 @@ float v_mean(std::vector<float> v) {
 }
 
 
-vector<float> m_get_col(vector<vector<float>> m, int i) {
+vector<float> m_get_col(vector <vector<float>> m, int i) {
     vector<float> col;
     for (int j = 0; j < m.size(); j++) {
         col.push_back(m[j][i]);
@@ -513,7 +510,7 @@ int v_max(std::vector<int> v) {
 }
 
 
-void m_normalize(std::vector<std::vector<float>> &m) {
+void m_normalize(std::vector <std::vector<float>> &m) {
 
     float *min = new float[m[0].size()];
     float *max = new float[m[0].size()];
@@ -542,12 +539,133 @@ void m_normalize(std::vector<std::vector<float>> &m) {
 }
 
 template<class T>
-vector<T> clone(vector<T> v_old) {
-    vector<T> v_clone(v_old);
+vector <T> clone(vector <T> v_old) {
+    vector <T> v_clone(v_old);
     return v_clone;
 }
 
 void zero(int *array, int n) {
     for (int i = 0; i < n; i++)
         array[i] = 0;
+}
+
+
+bool subspace_of(vector<int> subspace, vector<int> subspace_mark) {
+    int i = 0;
+    int j = 0;
+    while (j < subspace_mark.size() && i < subspace.size()) {
+        if (subspace[i] == subspace_mark[j]) {
+            i++;
+            j++;
+        } else {
+            j++;
+        }
+    }
+    return i == subspace.size();
+}
+
+bool vec_cmp::operator()(const vector<int> &a, const vector<int> &b) const {
+//    int i = 0;
+//    while (a[i] == b[i]) {
+//        i++;
+//        if (i >= min(a.size(), b.size())) {
+//            return a.size() < b.size();
+//        }
+//    }
+//    return a[i] > b[i];
+    int i = a.size() - 1;
+    int j = b.size() - 1;
+    while (a[i] == b[j]) {
+        i--;
+        j--;
+        if (i < 0 || j < 0) {
+            return i < j;
+        }
+    }
+
+    return a[i] < b[j];
+}
+
+void join(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, vector<int> subspace, int min_size, float r) {
+
+    int n = clustering.size();
+
+    map<int, int> sizes;
+
+    for (int i = 0; i < n; i++) {
+        int cluster = clustering[i];
+        if (cluster >= 0) {
+            if (sizes.count(cluster)) {
+                sizes[cluster]++;
+            } else {
+                sizes.insert(pair<int, int>(cluster, 1));
+            }
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        int cluster = clustering[i];
+        if (cluster >= 0 && sizes[cluster] < min_size) {
+            clustering[i] = -1;
+        }
+    }
+
+//    vector<int> subspace_R(scy_tree->restricted_dims, scy_tree->restricted_dims +
+//                                                      scy_tree->number_of_restricted_dims);
+
+    for (pair <vector<int>, vector<int>> subspace_clustering : result) {
+
+        vector<int> subspace_H = subspace_clustering.first;
+        vector<int> clustering_H = subspace_clustering.second;
+
+        if (subspace_of(subspace, subspace_H)) {
+
+            map<int, int> sizes_H;
+            set<int> to_be_removed;
+            for (int cluster_id: clustering_H) {//todo this seems a bit expensive?
+                if (cluster_id >= 0) {
+                    if (sizes_H.count(cluster_id)) {
+                        sizes_H[cluster_id]++;
+                    } else {
+                        sizes_H.insert(pair<int, int>(cluster_id, 1));
+                    }
+                }
+            }
+
+            for (int i = 0; i < n; i++) {
+                int cluster = clustering[i];
+                int cluster_H = clustering_H[i];
+                if (cluster >= 0 && cluster_H >= 0 && sizes[cluster] * r < sizes_H[cluster_H]) {
+                    //subspace_clustering[i] = -1;//todo this could course problems - all points should be remove it a part of the cluster is covered by a large enough cluster.
+                    to_be_removed.insert(cluster);
+                }
+            }
+
+            for (int i = 0; i < n; i++) {
+                int cluster = clustering[i];
+                if (cluster >= 0 &&
+                    to_be_removed.find(cluster) != to_be_removed.end()) {//todo this seems a bit expensive to compute
+                    clustering[i] = -1;
+                }
+            }
+        }
+    }
+
+    int clustering_max = v_max(clustering);
+    if (clustering_max >= 0) {
+        if (result.count(subspace)) {
+            vector<int> clustering_old = result[subspace];
+            int m = v_max(clustering_old);
+            for (int i = 0; i < n; i++) {
+                if (clustering[i] == -2) {
+                    clustering_old[i] = clustering[i];
+                } else if (clustering[i] >= 0) {
+                    clustering_old[i] = m + 1 + clustering[i];
+                }
+            }
+            result[subspace] = clustering_old;
+        } else {
+            result.insert(pair < vector < int > , vector < int >> (subspace, clustering));
+        }
+    }
 }

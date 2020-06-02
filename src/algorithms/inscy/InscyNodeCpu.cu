@@ -56,7 +56,8 @@ INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, i
                 result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                if (restricted_scy_tree->pruneRedundancy(r, result)) {//todo should it be result or sub_result? is sub_result enough or do we need more?
+                if (restricted_scy_tree->pruneRedundancy(r,
+                                                         result)) {//todo should it be result or sub_result? is sub_result enough or do we need more? -i think we need the hole result...
 
                     //result := DBClustering(restricted-tree) ∪ result;
 //                    int idx = restricted_scy_tree->get_dims_idx();
@@ -66,7 +67,7 @@ INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, i
 //                                                                         num_obj);
                     INSCYClusteringImplCPU(restricted_scy_tree, neighborhood_tree, X, n,
                                            neighborhood_size, F,
-                                           num_obj, subspace_clustering);
+                                           num_obj, subspace_clustering, min_size, r, result);
 //                    if (result.count(idx)) {
 //                        vector<int> clustering = result[idx];
 //                        int m = v_max(clustering);
@@ -89,20 +90,10 @@ INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, i
             }
             cell_no++;
         }
-        if (result.count(subspace)) {
-            vector<int> clustering = result[subspace];
-            int m = v_max(clustering);
-            for (int i = 0; i < n; i++) {
-                if (subspace_clustering[i] == -2) {
-                    clustering[i] = subspace_clustering[i];
-                } else if (subspace_clustering[i] >= 0) {
-                    clustering[i] = m + 1 + subspace_clustering[i];
-                }
-            }
-            result[subspace] = clustering;
-        } else {
-            result.insert(pair < vector < int > , vector < int >> (subspace, subspace_clustering));
-        }
+
+
+        join(result, subspace_clustering, subspace, min_size, r);
+
         dim_no++;
     }
     int total_inscy = pow(2, d);

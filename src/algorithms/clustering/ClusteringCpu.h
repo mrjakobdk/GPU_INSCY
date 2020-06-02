@@ -14,15 +14,13 @@ using namespace std;
 // forward declaration
 class ScyTreeNode;
 
-
-struct vec_cmp : public std::binary_function<vector<int>, vector<int>, bool> {
-    bool operator()(const vector<int> &a, const vector<int> &b) const;
-};
+struct vec_cmp;
 
 void
 INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
                        float neighborhood_size, float F,
-                       int num_obj, vector<int> &subspace_clustering);
+                       int num_obj, vector<int> &clustering, int min_size, float r,
+                       map<vector<int>, vector<int>, vec_cmp> result);
 
 float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tensor X, int *subspace,
           int subspace_size);

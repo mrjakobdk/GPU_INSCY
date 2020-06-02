@@ -190,7 +190,7 @@ void compare(ScyTreeArray *scy_tree_1, ScyTreeArray *scy_tree_2) {
 }
 
 void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size,
-                  float F, int num_obj, int min_size, map<vector < int > , vector<int>, vec_cmp> &result, int first_dim_no,
+                  float F, int num_obj, int min_size, map <vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
                   int d, int &calls) {
 
 //    printf("call: %d, first_dim_no: %d, points: %d\n", calls, first_dim_no, scy_tree->number_of_points);
@@ -241,11 +241,11 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
                                                     num_obj, n, d)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                map<vector<int>, vector<int>, vec_cmp> sub_result;
+                map <vector<int>, vector<int>, vec_cmp> sub_result;
                 INSCYCompare(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
                              F, num_obj, min_size, sub_result,
                              dim_no + 1, d, calls);
-                result.insert(sub_result.begin(),sub_result.end());
+                result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 restricted_scy_tree->pruneRedundancy(0.5, sub_result);//todo does nothing atm
@@ -254,8 +254,8 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
                 int idx = restricted_scy_tree->get_dims_idx();
 
                 INSCYClusteringImplCPU(restricted_scy_tree, neighborhood_tree, X, n,
-                                        neighborhood_size, F,
-                                        num_obj, subspace_clustering);
+                                       neighborhood_size, F,
+                                       num_obj, subspace_clustering, min_size, 0.5, result);
 //                if (result.count(idx)) {
 //                    vector<int> clustering = result[idx];
 //                    int m = v_max(clustering);
