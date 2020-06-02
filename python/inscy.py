@@ -20,6 +20,7 @@ inscy = load(name="inscy",
                       "src/algorithms/inscy/InscyCpuGpuMix.cu",
                       "src/algorithms/inscy/InscyCpuGpuMixClStream.cu",
                       "src/algorithms/inscy/InscyArrayGpu.cu",
+                      "src/algorithms/inscy/InscyArrayGpuMulti.cu",
                       "src/algorithms/inscy/InscyArrayGpuStream.cu"
                       ])
 print("Finished compilation, took: %.4fs" % (time.time() - t0))
@@ -97,9 +98,13 @@ def run_cpu_gpu_mix_cl_steam(X, neighborhood_size, F, num_obj, min_size, number_
     return subspaces, clusterings
 
 
-def run_gpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3):
-    subspaces, clusterings = inscy.run_gpu(X, neighborhood_size, F, num_obj, min_size, number_of_cells)
+def run_gpu(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
+    subspaces, clusterings = inscy.run_gpu(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
     # return clean_up(subspaces, clusterings, min_size)
+    return subspaces, clusterings
+
+def run_gpu_multi(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
+    subspaces, clusterings = inscy.run_gpu_multi(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
     return subspaces, clusterings
 
 

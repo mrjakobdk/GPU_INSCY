@@ -1451,7 +1451,53 @@ bool ScyTreeArray::pruneRecursion_gpu(int min_size, float *d_X, int n, int d, fl
     return this->number_of_points >= min_size;
 }
 
-bool ScyTreeArray::pruneRedundancy_gpu(float r, map<vector<int>, vector<int>, vec_cmp> max_number_of_previous_clustered_points) {
-//    return this->number_of_points >= r * max_number_of_previous_clustered_points;
-return true;
+bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, vec_cmp> result) {
+    int max_min_size = 0;
+
+    vector<int> subspace(this->h_restricted_dims, this->h_restricted_dims +
+                                                this->number_of_restricted_dims);
+    vector<int> max_min_subspace;
+
+    for (std::pair <vector<int>, vector<int>> subspace_clustering : result) {
+
+
+        // find sizes of clusters
+        vector<int> subspace_mark = subspace_clustering.first;
+        if (subspace_of(subspace, subspace_mark)) {
+
+            vector<int> clustering_mark = subspace_clustering.second;
+            map<int, int> cluster_sizes;
+            for (int cluster_id: clustering_mark) {
+                if (cluster_id >= 0) {
+                    if (cluster_sizes.count(cluster_id)) {
+                        cluster_sizes[cluster_id]++;
+                    } else {
+                        cluster_sizes.insert(pair<int, int>(cluster_id, 1));
+                    }
+                }
+            }
+
+
+            // find the minimum size for each subspace
+            int min_size = -1;
+            for (std::pair<int, int> cluster_size : cluster_sizes) {
+                int size = cluster_size.second;
+                if (min_size == -1 || size < min_size) {//todo this min size should only be for clusters covering the region in question
+                    min_size = size;
+                }
+            }
+
+            // find the maximum minimum size for each subspace
+            if (min_size > max_min_size) {
+                max_min_size = min_size;
+                max_min_subspace = subspace_mark;
+            }
+        }
+    }
+
+    if (max_min_size == 0) {
+        return true;
+    }
+
+    return this->number_of_points * r > max_min_size * 1.;
 }

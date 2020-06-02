@@ -452,12 +452,10 @@ bool ScyTreeNode::pruneRedundancy(float r, map <vector<int>, vector<int>, vec_cm
             int min_size = -1;
             for (std::pair<int, int> cluster_size : cluster_sizes) {
                 int size = cluster_size.second;
-//                printf("size:%d ",size);
                 if (min_size == -1 || size < min_size) {//todo this min size should only be for clusters covering the region in question
                     min_size = size;
                 }
             }
-//            printf("min_size: %d\n", min_size);
 
             // find the maximum minimum size for each subspace
             if (min_size > max_min_size) {
@@ -466,21 +464,12 @@ bool ScyTreeNode::pruneRedundancy(float r, map <vector<int>, vector<int>, vec_cm
             }
         }
     }
-//    printf("max_min_size: %d\n", max_min_size);
 
     if (max_min_size == 0) {
         return true;
     }
-//    printf("max_min_size: %d\n", max_min_size);
 
-    if (this->number_of_points * r > max_min_size * 1.) {
-        return true;
-    } else {
-        print_array(subspace, subspace.size());
-        printf("were pruned due too:");
-        print_array(max_min_subspace, max_min_subspace.size());
-        return false;
-    }
+    return this->number_of_points * r > max_min_size * 1.;
 }
 
 ScyTreeNode::ScyTreeNode() {//todo not god to have public

@@ -1,13 +1,12 @@
 //
-// Created by mrjakobdk on 5/4/20.
+// Created by mrjakobdk on 6/2/20.
 //
 
-#include "InscyArrayGpu.h"
-#include "../clustering/ClusteringGpuStreams.h"
+#include "InscyArrayGpuMulti.cuh"
 #include "../clustering/ClusteringGpu.cuh"
-#include "../clustering/ClusteringCpu.h"
 #include "../../structures/ScyTreeArray.h"
 #include "../../utils/util.h"
+
 
 #include <math.h>
 #include <map>
@@ -24,11 +23,11 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
     }
 }
 
-void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, int *subspace,
-                   int subspace_size, float F, int num_obj, int min_size,
-                   map <vector<int>, vector<int>, vec_cmp> &result,
-                   int first_dim_no,
-                   int total_number_of_dim, float r, int &calls) {
+void InscyArrayGpuMulti(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, int *subspace,
+                        int subspace_size, float F, int num_obj, int min_size,
+                        map <vector<int>, vector<int>, vec_cmp> &result,
+                        int first_dim_no,
+                        int total_number_of_dim, float r, int &calls) {
 
 //    printf("call: %d, first_dim_no: %d, points: %d\n", calls, first_dim_no, scy_tree->number_of_points);
 //    scy_tree->copy_to_host();
@@ -61,8 +60,8 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 map <vector<int>, vector<int>, vec_cmp> sub_result;
-                InscyArrayGpu(restricted_scy_tree, d_X, n, d, neighborhood_size, subspace, subspace_size,
-                              F, num_obj, min_size, sub_result, dim_no + 1, total_number_of_dim, r, calls);
+                InscyArrayGpuMulti(restricted_scy_tree, d_X, n, d, neighborhood_size, subspace, subspace_size,
+                                   F, num_obj, min_size, sub_result, dim_no + 1, total_number_of_dim, r, calls);
                 result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
