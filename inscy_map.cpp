@@ -266,7 +266,7 @@ run_gpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_siz
 //    scy_tree_gpu->print();
 
 //    printf("GPU-INSCY(0): 0%%      \n");
-    InscyArrayGpu(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj, min_size,
+    InscyArrayGpu(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
                   result,
                   0, subspace_size, r, calls);
 
@@ -327,9 +327,8 @@ run_gpu_multi(at::Tensor X, float neighborhood_size, float F, int num_obj, int m
 //    scy_tree_gpu->print();
 
 //    printf("GPU-INSCY(0): 0%%      \n");
-    InscyArrayGpuMulti(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj, min_size,
-                  result,
-                  0, subspace_size, r, calls);
+    InscyArrayGpuMulti(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
+                       result, 0, subspace_size, r, calls);
 
     printf("GPU-INSCY(%d): 100%%      \n", calls);
 

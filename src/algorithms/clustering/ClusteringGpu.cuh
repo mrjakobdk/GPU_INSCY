@@ -15,6 +15,7 @@ class ScyTreeArray;
 
 vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, float F,
                           int num_obj);
-
+void ClusteringGPU(int * d_clustering, ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, float F,
+                          int num_obj);
 
 #endif //GPU_INSCY_CLUSTERINGGPU_CUH
