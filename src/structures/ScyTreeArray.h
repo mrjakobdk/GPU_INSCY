@@ -74,6 +74,8 @@ public:
 
     ScyTreeArray *restrict_gpu(int dim_no, int cell_no);
 
+    vector <vector<ScyTreeArray *>> restrict_gpu_multi(int first_dim_no, int number_of_dims, int number_of_cells);
+
     bool pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
                             int num_obj);
 

@@ -31,26 +31,28 @@ void InscyArrayGpuMulti(ScyTreeArray *scy_tree, float *d_X, int n, int d, float 
     int number_of_dims = total_number_of_dim - first_dim_no;
     int number_of_cells = scy_tree->number_of_cells;
 
-    vector <vector<ScyTreeArray *>> L(number_of_dims);
+//    vector <vector<ScyTreeArray *>> L(number_of_dims);
+//
+//    int dim_no = first_dim_no;
+//    while (dim_no < total_number_of_dim) {
+//
+//        int i = dim_no - first_dim_no;
+//        L[i] = vector<ScyTreeArray *>(number_of_cells);
+//
+//        int cell_no = 0;
+//        while (cell_no < number_of_cells) {
+//            //restricted-tree := restrict(scy-tree, descriptor);
+//            L[i][cell_no] = scy_tree->restrict_gpu(dim_no, cell_no);
+//            cell_no++;
+//        }
+//        dim_no++;
+//    }
 
-    int dim_no = first_dim_no;
-    while (dim_no < total_number_of_dim) {
-
-        int i = dim_no - first_dim_no;
-        L[i] = vector<ScyTreeArray *>(number_of_cells);
-
-        int cell_no = 0;
-        while (cell_no < number_of_cells) {
-            //restricted-tree := restrict(scy-tree, descriptor);
-            L[i][cell_no] = scy_tree->restrict_gpu(dim_no, cell_no);
-            cell_no++;
-        }
-        dim_no++;
-    }
+    vector <vector<ScyTreeArray *>> L = scy_tree->restrict_gpu_multi(first_dim_no, number_of_dims, number_of_cells);
 
     vector <vector<ScyTreeArray *>> L_merged(number_of_dims);
 
-    dim_no = first_dim_no;
+    int dim_no = first_dim_no;
     while (dim_no < total_number_of_dim) {
         int i = dim_no - first_dim_no;
         int j = 0;
