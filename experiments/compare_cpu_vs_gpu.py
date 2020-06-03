@@ -31,7 +31,7 @@ for subspace_size in subspace_sizes:
     print("Finished CPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
     t0 = time.time()
-    subspaces_gpu, clusterings_gpu = INSCY.run_gpu(X_, params["neighborhood_size"], params["F"], params["num_obj"],
+    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi(X_, params["neighborhood_size"], params["F"], params["num_obj"],
                                                    params["min_size"], 0.8)
     print("Finished GPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
