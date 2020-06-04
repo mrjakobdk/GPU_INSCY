@@ -27,6 +27,7 @@ void InscyArrayGpuMulti(ScyTreeArray *scy_tree, float *d_X, int n, int d, float 
                         int min_size, map <vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
                         int total_number_of_dim, float r, int &calls) {
     calls++;
+    printf("\t\t\t\t\t\t\t\t\t\t\t\t\tGPU-INSCY(%d): ???%%      \r", calls);
 
     int number_of_dims = total_number_of_dim - first_dim_no;
     int number_of_cells = scy_tree->number_of_cells;
@@ -50,6 +51,7 @@ void InscyArrayGpuMulti(ScyTreeArray *scy_tree, float *d_X, int n, int d, float 
 
     vector <vector<ScyTreeArray *>> L = scy_tree->restrict_gpu_multi(first_dim_no, number_of_dims, number_of_cells);
 
+
     vector <vector<ScyTreeArray *>> L_merged(number_of_dims);
 
     int dim_no = first_dim_no;
@@ -62,8 +64,22 @@ void InscyArrayGpuMulti(ScyTreeArray *scy_tree, float *d_X, int n, int d, float 
         cell_no++;
         while (cell_no < scy_tree->number_of_cells) {
             //restricted-tree := mergeWithNeighbors(restricted-tree);
-            if (L[i][cell_no-1]->is_s_connected) {
-                L_merged[i][j] = L_merged[i][j]->merge(L[i][cell_no]);
+            if (L[i][cell_no - 1]->is_s_connected) {
+                ScyTreeArray *old_merged = L_merged[i][j];
+
+//                if(calls == 59){
+//                old_merged->copy_to_host();
+//                old_merged->print();
+//                L[i][cell_no]->copy_to_host();
+//                L[i][cell_no]->print();
+//                }
+//                printf("\ncalls: %d\n", calls);
+                if (L[i][cell_no]->number_of_points > 0) {
+                    L_merged[i][j] = L_merged[i][j]->merge(L[i][cell_no]);
+                }
+//                printf("\nafter merge\n");
+//                delete L[i][cell_no];
+//                delete old_merged;
             } else {
                 j++;
                 L_merged[i].push_back(L[i][cell_no]);
@@ -110,6 +126,7 @@ void InscyArrayGpuMulti(ScyTreeArray *scy_tree, float *d_X, int n, int d, float 
 
                 }
             }
+//            delete restricted_scy_tree;
         }
 
 
@@ -171,4 +188,5 @@ void InscyArrayGpuMulti(ScyTreeArray *scy_tree, float *d_X, int n, int d, float 
                                 size()
 
                 * 100) / total_inscy));
+
 }

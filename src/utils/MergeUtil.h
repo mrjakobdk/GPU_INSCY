@@ -23,11 +23,12 @@ struct cmp : public binary_function<int, int, bool> {
     const int *count_1;
     const int *count_2;
     int n_1;
+    int n_2;
 
     cmp(const int *new_indecies, const int *map_to_new, const int *p_1, const int *p_2, const int *c_1, const int *c_2,
         const int *count_1, const int *count_2,
-        int n_1) : new_indecies(new_indecies), map_to_new(map_to_new), p_1(p_1), p_2(p_2), c_1(c_1), c_2(c_2),
-                   count_1(count_1), count_2(count_2), n_1(n_1) {}
+        int n_1, int n_2) : new_indecies(new_indecies), map_to_new(map_to_new), p_1(p_1), p_2(p_2), c_1(c_1), c_2(c_2),
+                            count_1(count_1), count_2(count_2), n_1(n_1), n_2(n_2) {}
 
     /**
      *
@@ -40,21 +41,33 @@ struct cmp : public binary_function<int, int, bool> {
 //        if (i > 900 && j == 240) {
 //            printf("\ntest init\n\n");
 //        }
-//        printf("i:%d, j:%d\n",i,j);
+
+        if (i < 0 || n_1 <= i || j < 0 || n_2 <= j) {
+            printf("i:%d, j:%d\n",
+                   i, j);
+        }
         int c_i = c_1[i];
         int c_j = c_2[j];
         int p_i = p_1[i];
         int p_j = p_2[j];
         int count_i = count_1[i];
         int count_j = count_2[j];
-//        printf("c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d\n",
-//               c_i, c_j, p_i, p_j, count_i, count_j);
+        if (p_i < 0 || n_1 <= p_i || p_j < 0 || n_2 <= p_j) {
+            printf("i:%d, j:%d, c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d\n",
+                   i, j, c_i, c_j, p_i, p_j, count_i, count_j);
+        }
         int map_i = map_to_new[p_i];
         int map_j = map_to_new[p_j + n_1];
-//        printf("c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d, map_i:%d, map_j:%d\n",
-//               c_i, c_j, p_i, p_j, count_i, count_j, map_i, map_j);
+        if (map_i < 0 || n_1 + n_2 <= map_i || map_j < 0 || n_1 + n_2 <= map_j) {
+            printf("i:%d, j:%d, c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d, map_i:%d, map_j:%d\n",
+                   i, j, c_i, c_j, p_i, p_j, count_i, count_j, map_i, map_j);
+        }
         int new_p_i = new_indecies[map_i];
         int new_p_j = new_indecies[map_j];
+        if (new_p_i < 0 || n_1 + n_2 <= new_p_i || new_p_j < 0 || n_1 + n_2 <= new_p_j) {
+            printf("i:%d, j:%d, c_i:%d, c_j:%d p_i:%d, p_j:%d, count_i:%d, count_j:%d, map_i:%d, map_j:%d, new_p_i:%d, new_p_j:%d\n",
+                   i, j, c_i, c_j, p_i, p_j, count_i, count_j, map_i, map_j, new_p_i, new_p_j);
+        }
 
 //        if(map_i<0 || map_j<0 || new_p_i<0 || new_p_j<0){
 //            printf("\n\n %d, %d, %d, %d\n\n", map_i, map_j, new_p_i, new_p_j);

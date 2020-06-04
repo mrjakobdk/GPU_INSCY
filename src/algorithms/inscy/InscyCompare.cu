@@ -213,12 +213,15 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
             ScyTreeArray *restricted_scy_tree_conv = restricted_scy_tree->convert_to_ScyTreeArray();
             ScyTreeArray *restricted_scy_tree_gpu = scy_tree_gpu->restrict_gpu(dim_no, cell_no);
             restricted_scy_tree_gpu->copy_to_host();
+            ScyTreeArray *restricted_scy_tree_gpu_3 = scy_tree_gpu->restrict3_gpu(dim_no, cell_no);
+            restricted_scy_tree_gpu_3->copy_to_host();
 
             subspace = vector<int>(restricted_scy_tree->restricted_dims, restricted_scy_tree->restricted_dims +
                                                                          restricted_scy_tree->number_of_restricted_dims);
 
 //            printf("After restrict:\n");
             compare(restricted_scy_tree_gpu, restricted_scy_tree_conv);
+            compare(restricted_scy_tree_gpu, restricted_scy_tree_gpu_3);
 
 
             //restricted-tree := mergeWithNeighbors(restricted-tree);

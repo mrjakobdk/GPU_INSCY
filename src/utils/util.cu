@@ -80,9 +80,6 @@ void scan_kernel_eff(int *x, int *y, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) {
         XY[threadIdx.x] = x[i];
-//        if(x[i]<0){
-//            printf("\n\nnegative number encountered!!!\n\n");
-//        }
     }
 
     for (unsigned int stride = 1; stride <= blockDim.x; stride *= 2) {
@@ -96,14 +93,16 @@ void scan_kernel_eff(int *x, int *y, int n) {
     for (int stride = SECTION_SIZE; stride > 0; stride /= 2) {
         __syncthreads();
         int index = (threadIdx.x + 1) * stride * 2 - 1;
-        if (index + stride < BLOCK_WIDTH) {
+        if (index + stride < SECTION_SIZE) {
             XY[index + stride] += XY[index];
         }
     }
 
     __syncthreads();
 
-    y[i] = XY[threadIdx.x];
+    if (i < n) {
+        y[i] = XY[threadIdx.x];
+    }
 }
 
 
@@ -117,9 +116,6 @@ void scan_kernel_eff_large1(int *x, int *y, int *S, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) {
         XY[threadIdx.x] = x[i];
-//        if(x[i]<0){
-//            printf("\n\nnegative number encountered!!!\n\n");
-//        }
     }
 
     for (unsigned int stride = 1; stride <= blockDim.x; stride *= 2) {
@@ -133,14 +129,16 @@ void scan_kernel_eff_large1(int *x, int *y, int *S, int n) {
     for (int stride = SECTION_SIZE; stride > 0; stride /= 2) {
         __syncthreads();
         int index = (threadIdx.x + 1) * stride * 2 - 1;
-        if (index + stride < BLOCK_WIDTH) {
+        if (index + stride < SECTION_SIZE) {
             XY[index + stride] += XY[index];
         }
     }
 
     __syncthreads();
 
-    y[i] = XY[threadIdx.x];
+    if (i < n) {
+        y[i] = XY[threadIdx.x];
+    }
 
     if (threadIdx.x == 0) {
         S[blockIdx.x] = XY[SECTION_SIZE - 1];

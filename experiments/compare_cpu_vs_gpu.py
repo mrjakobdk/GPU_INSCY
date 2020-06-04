@@ -11,7 +11,7 @@ params = {"n": 400,
           "num_obj": 10,
           "min_size": 4,
           "subspace_size_min": 2,
-          "subspace_size_max": 7}
+          "subspace_size_max": 9}
 
 print("Loading Glove...")
 t0 = time.time()

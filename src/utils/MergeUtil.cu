@@ -118,21 +118,24 @@ merge_check_path_from_pivots(int start_1, int start_2, int end_1, int end_2, int
     //https://web.cs.ucdavis.edu/~amenta/f15/GPUmp.pdf: GPU Merge Path - A GPU Merging Algorithm
     //also see Merge path - parallel merging made simple. In Parallel and Distributed Processing Symposium, International,may2012.
 
-    int j = blockIdx.x * blockDim.x + threadIdx.x;
+//    int j = blockIdx.x * blockDim.x + threadIdx.x;
+//    int i = j * step + start_1 + start_2;
+//    if (i >= end_1 + end_2)
+//        return;
+    int j = threadIdx.x;
     int i = j * step + start_1 + start_2;
-    if (i >= end_1 + end_2)
-        return;
+    while(i < end_1 + end_2) {
 
 
-    int m_1 = pivots_1[j];
-    int m_2 = pivots_2[j];
+        int m_1 = pivots_1[j];
+        int m_2 = pivots_2[j];
 
-    //check
-    for (int s = 0; s < step && i + s < end_1 + end_2; s++) {
+        //check
+        for (int s = 0; s < step && i + s < end_1 + end_2; s++) {
 //        printf("test 1\n");
 //        printf("(m_1 < end_1 && m_2 < end_2), (%d < %d && %d < %d), s:%d\n", m_1, end_1, m_2, end_2, s);
-        bool on = (m_1 < end_1 && m_2 < end_2) ? c(m_1, m_2) : (m_2 == end_2);
-        //todo i think there is a problem here!!! what if (m_2 == end_2) && (m_1 == end_1)
+            bool on = (m_1 < end_1 && m_2 < end_2) ? c(m_1, m_2) : (m_2 == end_2);
+            //todo i think there is a problem here!!! what if (m_2 == end_2) && (m_1 == end_1)
 //        printf("test 2\n");
 
 //        if (m_2 == 163) {
@@ -144,28 +147,31 @@ merge_check_path_from_pivots(int start_1, int start_2, int end_1, int end_2, int
 //            }
 //        }
 
-        if (on) {
+            if (on) {
 
-//            if(map_to_new[m_1] != -99){
-//                printf("something went wrong here!\n");
-//                printf("(m_1 < end_1 && m_2 < end_2), (%d < %d && %d < %d), s:%d\n", m_1, end_1, m_2, end_2, s);
-//            }
+//                if (map_to_new[m_1] >= 0) {
+//                    printf("on pivots_1[j]:%d, pivots_2[j]:%d, (start_1 <= m_1 < end_1 && start_2 <= m_2 < end_2), (%d <= %d < %d && %d <= %d < %d), s:%d, i+s:%d, map_to_new[m_1]:%d\n",
+//                           pivots_1[j], pivots_2[j], start_1, m_1, end_1, start_2, m_2, end_2, s, i + s, map_to_new[m_1]);
+//                }
 
-            map_to_old[i + s] = m_1;
-            map_to_new[m_1] = i + s;
-            m_1++;
-        } else {
+                map_to_old[i + s] = m_1;
+                map_to_new[m_1] = i + s;
+                m_1++;
+            } else {
 
+//                if (map_to_new[m_2 + n_1] >= 0) {
+//                    printf("off pivots_1[j]:%d, pivots_2[j]:%d, (start_1 <= m_1 < end_1 && start_2 <= m_2 < end_2), (%d <= %d < %d && %d <= %d < %d), s:%d, i+s:%d, map_to_new[m_2]:%d\n",
+//                           pivots_1[j], pivots_2[j], start_1, m_1, end_1, start_2, m_2, end_2, s, i + s, map_to_new[m_2 + n_1]);
+//                }
 
-//            if(map_to_new[m_2 + n_1] != -99){
-//                printf("no, something went wrong here!\n");
-//                printf("(m_1 < end_1 && m_2 < end_2), (%d < %d && %d < %d), s:%d\n", m_1, end_1, m_2, end_2, s);
-//            }
-
-            map_to_old[i + s] = m_2 + n_1;
-            map_to_new[m_2 + n_1] = i + s;
-            m_2++;
+                map_to_old[i + s] = m_2 + n_1;
+                map_to_new[m_2 + n_1] = i + s;
+                m_2++;
+            }
         }
+
+        j += blockDim.x;
+        i = j * step + start_1 + start_2;
     }
 }
 
@@ -269,14 +275,23 @@ merge_search_for_pivots(int start_1, int start_2, int end_1, int end_2, int *piv
     int m_1 = 0;
     int m_2 = 0;
 
+//    printf("test 0, %d\n", j);
     while (true) {//L <= R:
         int offset = (r_1 - l_1) / 2;
         m_1 = r_1 - offset;
         m_2 = r_2 + offset;
 
-        bool not_above = (m_2 == 0 || m_1 == end_1 || !c(m_1, m_2 - 1));
-        bool left_off = (m_1 == 0 || m_2 == end_2 || c(m_1 - 1, m_2));
+        if (!(start_1 <= m_1 && m_1 <= end_1 && start_2 <= m_2 && m_2 <= end_2)) {
+            printf("i:%d, j:%d, m_1:%d, m_2:%d\n", i, j, m_1, m_2);
+        }
 
+//        printf("test 1, %d\n", j);
+//        bool not_above = (m_2 == 0 || m_1 == end_1 || !c(m_1, m_2 - 1));
+//        bool left_off = (m_1 == 0 || m_2 == end_2 || c(m_1 - 1, m_2));
+        bool not_above = (m_2 <= start_2 || m_1 >= end_1 || !c(m_1, m_2 - 1));
+        bool left_off = (m_1 <= start_1 || m_2 >= end_2 || c(m_1 - 1, m_2));
+
+//        printf("test 2, %d\n", j);
         if (not_above) {
             if (left_off) {
                 break;
@@ -292,6 +307,7 @@ merge_search_for_pivots(int start_1, int start_2, int end_1, int end_2, int *piv
     }
     pivots_1[j] = m_1;
     pivots_2[j] = m_2;
+//    printf("test 3, %d\n", j);
 }
 
 

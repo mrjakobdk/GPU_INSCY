@@ -57,7 +57,6 @@ void restrict_dim_prop_down(int *d_parents, int *d_counts, int *d_is_included, i
 __global__
 void
 restrict_move(int *d_cells_1, int *d_cells_2, int *d_parents_1, int *d_parents_2,
-//              int *d_node_order_1, int *d_node_order_2,
               int *d_new_counts, int *d_counts_2,
               int *d_new_indecies, int *d_is_included, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -261,6 +260,7 @@ void restrict_dim_prop_up_3(int *d_parents, int *d_counts, int *d_is_included, i
                 d_new_counts[lvl_start + i] = -1;
             }
         }
+        __syncthreads();
     }
 }
 
