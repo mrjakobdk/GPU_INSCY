@@ -81,8 +81,18 @@ void restrict_dim_3(int *d_parents, int *d_cells, int *d_counts, int *d_is_inclu
                     int number_of_nodes);
 
 __global__
+void restrict_dim_multi(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                        int *d_is_included, int *d_new_counts, int *d_is_s_connected, int *d_dim_i,
+                        int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points);
+
+__global__
 void restrict_dim_prop_up_3(int *d_parents, int *d_counts, int *d_is_included, int *d_new_counts,
                             int *d_dim_i, int *d_dim_start, int number_of_dims, int number_of_nodes);
+
+__global__
+void restrict_dim_prop_up_multi(int *d_parents, int *d_counts, int *d_dim_start,
+                                int *d_is_included, int *d_new_counts, int *d_dim_i,
+                                int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points);
 
 __global__
 void restrict_dim_prop_down_first_3(int *d_parents, int *d_counts, int *d_cells, int *d_is_included, int *d_new_counts,
@@ -90,9 +100,20 @@ void restrict_dim_prop_down_first_3(int *d_parents, int *d_counts, int *d_cells,
                                     int cell_no, int number_of_dims, int number_of_nodes);
 
 __global__
+void restrict_dim_prop_down_first_multi(int *d_parents, int *d_counts, int *d_cells, int *d_dim_start,
+                                        int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
+                                        int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points);
+
+__global__
 void restrict_dim_prop_down_3(int *d_parents, int *d_counts, int *d_is_included, int *d_new_counts,
                               int *d_dim_start, int *d_dim_i,
                               int number_of_dims, int number_of_nodes);
+
+__global__
+void restrict_dim_prop_down_multi(int *d_parents, int *d_counts, int *d_dim_start,
+                                  int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
+                                  int number_of_dims, int number_of_nodes, int number_of_cells,
+                                  int number_of_points);
 
 __global__
 void restrict_update_dim_3(int *dim_start_1, int *dims_1, int *dim_start_2, int *dims_2, int *new_indecies,

@@ -199,10 +199,17 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
     ScyTreeArray *scy_tree_gpu = scy_tree->convert_to_ScyTreeArray();
     scy_tree_gpu->copy_to_device();
 
+//    if(d - first_dim_no != scy_tree_gpu->number_of_dims) {
+//        printf("not the same!!! %d vs %d\n", d - first_dim_no, scy_tree_gpu->number_of_dims);
+//    }
+
+    vector <vector<ScyTreeArray *>> L = scy_tree_gpu->restrict_gpu_multi(first_dim_no, d - first_dim_no, scy_tree_gpu->number_of_cells);
+
     int dim_no = first_dim_no;
     calls++;
     while (dim_no < d) {
         int cell_no = 0;
+        int i = dim_no - first_dim_no;
 
         vector<int> subspace_clustering(n, -1);
         vector<int> subspace;
@@ -213,15 +220,19 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
             ScyTreeArray *restricted_scy_tree_conv = restricted_scy_tree->convert_to_ScyTreeArray();
             ScyTreeArray *restricted_scy_tree_gpu = scy_tree_gpu->restrict_gpu(dim_no, cell_no);
             restricted_scy_tree_gpu->copy_to_host();
-            ScyTreeArray *restricted_scy_tree_gpu_3 = scy_tree_gpu->restrict3_gpu(dim_no, cell_no);
-            restricted_scy_tree_gpu_3->copy_to_host();
+//            ScyTreeArray *restricted_scy_tree_gpu_3 = scy_tree_gpu->restrict3_gpu(dim_no, cell_no);
+//            restricted_scy_tree_gpu_3->copy_to_host();
+            ScyTreeArray *restricted_scy_tree_gpu_multi = L[i][cell_no];
+            restricted_scy_tree_gpu_multi->copy_to_host();
 
             subspace = vector<int>(restricted_scy_tree->restricted_dims, restricted_scy_tree->restricted_dims +
                                                                          restricted_scy_tree->number_of_restricted_dims);
 
 //            printf("After restrict:\n");
             compare(restricted_scy_tree_gpu, restricted_scy_tree_conv);
-            compare(restricted_scy_tree_gpu, restricted_scy_tree_gpu_3);
+            compare(restricted_scy_tree_gpu, restricted_scy_tree_gpu_multi);
+
+            delete restricted_scy_tree_gpu_multi;
 
 
             //restricted-tree := mergeWithNeighbors(restricted-tree);

@@ -5,9 +5,9 @@ import time
 import numpy as np
 
 params = {"n": 400,
-          "neighborhood_size": 0.15,
+          "neighborhood_size": 0.10,
           "F": 10.,
-          "num_obj": 2,
+          "num_obj": 10,
           "min_size": int(400 * 0.01),
           "subspace_size_min": 2,
           "subspace_size_max": 10}

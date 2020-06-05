@@ -241,6 +241,41 @@ void restrict_dim_3(int *d_parents, int *d_cells, int *d_counts, int *d_is_inclu
 }
 
 __global__
+void restrict_dim_multi(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                        int *d_is_included_full, int *d_new_counts_full, int *d_is_s_connected_full, int *d_dim_i_full,
+                        int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points) {
+
+    //int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+    int one_offset = i * number_of_cells + cell_no;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+    int *d_is_s_connected = d_is_s_connected_full + one_offset;
+
+
+    int dim_i = d_dim_i_full[i];
+    int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i, number_of_dims, number_of_nodes);
+    int lvl_start = d_dim_start[dim_i];
+
+    for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+        //if (i < lvl_size) {
+        int is_cell_no = ((d_cells[lvl_start + i] == cell_no) ? 1 : 0);
+        int count = ((d_cells[lvl_start + i] == cell_no) && d_counts[lvl_start + i] > 0 ? d_counts[lvl_start + i] : 0);
+        atomicMax(&d_is_included[d_parents[lvl_start + i]], is_cell_no);
+        atomicAdd(&d_new_counts[d_parents[lvl_start + i]], count);
+        if (is_cell_no && d_counts[lvl_start + i] < 0 &&
+            (d_parents[lvl_start + i] == 0 || d_counts[d_parents[lvl_start + i]] >= 0))
+            d_is_s_connected[0] = 1;
+    }
+}
+
+__global__
 void restrict_dim_prop_up_3(int *d_parents, int *d_counts, int *d_is_included, int *d_new_counts,
                             int *d_dim_i, int *d_dim_start, int number_of_dims, int number_of_nodes) {
 
@@ -265,6 +300,41 @@ void restrict_dim_prop_up_3(int *d_parents, int *d_counts, int *d_is_included, i
 }
 
 __global__
+void restrict_dim_prop_up_multi(int *d_parents, int *d_counts, int *d_dim_start,
+                                int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
+                                int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points) {
+
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+
+    int dim_i = d_dim_i_full[i];
+
+    for (int d_j = dim_i - 1; d_j >= 0; d_j--) {
+
+        int lvl_size = get_lvl_size_gpu(d_dim_start, d_j, number_of_dims, number_of_nodes);
+        int lvl_start = d_dim_start[d_j];
+
+        //int i = blockIdx.x * blockDim.x + threadIdx.x;
+        //if (i < lvl_size) {
+        for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+            atomicMax(&d_is_included[d_parents[lvl_start + i]], d_is_included[lvl_start + i]);
+            atomicAdd(&d_new_counts[d_parents[lvl_start + i]],
+                      d_new_counts[lvl_start + i] > 0 ? d_new_counts[lvl_start + i] : 0);
+            if (d_counts[lvl_start + i] < 0) {
+                d_new_counts[lvl_start + i] = -1;
+            }
+        }
+        __syncthreads();
+    }
+}
+
+
+__global__
 void restrict_dim_prop_down_first_3(int *d_parents, int *d_counts, int *d_cells, int *d_is_included, int *d_new_counts,
                                     int *d_dim_start, int *d_dim_i,
                                     int cell_no, int number_of_dims, int number_of_nodes) {
@@ -286,10 +356,177 @@ void restrict_dim_prop_down_first_3(int *d_parents, int *d_counts, int *d_cells,
 }
 
 __global__
+void restrict_dim_prop_down_first_multi(int *d_parents, int *d_counts, int *d_cells, int *d_dim_start,
+                                        int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
+                                        int number_of_dims, int number_of_nodes, int number_of_cells,
+                                        int number_of_points) {
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+
+    int dim_i = d_dim_i_full[i];
+
+    if (dim_i + 1 < number_of_dims) {
+        int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i + 1, number_of_dims, number_of_nodes);
+        int lvl_start = d_dim_start[dim_i + 1];
+
+        for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+            int n_i = lvl_start + i;
+            int is_cell_no = ((d_cells[d_parents[n_i]] == cell_no) ? 1 : 0);
+            if (is_cell_no && !(d_counts[d_parents[n_i]] < 0 &&
+                                d_counts[d_parents[d_parents[n_i]]] >=
+                                0))//todo what about restricting first or second dim?
+                atomicMax(&d_is_included[n_i], is_cell_no);
+            d_new_counts[n_i] = d_counts[n_i];
+        }
+    }
+}
+
+__global__
 void restrict_dim_prop_down_3(int *d_parents, int *d_counts, int *d_is_included, int *d_new_counts,
                               int *d_dim_start, int *d_dim_i,
                               int number_of_dims, int number_of_nodes) {
     int dim_i = d_dim_i[0];
+    for (int d_j = dim_i + 2; d_j < number_of_dims; d_j++) {
+        int lvl_size = get_lvl_size_gpu(d_dim_start, d_j, number_of_dims, number_of_nodes);
+        int lvl_start = d_dim_start[d_j];
+        for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+            atomicMax(&d_is_included[lvl_start + i], d_is_included[d_parents[lvl_start + i]]);
+            d_new_counts[lvl_start + i] = d_counts[lvl_start + i];
+        }
+        __syncthreads();
+    }
+}
+
+__global__
+void restrict_dim_prop_down_multi(int *d_parents, int *d_counts, int *d_dim_start,
+                                  int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
+                                  int number_of_dims, int number_of_nodes, int number_of_cells,
+                                  int number_of_points) {
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+
+    int dim_i = d_dim_i_full[i];
+
+    for (int d_j = dim_i + 2; d_j < number_of_dims; d_j++) {
+        int lvl_size = get_lvl_size_gpu(d_dim_start, d_j, number_of_dims, number_of_nodes);
+        int lvl_start = d_dim_start[d_j];
+        for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+            atomicMax(&d_is_included[lvl_start + i], d_is_included[d_parents[lvl_start + i]]);
+            d_new_counts[lvl_start + i] = d_counts[lvl_start + i];
+        }
+        __syncthreads();
+    }
+}
+
+__global__
+void restrict_dim_once_and_for_all(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                                   int *d_is_included_full, int *d_new_counts_full,
+                                   int *d_is_s_connected_full, int *d_dim_i_full,
+                                   int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points) {
+    //<< <number_of_dims, block>>>
+
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+    int one_offset = i * number_of_cells + cell_no;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+    int *d_is_s_connected = d_is_s_connected_full + one_offset;
+
+
+    int dim_i = d_dim_i_full[i];
+    int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i, number_of_dims, number_of_nodes);
+    int lvl_start = d_dim_start[dim_i];
+
+    for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+        //if (i < lvl_size) {
+        int is_cell_no = ((d_cells[lvl_start + i] == cell_no) ? 1 : 0);
+        int count = ((d_cells[lvl_start + i] == cell_no) && d_counts[lvl_start + i] > 0 ? d_counts[lvl_start + i] : 0);
+        atomicMax(&d_is_included[d_parents[lvl_start + i]], is_cell_no);
+        atomicAdd(&d_new_counts[d_parents[lvl_start + i]], count);
+        if (is_cell_no && d_counts[lvl_start + i] < 0 &&
+            (d_parents[lvl_start + i] == 0 || d_counts[d_parents[lvl_start + i]] >= 0))
+            d_is_s_connected[0] = 1;
+    }
+    __syncthreads();
+
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+
+    int dim_i = d_dim_i_full[i];
+
+    for (int d_j = dim_i - 1; d_j >= 0; d_j--) {
+
+        int lvl_size = get_lvl_size_gpu(d_dim_start, d_j, number_of_dims, number_of_nodes);
+        int lvl_start = d_dim_start[d_j];
+
+        //int i = blockIdx.x * blockDim.x + threadIdx.x;
+        //if (i < lvl_size) {
+        for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+            atomicMax(&d_is_included[d_parents[lvl_start + i]], d_is_included[lvl_start + i]);
+            atomicAdd(&d_new_counts[d_parents[lvl_start + i]],
+                      d_new_counts[lvl_start + i] > 0 ? d_new_counts[lvl_start + i] : 0);
+            if (d_counts[lvl_start + i] < 0) {
+                d_new_counts[lvl_start + i] = -1;
+            }
+        }
+        __syncthreads();
+    }
+
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+
+    int dim_i = d_dim_i_full[i];
+
+    if (dim_i + 1 < number_of_dims) {
+        int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i + 1, number_of_dims, number_of_nodes);
+        int lvl_start = d_dim_start[dim_i + 1];
+
+        for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+            int n_i = lvl_start + i;
+            int is_cell_no = ((d_cells[d_parents[n_i]] == cell_no) ? 1 : 0);
+            if (is_cell_no && !(d_counts[d_parents[n_i]] < 0 &&
+                                d_counts[d_parents[d_parents[n_i]]] >=
+                                0))//todo what about restricting first or second dim?
+                atomicMax(&d_is_included[n_i], is_cell_no);
+            d_new_counts[n_i] = d_counts[n_i];
+        }
+    }
+    __syncthreads();
+
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+
+    int dim_i = d_dim_i_full[i];
+
     for (int d_j = dim_i + 2; d_j < number_of_dims; d_j++) {
         int lvl_size = get_lvl_size_gpu(d_dim_start, d_j, number_of_dims, number_of_nodes);
         int lvl_start = d_dim_start[d_j];
