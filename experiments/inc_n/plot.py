@@ -11,15 +11,25 @@ subspace_sizes = data["ns"]
 times = data["times"]
 plt.plot(subspace_sizes, times, label="GPU")
 
+data = np.load('plot_data/inc_n/multi.npz', allow_pickle=True)
+subspace_sizes = data["ns"]
+times = data["times"]
+plt.plot(subspace_sizes, times, label="GPU-Multi")
+
+data = np.load('plot_data/inc_n/multi2.npz', allow_pickle=True)
+subspace_sizes = data["ns"]
+times = data["times"]
+plt.plot(subspace_sizes, times, label="GPU-Multi2")
+
 data = np.load('plot_data/inc_n/mix.npz', allow_pickle=True)
 subspace_sizes = data["ns"]
 times = data["times"]
 plt.plot(subspace_sizes, times, label="CPU/GPU-MIX")
 
-data = np.load('plot_data/inc_n/mix_streams.npz', allow_pickle=True)
-subspace_sizes = data["ns"]
-times = data["times"]
-plt.plot(subspace_sizes, times, label="CPU/GPU-MIX-streams")
+# data = np.load('plot_data/inc_n/mix_streams.npz', allow_pickle=True)
+# subspace_sizes = data["ns"]
+# times = data["times"]
+# plt.plot(subspace_sizes, times, label="CPU/GPU-MIX-streams")
 
 
 plt.legend()

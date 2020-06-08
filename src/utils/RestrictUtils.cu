@@ -1,6 +1,7 @@
 
 #include "RestrictUtils.h"
 
+
 __global__ void restrict_dim(int *d_parents, int *d_cells, int *d_counts, int *d_is_included, int *d_new_counts,
                              int c_i, int lvl_size, int lvl_start, int *d_is_s_connected) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -463,16 +464,6 @@ void restrict_dim_once_and_for_all(int *d_parents, int *d_cells, int *d_counts, 
     }
     __syncthreads();
 
-    int i = blockIdx.x;
-    int cell_no = blockIdx.y;
-
-    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
-
-    int *d_is_included = d_is_included_full + node_offset;
-    int *d_new_counts = d_new_counts_full + node_offset;
-
-    int dim_i = d_dim_i_full[i];
-
     for (int d_j = dim_i - 1; d_j >= 0; d_j--) {
 
         int lvl_size = get_lvl_size_gpu(d_dim_start, d_j, number_of_dims, number_of_nodes);
@@ -491,16 +482,6 @@ void restrict_dim_once_and_for_all(int *d_parents, int *d_cells, int *d_counts, 
         __syncthreads();
     }
 
-    int i = blockIdx.x;
-    int cell_no = blockIdx.y;
-
-    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
-
-    int *d_is_included = d_is_included_full + node_offset;
-    int *d_new_counts = d_new_counts_full + node_offset;
-
-    int dim_i = d_dim_i_full[i];
-
     if (dim_i + 1 < number_of_dims) {
         int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i + 1, number_of_dims, number_of_nodes);
         int lvl_start = d_dim_start[dim_i + 1];
@@ -516,16 +497,6 @@ void restrict_dim_once_and_for_all(int *d_parents, int *d_cells, int *d_counts, 
         }
     }
     __syncthreads();
-
-    int i = blockIdx.x;
-    int cell_no = blockIdx.y;
-
-    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
-
-    int *d_is_included = d_is_included_full + node_offset;
-    int *d_new_counts = d_new_counts_full + node_offset;
-
-    int dim_i = d_dim_i_full[i];
 
     for (int d_j = dim_i + 2; d_j < number_of_dims; d_j++) {
         int lvl_size = get_lvl_size_gpu(d_dim_start, d_j, number_of_dims, number_of_nodes);
@@ -594,4 +565,159 @@ move_points_3(int *d_parents, int *d_points_1, int *d_points_placement_1, int *d
             d_points_placement_2[d_point_new_indecies[i] - 1] = d_new_indecies[d_points_placement_1[i]] - 1;
         }
     }
+}
+
+
+__global__
+void check_is_s_connected(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                          int *d_is_included_full, int *d_new_counts_full, int *d_is_s_connected_full,
+                          int *d_dim_i_full,
+                          int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points) {
+
+    int i = blockIdx.x;
+
+    int dim_i = d_dim_i_full[i];
+    int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i, number_of_dims, number_of_nodes);
+    int lvl_start = d_dim_start[dim_i];
+
+    for (int j = threadIdx.x; j < lvl_size; j += blockDim.x) {
+        int cell_no = d_cells[lvl_start + j];
+
+        int one_offset = i * number_of_cells + cell_no;
+
+        if (d_counts[lvl_start + j] < 0 &&
+            (d_parents[lvl_start + j] == 0 || d_counts[d_parents[lvl_start + j]] >= 0))
+            d_is_s_connected_full[one_offset] = 1;
+    }
+}
+
+__global__
+void compute_merge_map(int *d_is_s_connected_full, int *d_merge_map_full, int number_of_cells) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int one_offset = i * number_of_cells;
+
+    int *d_is_s_connected = d_is_s_connected_full + one_offset;
+    int *d_merge_map = d_merge_map_full + one_offset;
+
+    bool prev_s_connected = false;
+    bool prev_cell_no = 0;
+    for (int cell_no = 0; cell_no < number_of_cells; cell_no++) {
+        if (prev_s_connected) {
+            d_merge_map[cell_no] = prev_cell_no;
+        } else {
+            d_merge_map[cell_no] = cell_no;
+        }
+
+        prev_s_connected = d_is_s_connected[cell_no] > 0;
+        prev_cell_no = d_merge_map[cell_no];
+    }
+
+}
+
+__global__
+void restrict_merge_dim_multi(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                              int *d_is_included_full, int *d_new_counts_full, int *d_is_s_connected_full,
+                              int *d_dim_i_full, int *d_merge_map_full,
+                              int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points) {
+
+    //int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int i = blockIdx.x;
+    //int cell_no = blockIdx.y;
+
+
+    int *d_merge_map = d_merge_map_full + i * number_of_cells;
+
+//    if (cell_no > 0 && d_merge_map[cell_no] == d_merge_map[cell_no - 1]) {
+//        return;
+//    }
+
+
+
+
+
+    int dim_i = d_dim_i_full[i];
+    int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i, number_of_dims, number_of_nodes);
+    int lvl_start = d_dim_start[dim_i];
+
+    for (int j = threadIdx.x; j < lvl_size; j += blockDim.x) {
+
+        int cell_no = d_merge_map[d_cells[lvl_start + j]];
+        int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+        int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+        int one_offset = i * number_of_cells + cell_no;
+
+        int *d_is_included = d_is_included_full + node_offset;
+        int *d_new_counts = d_new_counts_full + node_offset;
+        int *d_is_s_connected = d_is_s_connected_full + one_offset;
+
+//        int is_cell_no = ((d_merge_map[d_cells[lvl_start + i]] == cell_no) ? 1 : 0);
+
+
+        int count = d_counts[lvl_start + j] > 0 ? d_counts[lvl_start + j] : 0;
+        d_is_included[d_parents[lvl_start + j]] = 1;
+        atomicAdd(&d_new_counts[d_parents[lvl_start + j]], count);
+    }
+}
+
+
+__global__
+void restrict_merge_dim_prop_down_first_multi(int *d_parents, int *d_counts, int *d_cells, int *d_dim_start,
+                                              int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
+                                              int *d_merge_map_full,
+                                              int number_of_dims, int number_of_nodes, int number_of_cells,
+                                              int number_of_points) {
+    int i = blockIdx.x;
+    int cell_no = blockIdx.y;
+
+
+    int *d_merge_map = d_merge_map_full + i * number_of_cells;
+
+    if (cell_no > 0 && d_merge_map[cell_no] == d_merge_map[cell_no - 1]) {
+        return;
+    }
+
+    int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+
+    int *d_is_included = d_is_included_full + node_offset;
+    int *d_new_counts = d_new_counts_full + node_offset;
+
+    int dim_i = d_dim_i_full[i];
+
+    if (dim_i + 1 < number_of_dims) {
+        int lvl_size = get_lvl_size_gpu(d_dim_start, dim_i + 1, number_of_dims, number_of_nodes);
+        int lvl_start = d_dim_start[dim_i + 1];
+
+        for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
+            int n_i = lvl_start + i;
+            int is_cell_no = ((d_merge_map[d_cells[d_parents[n_i]]] == cell_no) ? 1 : 0);
+            if (is_cell_no && !(d_counts[d_parents[n_i]] < 0 &&
+                                d_counts[d_parents[d_parents[n_i]]] >=
+                                0))//todo what about restricting first or second dim?
+                atomicMax(&d_is_included[n_i], is_cell_no);
+            d_new_counts[n_i] = d_counts[n_i];
+        }
+    }
+}
+
+__global__
+void restrict_merge_is_points_included(int *d_points_placement, int *d_cells, int *d_is_included,
+                                       int *d_is_point_included, int *d_dim_i, int *d_merge_map,
+                                       int number_of_dims, int number_of_points, int c_i) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int dim_i = d_dim_i[0];
+    bool restricted_dim_is_leaf = (dim_i == number_of_dims - 1);//todo move
+
+    if (i >= number_of_points) return;
+
+    int is_included = 0;
+    if (d_is_included[d_points_placement[i]])// || d_is_included[d_parents[d_points_placement[i]]])//todo not correct - handle different if it is the leaf that is restricted
+        is_included = 1;
+
+    if (restricted_dim_is_leaf && d_merge_map[d_cells[d_points_placement[i]]] == c_i)
+        is_included = 1;
+
+    d_is_point_included[i] = is_included;
 }

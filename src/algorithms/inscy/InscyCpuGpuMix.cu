@@ -23,7 +23,7 @@ void InscyCpuGpuMix(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::T
                     int subspace_size, float F, int num_obj, int min_size,
                     map <vector<int>, vector<int>, vec_cmp> &result,
                     int first_dim_no,
-                    int total_number_of_dim, int &calls) {
+                    int total_number_of_dim, float r, int &calls) {
     int dim_no = first_dim_no;
     calls++;
     while (dim_no < total_number_of_dim) {
@@ -46,11 +46,11 @@ void InscyCpuGpuMix(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::T
                 map <vector<int>, vector<int>, vec_cmp> sub_result;
                 InscyCpuGpuMix(restricted_scy_tree, neighborhood_tree, X, d_X, n, d, neighborhood_size, subspace,
                                subspace_size, F,
-                               num_obj, min_size, sub_result, dim_no + 1, total_number_of_dim, calls);
+                               num_obj, min_size, sub_result, dim_no + 1, total_number_of_dim, r, calls);
                 result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                if (restricted_scy_tree->pruneRedundancy(1.1, sub_result)) {
+                if (restricted_scy_tree->pruneRedundancy(r, sub_result)) {
 
 
                     //result := DBClustering(restricted-tree) ∪ result;
@@ -67,20 +67,23 @@ void InscyCpuGpuMix(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::T
                                          restricted_scy_tree_gpu->number_of_restricted_dims);
 
 
-                    if (result.count(subspace)) {
-                        vector<int> clustering = result[subspace];
-                        int m = v_max(clustering);
-                        for (int i = 0; i < n; i++) {
-                            if (subspace_clustering[i] == -2) {
-                                clustering[i] = subspace_clustering[i];
-                            } else if (subspace_clustering[i] >= 0) {
-                                clustering[i] = subspace_clustering[i];
-                            }
-                        }
-                        result[subspace] = clustering;
-                    } else {
-                        result.insert(pair < vector < int > , vector < int >> (subspace, subspace_clustering));
-                    }
+                    join(result, subspace_clustering, subspace, min_size, r);
+
+
+//                    if (result.count(subspace)) {
+//                        vector<int> clustering = result[subspace];
+//                        int m = v_max(clustering);
+//                        for (int i = 0; i < n; i++) {
+//                            if (subspace_clustering[i] == -2) {
+//                                clustering[i] = subspace_clustering[i];
+//                            } else if (subspace_clustering[i] >= 0) {
+//                                clustering[i] = subspace_clustering[i];
+//                            }
+//                        }
+//                        result[subspace] = clustering;
+//                    } else {
+//                        result.insert(pair < vector < int > , vector < int >> (subspace, subspace_clustering));
+//                    }
 
 
 //                if (result.count(idx)) {

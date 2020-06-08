@@ -22,7 +22,7 @@ InscyCpuGpuMixClStream(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
                        float neighborhood_size, int *subspace,
                        int subspace_size, float F, int num_obj, int min_size,
                        map<vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
-                       int total_number_of_dim, int &calls);
+                       int total_number_of_dim,float r, int &calls);
 
 
 #endif //GPU_INSCY_INSCYCPUGPUMIXCLSTREAM_H

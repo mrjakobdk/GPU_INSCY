@@ -7,9 +7,12 @@
 
 #include <map>
 #include <vector>
+
 using namespace std;
 
 struct vec_cmp;
+
+class TmpMalloc;
 
 class ScyTreeArray {
 public:
@@ -70,18 +73,28 @@ public:
 
     ScyTreeArray *merge(ScyTreeArray *sibling_scy_tree);
 
+    ScyTreeArray *merge(TmpMalloc *tmps, ScyTreeArray *sibling_scy_tree);
+
     ScyTreeArray *mergeWithNeighbors_gpu1(ScyTreeArray *parent_scy_tree, int dim_no, int &cell_no);
 
     ScyTreeArray *restrict_gpu(int dim_no, int cell_no);
 
     ScyTreeArray *restrict3_gpu(int dim_no, int cell_no);
 
-    vector <vector<ScyTreeArray *>> restrict_gpu_multi(int first_dim_no, int number_of_dims, int number_of_cells);
+    vector<vector<ScyTreeArray *>> restrict_gpu_multi(int first_dim_no, int number_of_dims, int number_of_cells);
+
+    vector<vector<ScyTreeArray *>>
+    restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_of_dims, int number_of_cells);
+
+    vector<vector<ScyTreeArray *>>
+    restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_of_dims,
+                             int number_of_cells);
+
 
     bool pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
                             int num_obj);
 
-    bool pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, vec_cmp> result);
+    bool pruneRedundancy_gpu(float r, map<vector<int>, vector<int>, vec_cmp> result);
 
     int get_lvl_size(int dim_i);
 

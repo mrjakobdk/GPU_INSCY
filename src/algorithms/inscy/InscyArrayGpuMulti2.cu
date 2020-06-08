@@ -1,8 +1,8 @@
 //
-// Created by mrjakobdk on 6/2/20.
+// Created by mrjakobdk on 6/8/20.
 //
 
-#include "InscyArrayGpuMulti.cuh"
+#include "InscyArrayGpuMulti2.cuh"
 #include "../clustering/ClusteringGpu.cuh"
 #include "../../structures/ScyTreeArray.h"
 #include "../../utils/util.h"
@@ -26,7 +26,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
 }
 
 void
-InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, float F,
+InscyArrayGpuMulti2(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, float F,
                    int num_obj,
                    int min_size, map <vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
                    int total_number_of_dim, float r, int &calls) {
@@ -37,44 +37,13 @@ InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, i
 
 
 
-    nvtxRangePushA("restrict_gpu_multi");
-    vector <vector<ScyTreeArray *>> L = scy_tree->restrict_gpu_multi(tmps, first_dim_no, number_of_dims, number_of_cells);
+    nvtxRangePushA("restrict_merge_gpu_multi");
+    vector <vector<ScyTreeArray *>> L_merged = scy_tree->restrict_merge_gpu_multi(tmps, first_dim_no, number_of_dims, number_of_cells);
     cudaDeviceSynchronize();
     nvtxRangePop();
 
 
-
-    nvtxRangePushA("merge");
-    vector <vector<ScyTreeArray *>> L_merged(number_of_dims);
     int dim_no = first_dim_no;
-    while (dim_no < total_number_of_dim) {
-        int i = dim_no - first_dim_no;
-        int j = 0;
-        int cell_no = 0;
-
-        L_merged[i].push_back(L[i][cell_no]);
-        cell_no++;
-        while (cell_no < scy_tree->number_of_cells) {
-            //restricted-tree := mergeWithNeighbors(restricted-tree);
-            if (L[i][cell_no - 1]->is_s_connected) {
-                ScyTreeArray *old_merged = L_merged[i][j];
-
-                if (L[i][cell_no]->number_of_points > 0) {
-                    L_merged[i][j] = L_merged[i][j]->merge(tmps, L[i][cell_no]);
-                }
-            } else {
-                j++;
-                L_merged[i].push_back(L[i][cell_no]);
-            }
-            cell_no++;
-        }
-        dim_no++;
-    }
-    cudaDeviceSynchronize();
-    nvtxRangePop();
-
-
-    dim_no = first_dim_no;
     while (dim_no < total_number_of_dim) {
 
         vector<int> subspace;
@@ -97,7 +66,7 @@ InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, i
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 map <vector<int>, vector<int>, vec_cmp> sub_result;
-                InscyArrayGpuMulti(tmps, restricted_scy_tree, d_X, n, d, neighborhood_size,
+                InscyArrayGpuMulti2(tmps, restricted_scy_tree, d_X, n, d, neighborhood_size,
                                    F, num_obj, min_size, sub_result, dim_no + 1, total_number_of_dim, r, calls);
                 result.insert(sub_result.begin(), sub_result.end());
 
@@ -134,50 +103,5 @@ InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, i
         dim_no++;
     }
     gpuErrchk(cudaPeekAtLastError());
-
-//
-//    std::vector<std::vector<int>> new_clustering_list = ClusteringGpuStream(scy_tree_list, d_X, n, d,
-//                                                                           neighborhood_size, F,
-//                                                                           num_obj);
-
-//    for (int k = 0; k < scy_tree_list.size(); k++) {
-//
-//        ScyTreeArray *restricted_scy_tree_gpu = scy_tree_list[k];
-//        std::vector<int> new_clustering = ClusteringGPU(restricted_scy_tree_gpu, d_X, n, d, neighborhood_size, F,
-//                                                        num_obj);
-//        gpuErrchk(cudaPeekAtLastError());
-//        //result := DBClustering(restricted-tree) ∪ result;
-//        int idx = restricted_scy_tree_gpu->get_dims_idx();
-//
-//        if (result.count(idx)) {
-//            std::vector<int> clustering = result[idx];
-//            int m = v_max(clustering);
-//            if (m < 0) {
-//                result[idx] = new_clustering;
-//            } else {
-//                for (int i = 0; i < n; i++) {
-//                    if (new_clustering[i] == -2) {
-//                        clustering[i] = new_clustering[i];
-//                    } else if (new_clustering[i] >= 0) {
-//                        clustering[i] = m + 1 + new_clustering[i];
-//                    }
-//                }
-//                result[idx] = clustering;
-//            }
-//        } else {
-//            result.insert(std::pair < int, std::vector < int >> (idx, new_clustering));
-//        }
-
-// delete restricted_scy_tree_gpu;
-//    }
-
-//    int total_inscy = pow(2, total_number_of_dim);
-//    printf("GPU-INSCY(%d): %d%%      \r", calls,
-//           int((result
-//                        .
-//
-//                                size()
-//
-//                * 100) / total_inscy));
 
 }

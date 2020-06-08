@@ -102,7 +102,8 @@ void restrict_dim_prop_down_first_3(int *d_parents, int *d_counts, int *d_cells,
 __global__
 void restrict_dim_prop_down_first_multi(int *d_parents, int *d_counts, int *d_cells, int *d_dim_start,
                                         int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
-                                        int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points);
+                                        int number_of_dims, int number_of_nodes, int number_of_cells,
+                                        int number_of_points);
 
 __global__
 void restrict_dim_prop_down_3(int *d_parents, int *d_counts, int *d_is_included, int *d_new_counts,
@@ -114,6 +115,12 @@ void restrict_dim_prop_down_multi(int *d_parents, int *d_counts, int *d_dim_star
                                   int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
                                   int number_of_dims, int number_of_nodes, int number_of_cells,
                                   int number_of_points);
+
+__global__
+void restrict_dim_once_and_for_all(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                                   int *d_is_included_full, int *d_new_counts_full,
+                                   int *d_is_s_connected_full, int *d_dim_i_full,
+                                   int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points);
 
 __global__
 void restrict_update_dim_3(int *dim_start_1, int *dims_1, int *dim_start_2, int *dims_2, int *new_indecies,
@@ -131,5 +138,33 @@ move_points_3(int *d_parents, int *d_points_1, int *d_points_placement_1, int *d
               int *d_point_new_indecies, int *d_new_indecies,
               int *d_is_point_included, int *d_dim_i,
               int number_of_points, int number_of_dims);
+
+
+__global__
+void check_is_s_connected(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                          int *d_is_included_full, int *d_new_counts_full, int *d_is_s_connected_full,
+                          int *d_dim_i_full,
+                          int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points);
+
+__global__
+void compute_merge_map(int *d_is_s_connected_full, int *d_merge_map_full, int number_of_cells);
+
+__global__
+void restrict_merge_dim_multi(int *d_parents, int *d_cells, int *d_counts, int *d_dim_start,
+                              int *d_is_included_full, int *d_new_counts_full, int *d_is_s_connected_full,
+                              int *d_dim_i_full, int *d_merge_map_full,
+                              int number_of_dims, int number_of_nodes, int number_of_cells, int number_of_points);
+
+__global__
+void restrict_merge_dim_prop_down_first_multi(int *d_parents, int *d_counts, int *d_cells, int *d_dim_start,
+                                              int *d_is_included_full, int *d_new_counts_full, int *d_dim_i_full,
+                                              int *d_merge_map_full,
+                                              int number_of_dims, int number_of_nodes, int number_of_cells,
+                                              int number_of_points);
+
+__global__
+void restrict_merge_is_points_included(int *d_points_placement, int *d_cells, int *d_is_included,
+                                       int *d_is_point_included, int *d_dim_i, int *d_merge_map,
+                                       int number_of_dims, int number_of_points, int c_i);
 
 #endif //CUDATEST_RESTRICTUTILS_H

@@ -23,6 +23,15 @@
 
 #define PI 3.14
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
+    if (code != cudaSuccess) {
+        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
+
 
 using namespace std;
 
@@ -287,12 +296,16 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
         cudaMemset(d_clustering, -1, sizeof(int) * n);
         d_clustering_list[k] = d_clustering;
     }
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
 
     cudaStream_t *streams = new cudaStream_t[min(number_of_scy_trees, 10)];
     for (int k = 0; k < min(number_of_scy_trees, 10); k++) {
         cudaStreamCreate(&streams[k]);
     }
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
 
     for (int k = 0; k < number_of_scy_trees; k++) {
@@ -308,6 +321,7 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
                                                                                (d_neighborhoods_list[k], d_number_of_neighbors_list[k], d_X, scy_tree->d_points, number_of_points, neighborhood_size, scy_tree->d_restricted_dims, number_of_restricted_dims, d);
     }
     cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
 
     for (int k = 0; k < number_of_scy_trees; k++) {
@@ -326,6 +340,7 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
                                                                                       scy_tree->number_of_restricted_dims, F, n, num_obj, d);
     }
     cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
     for (int k = 0; k < number_of_scy_trees; k++) {
         ScyTreeArray *scy_tree = scy_tree_list[k];
@@ -338,6 +353,7 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
                                                                               scy_tree->d_points, number_of_points);
     }
     cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
     vector <vector<int>> result;
     int *h_clustering = new int[n];
@@ -349,6 +365,8 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
         vector<int> labels(h_clustering, h_clustering + n);
         result.push_back(labels);
     }
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
     for (int k = 0; k < number_of_scy_trees; k++) {
         cudaFree(d_neighborhoods_list[k]);
@@ -357,12 +375,15 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
         cudaFree(d_disjoint_set_list[k]);
         cudaFree(d_clustering_list[k]);
     }
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
     for (int k = 0; k < min(number_of_scy_trees, 10); k++) {
         cudaStreamDestroy(streams[k]);
     }
 
     cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
     return result;
 }
