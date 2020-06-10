@@ -1,4 +1,5 @@
 from torch.utils.cpp_extension import load
+import numpy as np
 import torch
 import time
 
@@ -15,6 +16,7 @@ inscy = load(name="inscy",
                       "src/structures/ScyTreeArray.cu",
                       "src/algorithms/clustering/ClusteringCpu.cu",
                       "src/algorithms/clustering/ClusteringGpu.cu",
+                      "src/algorithms/clustering/ClusteringGpuBlocks.cu",
                       "src/algorithms/clustering/ClusteringGpuStreams.cu",
                       "src/algorithms/inscy/InscyCompare.cu",
                       "src/algorithms/inscy/InscyNodeCpu.cu",
@@ -23,6 +25,7 @@ inscy = load(name="inscy",
                       "src/algorithms/inscy/InscyArrayGpu.cu",
                       "src/algorithms/inscy/InscyArrayGpuMulti.cu",
                       "src/algorithms/inscy/InscyArrayGpuMulti2.cu",
+                      "src/algorithms/inscy/InscyArrayGpuMulti2ClMulti.cu",
                       "src/algorithms/inscy/InscyArrayGpuStream.cu"
                       ])
 print("Finished compilation, took: %.4fs" % (time.time() - t0))
@@ -43,14 +46,15 @@ def normalize(x):
 
 
 def clean_up(subspaces, clusterings, min_size):
-    number_of_different_subspaces = clusterings.size()[0]
-    number_of_points = clusterings.size()[1]
-    print(clusterings)
+    subspaces = np.array(subspaces)
+    clusterings = np.array(clusterings)
+    number_of_different_subspaces = len(clusterings)
+    number_of_points = len(clusterings[0])
     empty_subspaces = [None] * number_of_different_subspaces
     for i in range(number_of_different_subspaces):
         bins = {}
         for j in range(number_of_points):
-            cluster = clusterings[i, j].item()
+            cluster = clusterings[i][j]
             if cluster >= 0:
                 if cluster in bins:
                     bins[cluster] += 1
@@ -67,7 +71,7 @@ def clean_up(subspaces, clusterings, min_size):
         empty_subspaces[i] = count > 0
         bins = {}
         for j in range(number_of_points):
-            cluster = clusterings[i, j].item()
+            cluster = clusterings[i][j]
             if cluster >= 0:
                 if cluster in bins:
                     bins[cluster] += 1
@@ -114,6 +118,12 @@ def run_gpu_multi(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_ce
 
 def run_gpu_multi2(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_multi2(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
+    return subspaces, clusterings
+
+
+def run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
+    subspaces, clusterings = inscy.run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r,
+                                                           number_of_cells)
     return subspaces, clusterings
 
 

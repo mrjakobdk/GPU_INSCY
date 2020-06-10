@@ -586,6 +586,11 @@ bool vec_cmp::operator()(const vector<int> &a, const vector<int> &b) const {
 
 void join(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, vector<int> subspace, int min_size, float r) {
 
+    int clustering_max = v_max(clustering);
+    if (clustering_max < 0) {
+        return;
+    }
+
     int n = clustering.size();
 
     map<int, int> sizes;
@@ -649,7 +654,7 @@ void join(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clusteri
         }
     }
 
-    int clustering_max = v_max(clustering);
+    clustering_max = v_max(clustering);
     if (clustering_max >= 0) {
         if (result.count(subspace)) {
             vector<int> clustering_old = result[subspace];

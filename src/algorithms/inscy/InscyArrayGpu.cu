@@ -12,6 +12,7 @@
 #include <math.h>
 #include <map>
 #include <vector>
+#include "nvToolsExt.h"
 
 using namespace std;
 
@@ -52,14 +53,19 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
             ScyTreeArray *restricted_scy_tree = scy_tree->restrict_gpu(dim_no, cell_no);
             gpuErrchk(cudaPeekAtLastError());
 
+            nvtxRangePushA("restrict");
             cudaMemcpy(restricted_scy_tree->h_restricted_dims, restricted_scy_tree->d_restricted_dims,
                        sizeof(int) * restricted_scy_tree->number_of_restricted_dims, cudaMemcpyDeviceToHost);
             subspace = vector<int>(restricted_scy_tree->h_restricted_dims,
                                    restricted_scy_tree->h_restricted_dims +
                                    restricted_scy_tree->number_of_restricted_dims);
+            nvtxRangePop();
 
             //restricted-tree := mergeWithNeighbors(restricted-tree);
+            nvtxRangePushA("merge");
             restricted_scy_tree = restricted_scy_tree->mergeWithNeighbors_gpu1(scy_tree, dim_no, cell_no);
+
+            nvtxRangePop();
 
             //pruneRecursion(restricted-tree); //prune sparse regions
             if (restricted_scy_tree->pruneRecursion_gpu(min_size, d_X, n, d, neighborhood_size, F, num_obj)) {
@@ -76,8 +82,11 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
                     //scy_tree_list.push_back(restricted_scy_tree);
 //                    vector<int> subspace_clustering = ClusteringGPU(restricted_scy_tree, d_X, n, d, neighborhood_size,
 //                                                                    F, num_obj);
+
+                    nvtxRangePushA("clustering");
                     ClusteringGPU(d_clustering, restricted_scy_tree, d_X, n, d, neighborhood_size,
                                   F, num_obj);
+                    nvtxRangePop();
 
 
 //                    vector<int> subspace(restricted_scy_tree->h_restricted_dims,
@@ -91,6 +100,7 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
             cell_no++;
         }
 
+        nvtxRangePushA("joining");
         int *h_clustering = new int[n];
         cudaMemcpy(h_clustering, d_clustering, sizeof(int) * n, cudaMemcpyDeviceToHost);
         cudaDeviceSynchronize();
@@ -98,6 +108,7 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
         vector<int> subspace_clustering(h_clustering, h_clustering + n);
 
         join(result, subspace_clustering, subspace, min_size, r);
+        nvtxRangePop();
 
         dim_no++;
     }

@@ -31,61 +31,66 @@ for subspace_size in subspace_sizes:
     print("Finished CPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
     t0 = time.time()
-    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2(X_, params["neighborhood_size"], params["F"], params["num_obj"],
-                                                   params["min_size"], 0.8)
+    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2(X_, params["neighborhood_size"], params["F"],
+                                                                   params["num_obj"],
+                                                                   params["min_size"], 0.8)
     print("Finished GPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
 
-    print(clusterings_cpu.size())
-    print(clusterings_gpu.size())
+    print(len(clusterings_cpu))
+    print(len(clusterings_gpu))
     diff = 0
     in_clus = 0
     i_cpu = 0
     i_gpu = 0
 
+
     def less(a, b):
         i = len(a) - 1
         j = len(b) - 1
         while a[i] == b[j]:
-            i-=1
-            j-=1
+            i -= 1
+            j -= 1
             if i < 0 or j < 0:
                 return i < j
 
         return a[i] < b[j]
 
+
     while i_cpu < len(subspaces_cpu) and i_gpu < len(subspaces_gpu):
 
-        #print(subspaces_gpu[i_cpu], subspaces_gpu[i_gpu])
+        # print(subspaces_gpu[i_cpu], subspaces_gpu[i_gpu])
         if less(subspaces_cpu[i_cpu], subspaces_gpu[i_gpu]):
-            #print("cpu")
+            # print("cpu")
             for j in range(params["n"]):
-                if clusterings_cpu[i_cpu, j] >= 0:
+                if clusterings_cpu[i_cpu][j] >= 0:
                     diff += 1
-            i_cpu+=1
+            i_cpu += 1
             continue
         elif less(subspaces_gpu[i_gpu], subspaces_cpu[i_cpu]):
-            #print("gpu")
+            # print("gpu")
             for j in range(params["n"]):
-                if clusterings_gpu[i_gpu, j] >= 0:
+                if clusterings_gpu[i_gpu][j] >= 0:
                     diff += 1
-            i_gpu+=1
+            i_gpu += 1
             continue
 
         for j in range(params["n"]):
-            if clusterings_cpu[i_cpu, j] < 0 and clusterings_gpu[i_gpu, j] >= 0:
+            if clusterings_cpu[i_cpu][j] < 0 and clusterings_gpu[i_gpu][j] >= 0:
                 # print("missing in cpu",i,j)
                 diff += 1
-            if clusterings_cpu[i_cpu, j] >= 0 and clusterings_gpu[i_gpu, j] < 0:
+            if clusterings_cpu[i_cpu][j] >= 0 and clusterings_gpu[i_gpu][j] < 0:
                 # print("missing in gpu",i,j)
                 diff += 1
-            if clusterings_cpu[i_cpu, j] >= 0 and clusterings_gpu[i_gpu, j] >= 0:
+            if clusterings_cpu[i_cpu][j] >= 0 and clusterings_gpu[i_gpu][j] >= 0:
                 in_clus += 1
 
-        i_cpu+=1
-        i_gpu+=1
-
+        i_cpu += 1
+        i_gpu += 1
 
     print("diff:", diff, "in cluster:", in_clus)
-    # if diff > 0:
-    #     break
+    if diff > 0:
+        INSCY.clean_up(subspaces_cpu, clusterings_cpu,params["min_size"])
+        print()
+        INSCY.clean_up(subspaces_gpu, clusterings_gpu,params["min_size"])
+        break

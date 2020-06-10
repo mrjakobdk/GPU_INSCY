@@ -27,8 +27,9 @@ subspaces, clusterings = INSCY.run_cpu_gpu_mix_cl_steam(X[:, :2], params["neighb
 for subspace_size in subspace_sizes:
     X_ = X[:, :subspace_size].clone()
     t0 = time.time()
-    subspaces, clusterings = INSCY.run_cpu_gpu_mix_cl_steam(X[:, :subspace_size], params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
-    times.append(time.time() - t0)
+    for _ in range(5):
+        subspaces, clusterings = INSCY.run_cpu_gpu_mix_cl_steam(X[:, :subspace_size], params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
+    times.append((time.time() - t0)/5)
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
 

@@ -25,4 +25,8 @@ void ClusteringGPU(TmpMalloc *tmps, int *d_clustering, ScyTreeArray *scy_tree, f
                    float neighborhood_size, float F,
                    int num_obj);
 
+void ClusteringGPU2(TmpMalloc *tmps, int *d_clustering, ScyTreeArray *scy_tree, float *d_X, int n, int d,
+                   float neighborhood_size, float F,
+                   int num_obj);
+
 #endif //GPU_INSCY_CLUSTERINGGPU_CUH

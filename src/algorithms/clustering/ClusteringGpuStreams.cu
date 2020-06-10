@@ -18,6 +18,7 @@
 #include <map>
 #include "../../structures/ScyTreeArray.h"
 #include "../../utils/util.h"
+#include "../../utils/TmpMalloc.cuh"
 
 #define BLOCK_SIZE 128
 
@@ -332,12 +333,12 @@ ClusteringGpuStream(std::vector<ScyTreeArray *> scy_tree_list, float *d_X, int n
         if (number_of_points % BLOCK_SIZE) number_of_blocks++;
         int number_of_threads = min(number_of_points, BLOCK_SIZE);
 
-//        compute_is_dense_streams << < number_of_blocks, number_of_threads, 0, streams[k % 10] >> >
-//                                                                              (d_is_dense_list[k], scy_tree->d_points, number_of_points, d_neighborhoods_list[k], neighborhood_size, d_number_of_neighbors_list[k], d_X, scy_tree->d_restricted_dims,
-//                                                                                      scy_tree->number_of_restricted_dims, F, n, num_obj, d);
-        compute_is_dense_streams_new << < number_of_blocks, number_of_threads, 0, streams[k % 10] >> >
-                                                                              (d_is_dense_list[k], scy_tree->d_points, number_of_points, neighborhood_size, d_X, scy_tree->d_restricted_dims,
+        compute_is_dense_streams << < number_of_blocks, number_of_threads, 0, streams[k % 10] >> >
+                                                                              (d_is_dense_list[k], scy_tree->d_points, number_of_points, d_neighborhoods_list[k], neighborhood_size, d_number_of_neighbors_list[k], d_X, scy_tree->d_restricted_dims,
                                                                                       scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+//        compute_is_dense_streams_new << < number_of_blocks, number_of_threads, 0, streams[k % 10] >> >
+//                                                                              (d_is_dense_list[k], scy_tree->d_points, number_of_points, neighborhood_size, d_X, scy_tree->d_restricted_dims,
+//                                                                                      scy_tree->number_of_restricted_dims, F, n, num_obj, d);
     }
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());

@@ -27,6 +27,7 @@ public:
 
     //temps for clustering
     int *d_neighborhoods; // number_of_points x number_of_points
+    float *d_distance_matrix; // number_of_points x number_of_points
     int *d_number_of_neighbors; // number_of_points //todo maybe not needed
     bool *d_is_dense; // number_of_points
     int *d_disjoint_set; // number_of_points

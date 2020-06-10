@@ -74,7 +74,7 @@ InscyArrayGpuMulti2(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, 
                 if (restricted_scy_tree->pruneRedundancy_gpu(r, result)) {
 
                     nvtxRangePushA("clustering");
-                    ClusteringGPU(tmps, d_clustering, restricted_scy_tree, d_X, n, d, neighborhood_size,
+                    ClusteringGPU2(tmps, d_clustering, restricted_scy_tree, d_X, n, d, neighborhood_size,
                                   F, num_obj);
                     cudaDeviceSynchronize();
                     nvtxRangePop();

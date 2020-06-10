@@ -8,4 +8,4 @@ add_executable(inscy_map inscy_map.cpp
         src/algorithms/inscy/InscyCompare.cu
         src/algorithms/inscy/InscyCompare.cuh
         src/algorithms/inscy/InscyArrayGpuMulti.cu
-        src/algorithms/inscy/InscyArrayGpuMulti.cuh src/utils/TmpMalloc.cu src/utils/TmpMalloc.cuh src/algorithms/inscy/InscyArrayGpuMulti2.cu src/algorithms/inscy/InscyArrayGpuMulti2.cuh)
+        src/algorithms/inscy/InscyArrayGpuMulti.cuh src/utils/TmpMalloc.cu src/utils/TmpMalloc.cuh src/algorithms/inscy/InscyArrayGpuMulti2.cu src/algorithms/inscy/InscyArrayGpuMulti2.cuh src/algorithms/inscy/InscyArrayGpuMulti2ClMulti.cu src/algorithms/inscy/InscyArrayGpuMulti2ClMulti.cuh)

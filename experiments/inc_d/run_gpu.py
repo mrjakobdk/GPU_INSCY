@@ -26,8 +26,9 @@ for subspace_size in subspace_sizes:
     X_ = X[:, :subspace_size].clone()
     print("d:",subspace_size)
     t0 = time.time()
-    subspaces, clusterings = INSCY.run_gpu(X_, params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
-    times.append(time.time() - t0)
+    for _ in range(5):
+        subspaces, clusterings = INSCY.run_gpu(X_, params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
+    times.append((time.time() - t0)/5)
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
 
