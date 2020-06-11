@@ -5,9 +5,16 @@
 #ifndef GPU_INSCY_TMPMALLOC_CUH
 #define GPU_INSCY_TMPMALLOC_CUH
 
+//#include <map>
+
+//using namespace std;
 
 class TmpMalloc {
 public:
+    //temps smart
+//    map<char*, int*> int_arrays;
+//    map<char*, int> int_array_sizes;
+
     //temps for merge
     int *d_map_to_old;
     int *d_map_to_new;
@@ -34,7 +41,9 @@ public:
 
     int *d_clustering;
 
-    TmpMalloc(int number_of_nodes, int number_of_points, int number_of_dims, int number_of_cells);
+    TmpMalloc(int number_of_nodes, int number_of_points, int number_of_dims, int number_of_cells, bool multi);
+
+//    int * get_int_array(char* name, int size);
 
     ~TmpMalloc();
 };

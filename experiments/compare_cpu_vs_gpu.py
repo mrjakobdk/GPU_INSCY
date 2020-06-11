@@ -5,13 +5,13 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params = {"n": 400,
+params = {"n": 50,
           "neighborhood_size": 0.10,
           "F": 10.,
-          "num_obj": 10,
+          "num_obj": 3,
           "min_size": 4,
-          "subspace_size_min": 2,
-          "subspace_size_max": 7}
+          "subspace_size_min": 5,
+          "subspace_size_max": 5}
 
 print("Loading Glove...")
 t0 = time.time()
@@ -27,13 +27,13 @@ for subspace_size in subspace_sizes:
     t0 = time.time()
     X_ = X[:, :subspace_size].clone()
     subspaces_cpu, clusterings_cpu = INSCY.run_cpu(X_, params["neighborhood_size"], params["F"], params["num_obj"],
-                                                   params["min_size"], 0.8)
+                                                   params["min_size"], 0.8, 6)
     print("Finished CPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
     t0 = time.time()
-    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2(X_, params["neighborhood_size"], params["F"],
+    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2_cl_multi_mem(X_, params["neighborhood_size"], params["F"],
                                                                    params["num_obj"],
-                                                                   params["min_size"], 0.8)
+                                                                   params["min_size"], 0.8, 5)
     print("Finished GPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
 

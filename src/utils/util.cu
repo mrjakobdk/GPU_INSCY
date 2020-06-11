@@ -157,7 +157,7 @@ void scan_kernel_eff_large3(int *y, int *S, int n) {
     }
 }
 
-void inclusive_scan(int *x, int *y, int n) {
+void inclusive_scan(int *source, int *result, int n) {
     int numBlocks = n / SECTION_SIZE;
     if (n % SECTION_SIZE) numBlocks++;
 
@@ -165,17 +165,17 @@ void inclusive_scan(int *x, int *y, int n) {
         int *S;
         cudaMalloc((void **) &S, numBlocks * sizeof(int));
         gpuErrchk(cudaPeekAtLastError());
-        scan_kernel_eff_large1 << < numBlocks, SECTION_SIZE >> > (x, y, S, n);
+        scan_kernel_eff_large1 << < numBlocks, SECTION_SIZE >> > (source, result, S, n);
         gpuErrchk(cudaPeekAtLastError());
         inclusive_scan(S, S, numBlocks);
         gpuErrchk(cudaPeekAtLastError());
-        scan_kernel_eff_large3 << < numBlocks, SECTION_SIZE >> > (y, S, n);
+        scan_kernel_eff_large3 << < numBlocks, SECTION_SIZE >> > (result, S, n);
         gpuErrchk(cudaPeekAtLastError());
-        //cudaFree(S);//todo fix -maybe reuse S
+        //cudaFree(S);//todo fix
         gpuErrchk(cudaPeekAtLastError());
     } else {
         gpuErrchk(cudaPeekAtLastError());
-        scan_kernel_eff << < numBlocks, SECTION_SIZE >> > (x, y, n);
+        scan_kernel_eff << < numBlocks, SECTION_SIZE >> > (source, result, n);
         gpuErrchk(cudaPeekAtLastError());
     }
 }

@@ -26,6 +26,11 @@ subspace_sizes = data["subspace_sizes"]
 times = data["times"]
 plt.plot(subspace_sizes, times, label="GPU-Multi2-Cl-Multi")
 
+data = np.load('plot_data/inc_d/const_n_gpu_multi2_cl_multi_mem.npz', allow_pickle=True)
+subspace_sizes = data["subspace_sizes"]
+times = data["times"]
+plt.plot(subspace_sizes, times, label="GPU-Multi2-Cl-Multi-Mem")
+
 data = np.load('plot_data/inc_d/const_n=300_mix.npz', allow_pickle=True)
 subspace_sizes = data["subspace_sizes"]
 times = data["times"]

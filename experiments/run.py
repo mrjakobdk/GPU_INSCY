@@ -25,7 +25,7 @@ times = []
 for subspace_size in subspace_sizes:
     X_ = X[:, :subspace_size].clone()
     t0 = time.time()
-    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2_cl_multi(X_, params["neighborhood_size"], params["F"], params["num_obj"],
+    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2_cl_multi_mem(X_, params["neighborhood_size"], params["F"], params["num_obj"],
                                                    params["min_size"], 1.)
     print("Finished GPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()

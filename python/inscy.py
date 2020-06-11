@@ -17,6 +17,7 @@ inscy = load(name="inscy",
                       "src/algorithms/clustering/ClusteringCpu.cu",
                       "src/algorithms/clustering/ClusteringGpu.cu",
                       "src/algorithms/clustering/ClusteringGpuBlocks.cu",
+                      "src/algorithms/clustering/ClusteringGpuBlocksMem.cu",
                       "src/algorithms/clustering/ClusteringGpuStreams.cu",
                       "src/algorithms/inscy/InscyCompare.cu",
                       "src/algorithms/inscy/InscyNodeCpu.cu",
@@ -26,6 +27,7 @@ inscy = load(name="inscy",
                       "src/algorithms/inscy/InscyArrayGpuMulti.cu",
                       "src/algorithms/inscy/InscyArrayGpuMulti2.cu",
                       "src/algorithms/inscy/InscyArrayGpuMulti2ClMulti.cu",
+                      "src/algorithms/inscy/InscyArrayGpuMulti2ClMultiMem.cu",
                       "src/algorithms/inscy/InscyArrayGpuStream.cu"
                       ])
 print("Finished compilation, took: %.4fs" % (time.time() - t0))
@@ -123,6 +125,11 @@ def run_gpu_multi2(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_c
 
 def run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r,
+                                                           number_of_cells)
+    return subspaces, clusterings
+
+def run_gpu_multi2_cl_multi_mem(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
+    subspaces, clusterings = inscy.run_gpu_multi2_cl_multi_mem(X, neighborhood_size, F, num_obj, min_size, r,
                                                            number_of_cells)
     return subspaces, clusterings
 

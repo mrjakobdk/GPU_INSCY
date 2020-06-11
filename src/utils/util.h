@@ -39,7 +39,7 @@ void scan_kernel_eff_large1(int *x, int *y, int *S, int n);
 __global__
 void scan_kernel_eff_large3(int *y, int *S, int n);
 
-void inclusive_scan(int *x, int *y, int n);
+void inclusive_scan(int *source, int *y, int n);
 
 void inclusive_scan_cpu(int *x, int *y, int n);
 
