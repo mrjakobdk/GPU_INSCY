@@ -241,7 +241,7 @@ compute_is_dense_blocks_mem(int *d_restricteds_pr_dim, bool *d_is_dense_full, in
         float w = omega_gpu_blocks_mem(subspace_size);
 
 
-        for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
+        for (int i = blockIdx.y; i < number_of_points; i += gridDim.y) {
             int point_index = i_dim * number_of_cells * n + i_rest * n + i;
             int neighborhood_start = point_index == 0 ? 0 : d_neighborhood_end_position_full[point_index - 1];
             int *d_neighborhood = &d_neighborhoods_full[neighborhood_start];
@@ -249,23 +249,32 @@ compute_is_dense_blocks_mem(int *d_restricteds_pr_dim, bool *d_is_dense_full, in
 
             int p_id = d_points[i];
 
-            float p = 0;
-            int number_of_neighbors = 0;
-            for (int j = 0; j < number_of_points; j++) {
+            __shared__ float p;
+            p = 0;
+
+            __shared__ int number_of_neighbors;
+            number_of_neighbors = 0;
+
+            __syncthreads();
+            for (int j = threadIdx.x; j < number_of_points; j += blockDim.x) {
                 if (i != j) {
                     int q_id = d_points[j];
                     float distance = dist_gpu_blocks_mem(p_id, q_id, X, subspace, subspace_size, d);
                     if (neighborhood_size >= distance) {
+                        unsigned int tmp = atomicInc(reinterpret_cast<unsigned int *>(&number_of_neighbors),
+                                                     number_of_points);
+                        d_neighborhood[tmp] = j;//q_id;
+
                         distance /= neighborhood_size;
-                        d_neighborhood[number_of_neighbors] = j;//q_id;
-                        number_of_neighbors++;
                         float sq = distance * distance;
-                        p += (1. - sq);
+                        atomicAdd(&p, (1. - sq));
                     }
                 }
             }
+            __syncthreads();
 
-            d_is_dense[i] = p >= max(F * a, num_obj * w);
+            if (threadIdx.x == 0)
+                d_is_dense[i] = p >= max(F * a, num_obj * w);
         }
     }
 }
@@ -510,19 +519,20 @@ ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering_full, vector <vector<S
     int number_of_threads = min(n, BLOCK_SIZE);
     if (restricted_dims > 0) {
 
-        dim3 block(number_of_threads / 2);
+//        dim3 block(number_of_threads / 2);
+        dim3 block(min(128, BLOCK_SIZE));
         dim3 grid(restricted_dims, number_of_threads / 2);
 
         //compute number of neighbors
         compute_number_of_neighbors_blocks_mem<<< grid, block>>>(d_restricteds_pr_dim,
-                                                                                        restricted_dims,
-                                                                                        d_number_of_neighbors_full,
-                                                                                        d_X, d_points_full,
-                                                                                        d_number_of_points,
-                                                                                        neighborhood_size,
-                                                                                        d_restricted_dims_full,
-                                                                                        d_number_of_restricted_dims, d,
-                                                                                        number_of_cells, n);
+                                                                 restricted_dims,
+                                                                 d_number_of_neighbors_full,
+                                                                 d_X, d_points_full,
+                                                                 d_number_of_points,
+                                                                 neighborhood_size,
+                                                                 d_restricted_dims_full,
+                                                                 d_number_of_restricted_dims, d,
+                                                                 number_of_cells, n);
 
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
@@ -553,13 +563,13 @@ ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering_full, vector <vector<S
         gpuErrchk(cudaPeekAtLastError());
 
         //compute is dense
-        compute_is_dense_blocks_mem<<<restricted_dims, number_of_threads>>>(d_restricteds_pr_dim, d_is_dense_full,
-                                                                            d_points_full, d_number_of_points,
-                                                                            d_neighborhood_end_position_full,
-                                                                            d_neighborhoods_full, neighborhood_size,
-                                                                            d_X, d_restricted_dims_full,
-                                                                            d_number_of_restricted_dims, F, n,
-                                                                            num_obj, d, number_of_cells);
+        compute_is_dense_blocks_mem<<<grid, block>>>(d_restricteds_pr_dim, d_is_dense_full,
+                                                     d_points_full, d_number_of_points,
+                                                     d_neighborhood_end_position_full,
+                                                     d_neighborhoods_full, neighborhood_size,
+                                                     d_X, d_restricted_dims_full,
+                                                     d_number_of_restricted_dims, F, n,
+                                                     num_obj, d, number_of_cells);
 
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
@@ -583,5 +593,6 @@ ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering_full, vector <vector<S
 //        printf("d_clustering_full:\n");
 //        print_array_gpu << < 1, 1 >> > (d_clustering_full, restricted_dims * n);
 //        cudaDeviceSynchronize();
+        cudaFree(d_neighborhoods_full);
     }
 }

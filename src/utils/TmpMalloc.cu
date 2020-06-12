@@ -55,10 +55,10 @@ TmpMalloc::TmpMalloc(int number_of_nodes, int number_of_points, int number_of_di
 
     int multi_scalar = multi ? number_of_dims * number_of_cells : 1;
 
-    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * number_of_points * multi_scalar);
-    printf("space for d_neighborhoods:%d\n", sizeof(int) * number_of_points * number_of_points * multi_scalar);
-    cudaMalloc(&d_distance_matrix, sizeof(float) * number_of_points * number_of_points * multi_scalar);
-    printf("space for d_distance_matrix:%d\n", sizeof(float) * number_of_points * number_of_points * multi_scalar);
+//    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * number_of_points * multi_scalar);
+//    printf("space for d_neighborhoods:%d\n", sizeof(int) * number_of_points * number_of_points * multi_scalar);
+//    cudaMalloc(&d_distance_matrix, sizeof(float) * number_of_points * number_of_points * multi_scalar);
+//    printf("space for d_distance_matrix:%d\n", sizeof(float) * number_of_points * number_of_points * multi_scalar);
     cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points * multi_scalar);
     cudaMalloc(&d_is_dense, sizeof(bool) * number_of_points * multi_scalar);
     cudaMalloc(&d_disjoint_set, sizeof(int) * number_of_points * multi_scalar);
@@ -94,8 +94,8 @@ TmpMalloc::~TmpMalloc() {
     cudaFree(d_dim_i);
 
     //temps for clustering
-    cudaFree(d_neighborhoods);
-    cudaFree(d_distance_matrix);
+//    cudaFree(d_neighborhoods);
+//    cudaFree(d_distance_matrix);
     cudaFree(d_number_of_neighbors);
     cudaFree(d_is_dense);
     cudaFree(d_disjoint_set);

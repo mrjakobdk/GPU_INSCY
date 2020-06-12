@@ -6,12 +6,12 @@ import time
 import numpy as np
 
 params = {"n": 50,
-          "neighborhood_size": 0.10,
+          "neighborhood_size": 0.1,
           "F": 10.,
           "num_obj": 3,
           "min_size": 4,
-          "subspace_size_min": 5,
-          "subspace_size_max": 5}
+          "subspace_size_min": 3,
+          "subspace_size_max": 6}
 
 print("Loading Glove...")
 t0 = time.time()

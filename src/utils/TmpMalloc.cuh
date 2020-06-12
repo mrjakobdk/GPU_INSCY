@@ -12,8 +12,8 @@
 class TmpMalloc {
 public:
     //temps smart
-//    map<char*, int*> int_arrays;
-//    map<char*, int> int_array_sizes;
+//    std::map<char*, int*> int_arrays;
+//    std::map<char*, int> int_array_sizes;
 
     //temps for merge
     int *d_map_to_old;
