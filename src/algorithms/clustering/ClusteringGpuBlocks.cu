@@ -370,13 +370,19 @@ void disjoint_set_clustering_blocks(int *d_restricteds_pr_dim, int *d_clustering
 
         //gather_clustering
         for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
-            d_clustering[d_points[i]] = d_disjoint_set[i];
+            if (d_is_dense[i]) {
+                d_clustering[d_points[i]] = d_points[d_disjoint_set[i]];
+            }else {
+                d_clustering[d_points[i]] = -1;
+            }
         }
     }
 }
 
 void ClusteringGPUBlocks(TmpMalloc *tmps, int *d_clustering_full, vector <vector<ScyTreeArray *>> L_pruned, float *d_X,
                          int n, int d, float neighborhood_size, float F, int num_obj, int number_of_cells) {
+
+    tmps->reset_counters();
 
     int restricted_dims = L_pruned.size();
 
@@ -399,45 +405,52 @@ void ClusteringGPUBlocks(TmpMalloc *tmps, int *d_clustering_full, vector <vector
     }
 
 
-    int *d_restricteds_pr_dim;
-    cudaMalloc(&d_restricteds_pr_dim, restricted_dims * sizeof(int));
+    int *d_restricteds_pr_dim = tmps->get_int_array(tmps->int_array_counter++, restricted_dims);
+//    cudaMalloc(&d_restricteds_pr_dim, restricted_dims * sizeof(int));
     cudaMemcpy(d_restricteds_pr_dim, h_restricteds_pr_dim, restricted_dims * sizeof(int), cudaMemcpyHostToDevice);
     gpuErrchk(cudaPeekAtLastError());
 
     //todo copy
 
 
-    int **d_points;
-    int **d_restricted_dims;
-    int *d_number_of_points;
-    int *d_number_of_restricted_dims;
-    cudaMalloc(&d_points, restricted_dims * number_of_cells * sizeof(int *));
-    cudaMalloc(&d_restricted_dims, restricted_dims * number_of_cells * sizeof(int *));
-    cudaMalloc(&d_number_of_points, restricted_dims * number_of_cells * sizeof(int));
-    cudaMalloc(&d_number_of_restricted_dims, restricted_dims * number_of_cells * sizeof(int));
+    int **d_points = tmps->get_int_pointer_array(tmps->int_pointer_array_counter++,
+                                                 restricted_dims * number_of_cells);
+    int **d_restricted_dims = tmps->get_int_pointer_array(tmps->int_pointer_array_counter++,
+                                                          restricted_dims * number_of_cells);
+    int *d_number_of_points = tmps->get_int_array(tmps->int_array_counter++, restricted_dims * number_of_cells);
+    int *d_number_of_restricted_dims = tmps->get_int_array(tmps->int_array_counter++,
+                                                           restricted_dims * number_of_cells);
+//    cudaMalloc(&d_points, restricted_dims * number_of_cells * sizeof(int *));
+//    cudaMalloc(&d_restricted_dims, restricted_dims * number_of_cells * sizeof(int *));
+//    cudaMalloc(&d_number_of_points, restricted_dims * number_of_cells * sizeof(int));
+//    cudaMalloc(&d_number_of_restricted_dims, restricted_dims * number_of_cells * sizeof(int));
     gpuErrchk(cudaPeekAtLastError());
 
     cudaMemcpy(d_points, h_points, restricted_dims * number_of_cells * sizeof(int *), cudaMemcpyHostToDevice);
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_restricted_dims, h_restricted_dims, restricted_dims * number_of_cells * sizeof(int *),
                cudaMemcpyHostToDevice);
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_number_of_points, h_number_of_points, restricted_dims * number_of_cells * sizeof(int),
                cudaMemcpyHostToDevice);
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_number_of_restricted_dims, h_number_of_restricted_dims,
                restricted_dims * number_of_cells * sizeof(int), cudaMemcpyHostToDevice);
 
 
     gpuErrchk(cudaPeekAtLastError());
 
-//    for (int i = 0; i < restricted_dims; i++) {
-//        for (ScyTreeArray *scy_tree: L_pruned[i]) {
-//    int *d_clustering = d_clustering_full + i * n;
-
-    int *d_neighborhoods_full = tmps->d_neighborhoods; // number_of_points x number_of_points
-    float *d_distance_matrix_full = tmps->d_distance_matrix; // number_of_points x number_of_points
-    int *d_number_of_neighbors_full = tmps->d_number_of_neighbors; // number_of_points //todo maybe not needed
+    int *d_neighborhoods_full = tmps->get_int_array(tmps->int_array_counter++,
+                                                    n * n * restricted_dims * number_of_cells);
+    float *d_distance_matrix_full = tmps->get_float_array(tmps->float_array_counter++,
+                                                          n * n * restricted_dims * number_of_cells);
+    int *d_number_of_neighbors_full = tmps->get_int_array(tmps->int_array_counter++,
+                                                          n * restricted_dims * number_of_cells);
     cudaMemset(d_number_of_neighbors_full, 0, restricted_dims * number_of_cells * n * sizeof(int));
-    bool *d_is_dense_full = tmps->d_is_dense; // number_of_points
-    int *d_disjoint_set_full = tmps->d_disjoint_set; // number_of_points
+    bool *d_is_dense_full = tmps->get_bool_array(tmps->bool_array_counter++,
+                                                 n * restricted_dims * number_of_cells);
+    int *d_disjoint_set_full = tmps->get_int_array(tmps->int_array_counter++,
+                                                   n * restricted_dims * number_of_cells);
 
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
@@ -461,13 +474,6 @@ void ClusteringGPUBlocks(TmpMalloc *tmps, int *d_clustering_full, vector <vector
                                                                d_number_of_restricted_dims, d, number_of_cells, n);
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
-//        printf("h_restricteds_pr_dim:\n");
-//        print_array(h_restricteds_pr_dim, restricted_dims);
-//        printf("h_number_of_points:\n");
-//        print_array(h_number_of_points, restricted_dims * number_of_cells);
-//        printf("d_number_of_neighbors_full:\n");
-//        print_array_gpu << < 1, 1 >> > (d_number_of_neighbors_full, restricted_dims * number_of_cells * n);
-//        cudaDeviceSynchronize();
 
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
@@ -479,10 +485,6 @@ void ClusteringGPUBlocks(TmpMalloc *tmps, int *d_clustering_full, vector <vector
 
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
-//        printf("d_is_dense_full:\n");
-//        print_array_gpu << < 1, 1 >> > (d_is_dense_full, restricted_dims * number_of_cells * n);
-//        cudaDeviceSynchronize();
-
         disjoint_set_clustering_blocks << < restricted_dims, number_of_threads >> >
                                                              (d_restricteds_pr_dim, d_clustering_full, d_disjoint_set_full,
                                                                      d_neighborhoods_full, d_number_of_neighbors_full, d_is_dense_full,
@@ -490,11 +492,6 @@ void ClusteringGPUBlocks(TmpMalloc *tmps, int *d_clustering_full, vector <vector
 
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
-//        printf("d_clustering_full:\n");
-//        print_array_gpu << < 1, 1 >> > (d_clustering_full, restricted_dims * n);
-//        cudaDeviceSynchronize();
     }
-//        }
-//    }
 
 }

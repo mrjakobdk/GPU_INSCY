@@ -27,7 +27,7 @@ for subspace_size in subspace_sizes:
     print("d:",subspace_size)
     t0 = time.time()
     for _ in range(5):
-        subspaces, clusterings = INSCY.run_gpu_multi2_cl_multi(X_, params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"],5)
+        subspaces, clusterings = INSCY.run_gpu_multi2_cl_multi(X_, params["neighborhood_size"], params["F"], params["num_obj"], params["min_size"])
     times.append((time.time() - t0)/5)
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()

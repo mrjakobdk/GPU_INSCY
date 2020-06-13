@@ -63,40 +63,32 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
 
             //restricted-tree := mergeWithNeighbors(restricted-tree);
             nvtxRangePushA("merge");
-            restricted_scy_tree = restricted_scy_tree->mergeWithNeighbors_gpu1(scy_tree, dim_no, cell_no);
-
+            ScyTreeArray* merged_scy_tree = restricted_scy_tree->mergeWithNeighbors_gpu1(scy_tree, dim_no, cell_no);
+            if (merged_scy_tree != restricted_scy_tree)
+                delete restricted_scy_tree;
             nvtxRangePop();
 
             //pruneRecursion(restricted-tree); //prune sparse regions
-            if (restricted_scy_tree->pruneRecursion_gpu(min_size, d_X, n, d, neighborhood_size, F, num_obj)) {
+            if (merged_scy_tree->pruneRecursion_gpu(min_size, d_X, n, d, neighborhood_size, F, num_obj)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 map <vector<int>, vector<int>, vec_cmp> sub_result;
-                InscyArrayGpu(restricted_scy_tree, d_X, n, d, neighborhood_size,
+                InscyArrayGpu(merged_scy_tree, d_X, n, d, neighborhood_size,
                               F, num_obj, min_size, sub_result, dim_no + 1, total_number_of_dim, r, calls);
                 result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                if (restricted_scy_tree->pruneRedundancy_gpu(r, result)) {
-
-                    //scy_tree_list.push_back(restricted_scy_tree);
-//                    vector<int> subspace_clustering = ClusteringGPU(restricted_scy_tree, d_X, n, d, neighborhood_size,
-//                                                                    F, num_obj);
+                if (merged_scy_tree->pruneRedundancy_gpu(r, result)) {
 
                     nvtxRangePushA("clustering");
-                    ClusteringGPU(d_clustering, restricted_scy_tree, d_X, n, d, neighborhood_size,
+                    ClusteringGPU(d_clustering, merged_scy_tree, d_X, n, d, neighborhood_size,
                                   F, num_obj);
                     nvtxRangePop();
 
-
-//                    vector<int> subspace(restricted_scy_tree->h_restricted_dims,
-//                                         restricted_scy_tree->h_restricted_dims +
-//                                         restricted_scy_tree->number_of_restricted_dims);
-
                 }
-            } else {
-                // delete restricted_scy_tree;
             }
+
+            delete merged_scy_tree;
             cell_no++;
         }
 
@@ -108,6 +100,7 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
         vector<int> subspace_clustering(h_clustering, h_clustering + n);
 
         join(result, subspace_clustering, subspace, min_size, r);
+        cudaFree(d_clustering);
         nvtxRangePop();
 
         dim_no++;
@@ -150,6 +143,6 @@ void InscyArrayGpu(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neigh
     // delete restricted_scy_tree_gpu;
 //    }
 
-    int total_inscy = pow(2, total_number_of_dim);
-    printf("GPU-INSCY(%d): %d%%      \r", calls, int((result.size() * 100) / total_inscy));
+//    int total_inscy = pow(2, total_number_of_dim);
+//    printf("GPU-INSCY(%d): %d%%      \r", calls, int((result.size() * 100) / total_inscy));
 }

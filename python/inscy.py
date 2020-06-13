@@ -84,6 +84,28 @@ def clean_up(subspaces, clusterings, min_size):
     return subspaces[empty_subspaces], clusterings[empty_subspaces]
 
 
+def count_number_of_clusters(subspaces, clusterings):
+    clusterings = np.array(clusterings)
+    number_of_different_subspaces = len(clusterings)
+    number_of_points = len(clusterings[0])
+
+    count = 0
+    for i in range(number_of_different_subspaces):
+        bins = {}
+        for j in range(number_of_points):
+            cluster = clusterings[i][j]
+            if cluster >= 0:
+                if cluster in bins:
+                    bins[cluster] += 1
+                else:
+                    bins[cluster] = 1
+        for bin in bins.keys():
+            bin_size = bins[bin]
+            if bin_size>0:
+                count += 1
+    return count
+
+
 def run_cpu(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_cpu(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
     # return clean_up(subspaces, clusterings, min_size)

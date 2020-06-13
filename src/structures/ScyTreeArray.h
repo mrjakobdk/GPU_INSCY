@@ -67,6 +67,8 @@ public:
     ScyTreeArray(int number_of_nodes, int number_of_dims, int number_of_restricted_dims, int number_of_points,
                  int number_of_cells);
 
+    ~ScyTreeArray();
+
     void copy_to_device();
 
     int get_dims_idx();

@@ -178,6 +178,7 @@ run_cpu_gpu_mix(at::Tensor X, float neighborhood_size, float F, int num_obj, int
                    num_obj, min_size,
                    result, 0,
                    subspace_size, r, calls);
+    cudaFree(d_X);
 
     printf("CPU-GPU-MIX-INSCY(%d): 100%%      \n", calls);
 
@@ -249,6 +250,7 @@ run_cpu_gpu_mix_cl_steam(at::Tensor X, float neighborhood_size, float F, int num
     InscyCpuGpuMixClStream(scy_tree, neighborhood_tree, X, d_X, n, subspace_size, neighborhood_size, subspace,
                            subspace_size, F, num_obj,
                            min_size, result, 0, subspace_size, r, calls);
+    cudaFree(d_X);
 
     printf("CPU-GPU-MIX-CL-STREANS-INSCY(%d): 100%%      \n", calls);
 
@@ -324,6 +326,8 @@ run_gpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_siz
     InscyArrayGpu(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
                   result,
                   0, subspace_size, r, calls);
+    cudaFree(d_X);
+    delete scy_tree_gpu;
 
     printf("GPU-INSCY(%d): 100%%      \n", calls);
 
@@ -405,13 +409,14 @@ run_gpu_multi(at::Tensor X, float neighborhood_size, float F, int num_obj, int m
 //    printf("GPU-INSCY(0): 0%%      \n");
     nvtxRangePop();
 
-    TmpMalloc *tmps = new TmpMalloc(scy_tree_gpu->number_of_nodes, scy_tree_gpu->number_of_points,
-                                    scy_tree_gpu->number_of_dims, scy_tree_gpu->number_of_cells, false);
+    TmpMalloc *tmps = new TmpMalloc();
 
 
     InscyArrayGpuMulti(tmps, scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
                        result, 0, subspace_size, r, calls);
     delete tmps;
+    cudaFree(d_X);
+    delete scy_tree_gpu;
 
     cudaDeviceSynchronize();
 
@@ -497,13 +502,14 @@ run_gpu_multi2(at::Tensor X, float neighborhood_size, float F, int num_obj, int 
 //    printf("GPU-INSCY(0): 0%%      \n");
     nvtxRangePop();
 
-    TmpMalloc *tmps = new TmpMalloc(scy_tree_gpu->number_of_nodes, scy_tree_gpu->number_of_points,
-                                    scy_tree_gpu->number_of_dims, scy_tree_gpu->number_of_cells, false);
+    TmpMalloc *tmps = new TmpMalloc();
 
 
     InscyArrayGpuMulti2(tmps, scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
                         result, 0, subspace_size, r, calls);
     delete tmps;
+    cudaFree(d_X);
+    delete scy_tree_gpu;
 
     cudaDeviceSynchronize();
 
@@ -589,13 +595,14 @@ run_gpu_multi2_cl_multi(at::Tensor X, float neighborhood_size, float F, int num_
 //    printf("GPU-INSCY(0): 0%%      \n");
     nvtxRangePop();
 
-    TmpMalloc *tmps = new TmpMalloc(scy_tree_gpu->number_of_nodes, scy_tree_gpu->number_of_points,
-                                    scy_tree_gpu->number_of_dims, scy_tree_gpu->number_of_cells, true);
+    TmpMalloc *tmps = new TmpMalloc();
 
 
     InscyArrayGpuMulti2ClMulti(tmps, scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
                                result, 0, subspace_size, r, calls);
     delete tmps;
+    cudaFree(d_X);
+    delete scy_tree_gpu;
 
     cudaDeviceSynchronize();
 
@@ -682,13 +689,14 @@ run_gpu_multi2_cl_multi_mem(at::Tensor X, float neighborhood_size, float F, int 
 //    printf("GPU-INSCY(0): 0%%      \n");
     nvtxRangePop();
 
-    TmpMalloc *tmps = new TmpMalloc(scy_tree_gpu->number_of_nodes, scy_tree_gpu->number_of_points,
-                                    scy_tree_gpu->number_of_dims, scy_tree_gpu->number_of_cells, true);
+    TmpMalloc *tmps = new TmpMalloc();
 
 
     InscyArrayGpuMulti2ClMultiMem(tmps, scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
                                result, 0, subspace_size, r, calls);
     delete tmps;
+    cudaFree(d_X);
+    delete scy_tree_gpu;
 
     cudaDeviceSynchronize();
 
@@ -750,6 +758,8 @@ run_gpu_stream(at::Tensor X, float neighborhood_size, float F, int num_obj, int 
     InscyArrayGpuStream(scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, subspace, subspace_size, F, num_obj,
                         min_size,
                         result, 0, subspace_size, calls);
+    cudaFree(d_X);
+    delete scy_tree_gpu;
 
     printf("GPU-INSCY(%d): 100%%      \n", calls);
 

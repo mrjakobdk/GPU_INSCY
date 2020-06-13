@@ -325,9 +325,13 @@ ClusteringGPU(int *d_clustering, ScyTreeArray *scy_tree, float *d_X, int n, int 
     bool *d_is_dense; // number_of_points
     int *d_disjoint_set; // number_of_points
     cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * number_of_points);
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points);
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_is_dense, sizeof(bool) * number_of_points);
+    gpuErrchk(cudaPeekAtLastError());
     cudaMalloc(&d_disjoint_set, sizeof(int) * number_of_points);
+    gpuErrchk(cudaPeekAtLastError());
 
     int number_of_blocks = number_of_points / BLOCK_SIZE;
     if (number_of_points % BLOCK_SIZE) number_of_blocks++;
@@ -380,10 +384,14 @@ void ClusteringGPU(TmpMalloc *tmps, int *d_clustering, ScyTreeArray *scy_tree, f
     int number_of_restricted_dims = scy_tree->number_of_restricted_dims;
 
 
-    int *d_neighborhoods = tmps->d_neighborhoods; // number_of_points x number_of_points
-    int *d_number_of_neighbors = tmps->d_number_of_neighbors; // number_of_points //todo maybe not needed
-    bool *d_is_dense = tmps->d_is_dense; // number_of_points
-    int *d_disjoint_set = tmps->d_disjoint_set; // number_of_points
+    int *d_neighborhoods = tmps->get_int_array(tmps->int_array_counter++,
+                                               n * n);
+    int *d_number_of_neighbors = tmps->get_int_array(tmps->int_array_counter++,
+                                                     n);
+    bool *d_is_dense = tmps->get_bool_array(tmps->bool_array_counter++,
+                                            n);
+    int *d_disjoint_set = tmps->get_int_array(tmps->int_array_counter++,
+                                              n);
 //    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * number_of_points);
 //    cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points);
 //    cudaMalloc(&d_is_dense, sizeof(bool) * number_of_points);
@@ -458,10 +466,14 @@ void ClusteringGPU2(TmpMalloc *tmps, int *d_clustering, ScyTreeArray *scy_tree, 
     int number_of_restricted_dims = scy_tree->number_of_restricted_dims;
 
 
-    int *d_neighborhoods = tmps->d_neighborhoods; // number_of_points x number_of_points
-    int *d_number_of_neighbors = tmps->d_number_of_neighbors; // number_of_points //todo maybe not needed
-    bool *d_is_dense = tmps->d_is_dense; // number_of_points
-    int *d_disjoint_set = tmps->d_disjoint_set; // number_of_points
+    int *d_neighborhoods = tmps->get_int_array(tmps->int_array_counter++,
+                                               n * n);
+    int *d_number_of_neighbors = tmps->get_int_array(tmps->int_array_counter++,
+                                                     n);
+    bool *d_is_dense = tmps->get_bool_array(tmps->bool_array_counter++,
+                                            n);
+    int *d_disjoint_set = tmps->get_int_array(tmps->int_array_counter++,
+                                              n);
 //    cudaMalloc(&d_neighborhoods, sizeof(int) * number_of_points * number_of_points);
 //    cudaMalloc(&d_number_of_neighbors, sizeof(int) * number_of_points);
 //    cudaMalloc(&d_is_dense, sizeof(bool) * number_of_points);

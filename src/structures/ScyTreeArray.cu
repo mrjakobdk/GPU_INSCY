@@ -750,15 +750,22 @@ ScyTreeArray *restrict(ScyTreeArray *scy_tree, int dim_no, int cell_no) {
     gpuErrchk(cudaPeekAtLastError());
 
     //todo cudaFree() temps
-//    cudaFree(d_new_indecies);
-//    gpuErrchk(cudaPeekAtLastError());
-//    cudaFree(d_new_counts);
-//    gpuErrchk(cudaPeekAtLastError());
-//    cudaFree(d_is_included);
-//    gpuErrchk(cudaPeekAtLastError());
+    //int *d_new_indecies, *d_new_counts, *d_is_included, *d_is_s_connected;
+    //int *d_is_point_included, *d_point_new_indecies;
+    cudaFree(d_new_indecies);
+    gpuErrchk(cudaPeekAtLastError());
+    cudaFree(d_new_counts);
+    gpuErrchk(cudaPeekAtLastError());
+    cudaFree(d_is_included);
+    gpuErrchk(cudaPeekAtLastError());
+    cudaFree(d_is_s_connected);
+    gpuErrchk(cudaPeekAtLastError());
+    cudaFree(d_is_point_included);
+    gpuErrchk(cudaPeekAtLastError());
+    cudaFree(d_point_new_indecies);
+    gpuErrchk(cudaPeekAtLastError());
 
 //    cudaDeviceSynchronize();
-    gpuErrchk(cudaPeekAtLastError());
 
 //    if (restricted_scy_tree->number_of_nodes == 975) {
 //        printf("\n\nLook here n=%d\nd_parents:\n", restricted_scy_tree->number_of_nodes);
@@ -1416,6 +1423,7 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                                  int number_of_cells) {//todo  number_of_dims is different from this->number_of_dims find a better name
 
     //restricted-tree := restrict(scy-tree, descriptor);
+    tmps->reset_counters();
 
     ScyTreeArray *scy_tree = this;
 
@@ -1436,9 +1444,12 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
 
     //todo needs to be allocated for each - only dependent on the scy_tree
     //allocate tmp arrays - start
-    int *d_new_indecies = tmps->d_new_indecies;
-    int *d_new_counts = tmps->d_new_counts;
-    int *d_is_included = tmps->d_is_included;
+    int *d_new_indecies = tmps->get_int_array(tmps->int_array_counter++, scy_tree->number_of_nodes *
+                                                                         number_of_restrictions);//tmps->d_new_indecies;
+    int *d_new_counts = tmps->get_int_array(tmps->int_array_counter++,
+                                            scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_new_counts;
+    int *d_is_included = tmps->get_int_array(tmps->int_array_counter++,
+                                             scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_is_included;
 
     cudaMemset(d_new_indecies, 0, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
     cudaMemset(d_new_counts, 0, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
@@ -1450,14 +1461,17 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
         }
     }
 
-    int *d_is_point_included = tmps->d_is_point_included;
-    int *d_point_new_indecies = tmps->d_point_new_indecies;
+    int *d_is_point_included = tmps->get_int_array(tmps->int_array_counter++, scy_tree->number_of_points *
+                                                                              number_of_restrictions);//tmps->d_is_point_included;
+    int *d_point_new_indecies = tmps->get_int_array(tmps->int_array_counter++, scy_tree->number_of_points *
+                                                                               number_of_restrictions);//tmps->d_point_new_indecies;
     cudaMemset(d_is_point_included, 0, number_of_points * number_of_restrictions * sizeof(int));
 
-    int *d_is_s_connected = tmps->d_is_s_connected;
+    int *d_is_s_connected = tmps->get_int_array(tmps->int_array_counter++,
+                                                number_of_restrictions);//tmps->d_is_s_connected;
     cudaMemset(d_is_s_connected, 0, number_of_restrictions * sizeof(int));
 
-    int *d_dim_i = tmps->d_dim_i;
+    int *d_dim_i = tmps->get_int_array(tmps->int_array_counter++, number_of_dims);//tmps->d_dim_i;
 
 //    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
@@ -1768,12 +1782,13 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
 
     //restricted-tree := restrict(scy-tree, descriptor);
 
+    tmps->reset_counters();
+
     ScyTreeArray *scy_tree = this;
 
     int number_of_blocks;
     dim3 block(128);
     dim3 grid(number_of_dims, number_of_cells);
-//    printf("grid(%d, %d)\n", number_of_dims, number_of_cells);
 
     int c = scy_tree->number_of_cells;
     int d = scy_tree->number_of_dims;
@@ -1785,13 +1800,16 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
 
     vector <vector<ScyTreeArray *>> L_merged(number_of_dims);
 
+    if (scy_tree->number_of_nodes * number_of_restrictions == 0)
+        return L_merged;
 
-
-    //todo needs to be allocated for each - only dependent on the scy_tree
     //allocate tmp arrays - start
-    int *d_new_indecies = tmps->d_new_indecies;
-    int *d_new_counts = tmps->d_new_counts;
-    int *d_is_included = tmps->d_is_included;
+    int *d_new_indecies = tmps->get_int_array(tmps->int_array_counter++, scy_tree->number_of_nodes *
+                                                                         number_of_restrictions);//tmps->d_new_indecies;
+    int *d_new_counts = tmps->get_int_array(tmps->int_array_counter++,
+                                            scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_new_counts;
+    int *d_is_included = tmps->get_int_array(tmps->int_array_counter++,
+                                             scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_is_included;
 
     cudaMemset(d_new_indecies, 0, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
     cudaMemset(d_new_counts, 0, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
@@ -1802,25 +1820,33 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
             memset << < 1, 1 >> > (d_is_included + node_offset, 0, 1);//todo not a good way to do this
         }
     }
+    gpuErrchk(cudaPeekAtLastError());
 
-    int *d_is_point_included = tmps->d_is_point_included;
-    int *d_point_new_indecies = tmps->d_point_new_indecies;
-    cudaMemset(d_is_point_included, 0, number_of_points * number_of_restrictions * sizeof(int));
+    int *d_is_point_included = tmps->get_int_array(tmps->int_array_counter++, this->number_of_points *
+                                                                              number_of_restrictions);//tmps->d_is_point_included;
+    gpuErrchk(cudaPeekAtLastError());
+    int *d_point_new_indecies = tmps->get_int_array(tmps->int_array_counter++, this->number_of_points *
+                                                                               number_of_restrictions);//tmps->d_point_new_indecies;
+    gpuErrchk(cudaPeekAtLastError());
 
-    int *d_is_s_connected = tmps->d_is_s_connected;
+    cudaMemset(d_is_point_included, 0, this->number_of_points * number_of_restrictions * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
+
+    int *d_is_s_connected = tmps->get_int_array(tmps->int_array_counter++,
+                                                number_of_restrictions);//tmps->d_is_s_connected;
     cudaMemset(d_is_s_connected, 0, number_of_restrictions * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
 
-    int *d_dim_i = tmps->d_dim_i;
+    int *d_dim_i = tmps->get_int_array(tmps->int_array_counter++, number_of_dims);//tmps->d_dim_i;
 
-//    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
     int *h_new_number_of_points = new int[number_of_restrictions];
     int *h_new_number_of_nodes = new int[number_of_restrictions];
 
-    int *d_merge_map;
+    int *d_merge_map = tmps->get_int_array(tmps->int_array_counter++, number_of_restrictions);
     int *h_merge_map = new int[number_of_restrictions];
-    cudaMalloc(&d_merge_map, number_of_restrictions * sizeof(int));
+//    cudaMalloc(&d_merge_map, number_of_restrictions * sizeof(int));
     //allocate tmp arrays - end
 
     int dim_no = first_dim_no;
@@ -1858,10 +1884,10 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
             gpuErrchk(cudaPeekAtLastError());
 
             restrict_merge_dim_multi << < number_of_dims, block >> >
-                                                (scy_tree->d_parents, scy_tree->d_cells, scy_tree->d_counts, scy_tree->d_dim_start,
-                                                        d_is_included, d_new_counts, d_is_s_connected, d_dim_i, d_merge_map,
-                                                        scy_tree->number_of_dims, scy_tree->number_of_nodes,
-                                                        scy_tree->number_of_cells, scy_tree->number_of_points);
+                                                          (scy_tree->d_parents, scy_tree->d_cells, scy_tree->d_counts, scy_tree->d_dim_start,
+                                                                  d_is_included, d_new_counts, d_is_s_connected, d_dim_i, d_merge_map,
+                                                                  scy_tree->number_of_dims, scy_tree->number_of_nodes,
+                                                                  scy_tree->number_of_cells, scy_tree->number_of_points);
 //            cudaDeviceSynchronize();
             gpuErrchk(cudaPeekAtLastError());
 
@@ -2165,7 +2191,6 @@ ScyTreeArray *ScyTreeArray::mergeWithNeighbors_gpu1(ScyTreeArray *parent_scy_tre
     ScyTreeArray *restricted_scy_tree = this;
     while (restricted_scy_tree->is_s_connected && cell_no < this->number_of_cells - 1) {
         cell_no++;
-//        printf("cell_no:%d\n", cell_no);
         gpuErrchk(cudaPeekAtLastError());
         restricted_scy_tree = parent_scy_tree->restrict_gpu(dim_no, cell_no);
         gpuErrchk(cudaPeekAtLastError());
@@ -2174,7 +2199,9 @@ ScyTreeArray *ScyTreeArray::mergeWithNeighbors_gpu1(ScyTreeArray *parent_scy_tre
             gpuErrchk(cudaPeekAtLastError());
             merged_scy_tree = merged_scy_tree->merge(restricted_scy_tree);
             gpuErrchk(cudaPeekAtLastError());
-            // delete merged_scy_tree_old;
+            cudaDeviceSynchronize();
+            if (merged_scy_tree_old != this)
+                delete merged_scy_tree_old;
         }
     }
 
@@ -2202,8 +2229,6 @@ ScyTreeArray *ScyTreeArray::merge(ScyTreeArray *sibling_scy_tree) {
                     d_dim_start_3, d_dims_3, d_restricted_dims_3,
                     d_points_3, d_points_placement_3,
                     d_3, n_3, number_of_points_3, number_of_restricted_dims_3);
-
-//    printf("after merge_using_gpu\n");
 
     gpuErrchk(cudaPeekAtLastError());
     ScyTreeArray *merged_scy_tree = new ScyTreeArray(n_3, this->number_of_dims, this->number_of_restricted_dims,
@@ -2235,16 +2260,18 @@ void merge_using_gpu(TmpMalloc *tmps, int *d_parents_1, int *d_cells_1, int *d_c
 
     gpuErrchk(cudaPeekAtLastError());
 
+    tmps->reset_counters();
+
     //compute sort keys for both using cell id cell_no and concat
     //sort - save permutation
     int n_total = n_1 + n_2;
 
     int numBlocks;
 
-    int *d_map_to_old = tmps->d_map_to_old;
-    int *d_map_to_new = tmps->d_map_to_new;
-    int *d_is_included = tmps->d_is_included_merge;
-    int *d_new_indecies = tmps->d_new_indecies_merge;
+    int *d_map_to_old = tmps->get_int_array(tmps->int_array_counter++, n_total);//tmps->d_map_to_old;
+    int *d_map_to_new = tmps->get_int_array(tmps->int_array_counter++, n_total);//tmps->d_map_to_new;
+    int *d_is_included = tmps->get_int_array(tmps->int_array_counter++, n_total);//tmps->d_is_included_merge;
+    int *d_new_indecies = tmps->get_int_array(tmps->int_array_counter++, n_total);//tmps->d_new_indecies_merge;
 //    cudaMalloc(&d_map_to_new, n_total * sizeof(int));
     cudaMemset(d_map_to_new, -99, n_total * sizeof(int));
     gpuErrchk(cudaPeekAtLastError());
@@ -2287,9 +2314,9 @@ void merge_using_gpu(TmpMalloc *tmps, int *d_parents_1, int *d_cells_1, int *d_c
     gpuErrchk(cudaPeekAtLastError());
     int step = 4; //todo find better
 
-    int *pivots_1 = tmps->pivots_1;
-    int *pivots_2 = tmps->pivots_2;
     int n_pivots = (n_total / step + (n_total % step ? 1 : 0));
+    int *pivots_1 = tmps->get_int_array(tmps->int_array_counter++, n_pivots);//tmps->pivots_1;
+    int *pivots_2 = tmps->get_int_array(tmps->int_array_counter++, n_pivots);//tmps->pivots_2;
 //    cudaMalloc(&pivots_1, n_pivots * sizeof(int));
 //    cudaMalloc(&pivots_2, n_pivots * sizeof(int));
 
@@ -2979,4 +3006,23 @@ bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, v
     }
 
     return this->number_of_points * r > max_min_size * 1.;
+}
+
+ScyTreeArray::~ScyTreeArray() {
+    if (number_of_nodes > 0) {
+        cudaFree(d_parents);
+        cudaFree(d_cells);
+        cudaFree(d_counts);
+    }
+    if (number_of_dims > 0) {
+        cudaFree(d_dim_start);
+        cudaFree(d_dims);
+    }
+    if (number_of_restricted_dims > 0) {
+        cudaFree(d_restricted_dims);
+    }
+    if (number_of_points > 0) {
+        cudaFree(d_points);
+        cudaFree(d_points_placement);
+    }
 }

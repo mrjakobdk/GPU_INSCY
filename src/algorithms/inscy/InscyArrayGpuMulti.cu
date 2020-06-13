@@ -61,6 +61,7 @@ InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, i
 
                 if (L[i][cell_no]->number_of_points > 0) {
                     L_merged[i][j] = L_merged[i][j]->merge(tmps, L[i][cell_no]);
+                    delete old_merged;
                 }
             } else {
                 j++;
@@ -78,8 +79,8 @@ InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, i
     while (dim_no < total_number_of_dim) {
 
         vector<int> subspace;
-        int *d_clustering = tmps->d_clustering; // number_of_points
-//        cudaMalloc(&d_clustering, sizeof(int) * n);
+        int *d_clustering;// = tmps->get_int_array(tmps->CLUSTERING, n); // number_of_points
+        cudaMalloc(&d_clustering, sizeof(int) * n);
         cudaMemset(d_clustering, -1, sizeof(int) * n);
 
         int i = dim_no - first_dim_no;
@@ -113,7 +114,7 @@ InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, i
 
                 }
             }
-//            delete restricted_scy_tree;
+            delete restricted_scy_tree;
         }
 
 
@@ -129,6 +130,7 @@ InscyArrayGpuMulti(TmpMalloc *tmps, ScyTreeArray *scy_tree, float *d_X, int n, i
         join(result, subspace_clustering, subspace, min_size, r);
 
         cudaDeviceSynchronize();
+        cudaFree(d_clustering);
         nvtxRangePop();
 
         dim_no++;

@@ -5,13 +5,13 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params = {"n": 50,
+params = {"n": 100,
           "neighborhood_size": 0.1,
           "F": 10.,
           "num_obj": 3,
           "min_size": 4,
           "subspace_size_min": 3,
-          "subspace_size_max": 6}
+          "subspace_size_max": 9}
 
 print("Loading Glove...")
 t0 = time.time()
@@ -31,9 +31,9 @@ for subspace_size in subspace_sizes:
     print("Finished CPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
     t0 = time.time()
-    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2_cl_multi_mem(X_, params["neighborhood_size"], params["F"],
-                                                                   params["num_obj"],
-                                                                   params["min_size"], 0.8, 5)
+    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2(X_, params["neighborhood_size"], params["F"],
+                                                   params["num_obj"],
+                                                   params["min_size"], 0.8, 5)
     print("Finished GPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
 
@@ -90,7 +90,7 @@ for subspace_size in subspace_sizes:
 
     print("diff:", diff, "in cluster:", in_clus)
     if diff > 0:
-        INSCY.clean_up(subspaces_cpu, clusterings_cpu,params["min_size"])
+        INSCY.clean_up(subspaces_cpu, clusterings_cpu, params["min_size"])
         print()
-        INSCY.clean_up(subspaces_gpu, clusterings_gpu,params["min_size"])
+        INSCY.clean_up(subspaces_gpu, clusterings_gpu, params["min_size"])
         break
