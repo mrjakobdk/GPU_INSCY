@@ -11,6 +11,7 @@
 #include <math.h>
 #include <vector>
 #include <map>
+#include <memory>
 
 using namespace std;
 
@@ -33,7 +34,7 @@ public:
     bool is_s_connected;
     float cell_size;
 
-    Node *root;
+    shared_ptr <Node>root;
 
     int get_dims_idx();
 
@@ -58,7 +59,7 @@ public:
 
     vector<int> get_points();
 
-    void get_leafs(Node *node, vector<Node *> &leafs);
+    void get_leafs(shared_ptr <Node>node, vector<shared_ptr <Node>> &leafs);
 
     ScyTreeNode();
 
@@ -73,34 +74,34 @@ public:
 
 private:
 
-    int leaf_count(Node *node);
+    int leaf_count(shared_ptr <Node>node);
 
     void merge(ScyTreeNode *pNode);
 
-    int pruneRecursionNode(Node *node, int min_size);
+    int pruneRecursionNode(shared_ptr <Node>node, int min_size);
 
-    void get_points_node(Node *node, vector<int> &result);
+    void get_points_node(shared_ptr <Node>node, vector<int> &result);
 
     int get_cell_no(float x_ij);
 
-    Node *set_node(Node *node, int &cell_no, int &node_counter);
+    shared_ptr <Node>set_node(shared_ptr <Node>node, int &cell_no, int &node_counter);
 
-    Node *set_s_connection(Node *node, int cell_no, int &node_counter);
+    shared_ptr <Node>set_s_connection(shared_ptr <Node>node, int cell_no, int &node_counter);
 
-    void construct_s_connection(float neighborhood_size, int &node_counter, Node *node, float *x_i, int j,
+    void construct_s_connection(float neighborhood_size, int &node_counter, shared_ptr <Node>node, float *x_i, int j,
                                 float x_ij, int cell_no);
 
-    bool restrict_node(Node *old_node, Node *new_parent, int dim_no, int cell_no, int depth, bool &s_connection_found);
+    bool restrict_node(shared_ptr <Node>old_node, shared_ptr <Node>new_parent, int dim_no, int cell_no, int depth, bool &s_connection_found);
 
     int get_number_of_nodes();
 
-    int get_number_of_nodes_in_subtree(Node *node);
+    int get_number_of_nodes_in_subtree(shared_ptr <Node>node);
 
-    void get_possible_neighbors_from(vector<int> &list, float *p, Node *child, int depth, int subspace_index,
+    void get_possible_neighbors_from(vector<int> &list, float *p, shared_ptr <Node>child, int depth, int subspace_index,
                                      int *subspace, int subspace_size,
                                      float neighborhood_size);
 
-    void propergate_count(Node *node);
+    void propergate_count(shared_ptr <Node>node);
 };
 
 #endif //GPU_INSCY_SCYTREENODE_H

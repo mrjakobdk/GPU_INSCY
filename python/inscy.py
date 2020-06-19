@@ -164,3 +164,20 @@ def run_gpu_stream(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3
 
 def load_glove(n_max, d_max):
     return inscy.load_glove(n_max, d_max)
+
+def load_synt(name=None):
+    d = []
+    with open('data/synt/'+name+'.dat', 'r') as fp:
+        line = fp.readline()
+        for cnt, line in enumerate(fp):
+            d.append([float(value) for value in line.split(' ')])
+    return normalize(torch.tensor(d))
+
+def load_synt5(name=None):
+    print("synt5")
+    d = []
+    with open('data/synt5/'+name+'.dat', 'r') as fp:
+        line = fp.readline()
+        for cnt, line in enumerate(fp):
+            d.append([float(value) for value in line.split(' ')])
+    return normalize(torch.tensor(d))

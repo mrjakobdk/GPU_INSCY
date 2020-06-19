@@ -6,6 +6,7 @@
 #include "../../structures/ScyTreeNode.h"
 #include "../../structures/ScyTreeArray.h"
 #include "../../utils/util.h"
+#include "../../utils/TmpMalloc.cuh"
 #include "InscyCompare.cuh"
 
 
@@ -101,36 +102,47 @@ void compare(ScyTreeArray *scy_tree_1, ScyTreeArray *scy_tree_2) {
         throw 20;
         return;
     }
+    int sum_1 = 0;
+    int sum_2 = 0;
     for (int i = 0; i < scy_tree_1->number_of_nodes; i++) {
-        if (scy_tree_1->h_parents[i] != scy_tree_2->h_parents[i]) {
-            printf("h_parents are not the same! differ at %d\n", i);
-            print_array(scy_tree_1->h_parents, scy_tree_1->number_of_nodes);
-            print_array(scy_tree_2->h_parents, scy_tree_2->number_of_nodes);
-            throw 20;
-            return;
-        }
-        if (scy_tree_1->h_cells[i] != scy_tree_2->h_cells[i]) {
-            printf("h_cells are not the same! differ at %d\n", i);
-            print_array(scy_tree_1->h_cells, scy_tree_1->number_of_nodes);
-            print_array(scy_tree_2->h_cells, scy_tree_2->number_of_nodes);
-
-            scy_tree_2->copy_to_device();
-
-            print_array_gpu<<<1, 1>>>(scy_tree_1->d_cells, scy_tree_1->number_of_nodes);
-            cudaDeviceSynchronize();
-            print_array_gpu<<<1, 1>>>(scy_tree_2->d_cells, scy_tree_2->number_of_nodes);
-            cudaDeviceSynchronize();
-
-            throw 20;
-            return;
-        }
-        if (scy_tree_1->h_counts[i] != scy_tree_2->h_counts[i]) {
-            printf("h_counts are not the same! differ at %d\n", i);
-            print_array(scy_tree_1->h_counts, scy_tree_1->number_of_nodes);
-            print_array(scy_tree_2->h_counts, scy_tree_2->number_of_nodes);
-            throw 20;
-            return;
-        }
+        sum_1 += scy_tree_1->h_counts[i];
+        sum_2 += scy_tree_2->h_counts[i];
+//        if (scy_tree_1->h_parents[i] != scy_tree_2->h_parents[i]) {
+//            printf("h_parents are not the same! differ at %d\n", i);
+//            print_array(scy_tree_1->h_parents, scy_tree_1->number_of_nodes);
+//            print_array(scy_tree_2->h_parents, scy_tree_2->number_of_nodes);
+//            throw 20;
+//            return;
+//        }
+//        if (scy_tree_1->h_cells[i] != scy_tree_2->h_cells[i]) {
+//            printf("h_cells are not the same! differ at %d\n", i);
+//            print_array(scy_tree_1->h_cells, scy_tree_1->number_of_nodes);
+//            print_array(scy_tree_2->h_cells, scy_tree_2->number_of_nodes);
+//
+//            scy_tree_2->copy_to_device();
+//
+//            print_array_gpu<<<1, 1>>>(scy_tree_1->d_cells, scy_tree_1->number_of_nodes);
+//            cudaDeviceSynchronize();
+//            print_array_gpu<<<1, 1>>>(scy_tree_2->d_cells, scy_tree_2->number_of_nodes);
+//            cudaDeviceSynchronize();
+//
+//            throw 20;
+//            return;
+//        }
+//        if (scy_tree_1->h_counts[i] != scy_tree_2->h_counts[i]) {
+//            printf("h_counts are not the same! differ at %d\n", i);
+//            print_array(scy_tree_1->h_counts, scy_tree_1->number_of_nodes);
+//            print_array(scy_tree_2->h_counts, scy_tree_2->number_of_nodes);
+//            throw 20;
+//            return;
+//        }
+    }
+    if (sum_1 != sum_2) {
+        printf("h_counts are not the same! sum_1:%d, sum_2:%d\n", sum_1, sum_2);
+        print_array(scy_tree_1->h_counts, scy_tree_1->number_of_nodes);
+        print_array(scy_tree_2->h_counts, scy_tree_2->number_of_nodes);
+        throw 20;
+        return;
     }
 
     for (int i = 0; i < scy_tree_1->number_of_dims; i++) {
@@ -174,16 +186,16 @@ void compare(ScyTreeArray *scy_tree_1, ScyTreeArray *scy_tree_2) {
             throw 20;
             return;
         }
-        if (scy_tree_1->h_points_placement[i] != scy_tree_2->h_points_placement[i]) {
-            printf("h_points_placement are not the same! differ at %d\n", i);
-            print_array(scy_tree_1->h_points_placement, scy_tree_1->number_of_points);
-            print_array(scy_tree_2->h_points_placement, scy_tree_2->number_of_points);
-            printf("Points:\n");
-            print_array(scy_tree_1->h_points, scy_tree_1->number_of_points);
-            print_array(scy_tree_2->h_points, scy_tree_2->number_of_points);
-            throw 20;
-            return;
-        }
+//        if (scy_tree_1->h_points_placement[i] != scy_tree_2->h_points_placement[i]) {
+//            printf("h_points_placement are not the same! differ at %d\n", i);
+//            print_array(scy_tree_1->h_points_placement, scy_tree_1->number_of_points);
+//            print_array(scy_tree_2->h_points_placement, scy_tree_2->number_of_points);
+//            printf("Points:\n");
+//            print_array(scy_tree_1->h_points, scy_tree_1->number_of_points);
+//            print_array(scy_tree_2->h_points, scy_tree_2->number_of_points);
+//            throw 20;
+//            return;
+//        }
     }
 
 //    printf("Success!\n");
@@ -203,8 +215,12 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
 //        printf("not the same!!! %d vs %d\n", d - first_dim_no, scy_tree_gpu->number_of_dims);
 //    }
 
-    vector <vector<ScyTreeArray *>> L = scy_tree_gpu->restrict_gpu_multi(first_dim_no, d - first_dim_no, scy_tree_gpu->number_of_cells);
-
+    vector <vector<ScyTreeArray *>> L = scy_tree_gpu->restrict_gpu_multi(first_dim_no, d - first_dim_no,
+                                                                         scy_tree_gpu->number_of_cells);
+    TmpMalloc *tmps = new TmpMalloc();
+    vector <vector<ScyTreeArray *>> L_merged = scy_tree_gpu->restrict_merge_gpu_multi2(tmps, first_dim_no,
+                                                                                       d - first_dim_no,
+                                                                                       scy_tree_gpu->number_of_cells);
     int dim_no = first_dim_no;
     calls++;
     while (dim_no < d) {
@@ -213,8 +229,9 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
 
         vector<int> subspace_clustering(n, -1);
         vector<int> subspace;
-
+        int count = 0;
         while (cell_no < scy_tree->number_of_cells) {
+
             //restricted-tree := restrict(scy-tree, descriptor);
             ScyTreeNode *restricted_scy_tree = scy_tree->restrict(dim_no, cell_no);
             ScyTreeArray *restricted_scy_tree_conv = restricted_scy_tree->convert_to_ScyTreeArray();
@@ -243,9 +260,13 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
             restricted_scy_tree_gpu = restricted_scy_tree_gpu->mergeWithNeighbors_gpu1(scy_tree_gpu, dim_no,
                                                                                        cell_no_gpu);
             restricted_scy_tree_gpu->copy_to_host();
+            ScyTreeArray *merge_scy_tree_gpu_multi = L_merged[i][count];
+            merge_scy_tree_gpu_multi->copy_to_host();
 
 //            printf("After merge:\n");
             compare(restricted_scy_tree_gpu, restricted_scy_tree_conv);
+            compare(restricted_scy_tree_gpu, merge_scy_tree_gpu_multi);
+//            printf("After merge:\n");
 
 
             //pruneRecursion(restricted-tree); //prune sparse regions
@@ -289,6 +310,7 @@ void INSCYCompare(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Ten
 //                    result.insert(pair < int, vector < int >> (idx, new_clustering));
 //                }
             }
+            count++;
             cell_no++;
         }
         result.insert(pair < vector < int > , vector < int >> (subspace, subspace_clustering));

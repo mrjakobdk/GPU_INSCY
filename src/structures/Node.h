@@ -7,16 +7,18 @@
 
 #include <map>
 #include <vector>
+#include <memory>
 
 using namespace std;
+
 
 class Node {
 public:
     int count;
     int cell_no;
     bool is_leaf;
-    map<int, Node *> children;
-    map<int, Node *> s_connections;
+    map<int, shared_ptr<Node>> children;
+    map<int, shared_ptr<Node>> s_connections;
     vector<int> points;
 
     Node(int cell_no) :
@@ -26,7 +28,7 @@ public:
 
     }
 
-    Node(Node *old_node) {
+    Node(shared_ptr <Node> old_node) {
         this->cell_no = old_node->cell_no;
         this->count = old_node->count;
         this->points = old_node->points;//todo this could give an error
@@ -50,9 +52,9 @@ public:
 
     void compute_count_shallow() {
         this->count = 0;
-        for (pair<const int, Node *> child_pair: this->children) {
-            Node *child = child_pair.second;
-            this-> count += child->count;
+        for (pair<const int, shared_ptr < Node>> child_pair: this->children) {
+            shared_ptr <Node> child = child_pair.second;
+            this->count += child->count;
         }
     }
 };

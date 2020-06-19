@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 params = {"n": 1500,
-          "neighborhood_size": 0.02,
+          "neighborhood_size": 0.01,
           "F": 1.,
           "num_obj": 8,
           "min_size": 75,
@@ -50,7 +50,7 @@ print("Finished loading Glove, took: %.4fs" % (time.time() - t0))
 print("Running INSCY. ")
 print()
 
-rs = [100 / r if r > 0 else 0 for r in range(params["r_min"], params["r_max"] + 1, 5)]
+rs = [r / 100 for r in range(params["min_r"], params["max_r"] + 1, 10)]
 
 times = []
 no_clusters = []
@@ -58,12 +58,15 @@ subspaces, clusterings = INSCY.run_gpu(X[:100, :2], params["neighborhood_size"],
 for r in rs:
     print("r:", r)
     t0 = time.time()
-    for _ in range(3):
+    for _ in range(1):
         subspaces, clusterings = function(X, params["neighborhood_size"], params["F"],
                                           params["num_obj"], params["min_size"], r,
                                           number_of_cells=params["number_of_cells"])
-    times.append((time.time() - t0) / 3)
+    t = time.time() - t0
+    times.append(t / 1)
     no_clusters.append(INSCY.count_number_of_clusters(subspaces, clusterings))
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
     np.savez('plot_data/inc_r/' + name + '.npz', rs=rs, no_clusters=no_clusters, times=times, params=params)
+    if t > 6 * 60. * 60.:
+        break

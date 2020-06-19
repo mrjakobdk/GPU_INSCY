@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 params = {"n": 1500,
-          "neighborhood_size": 0.02,
+          "neighborhood_size": 0.01,
           "F": 1.,
           "r": 1.,
           "num_obj": 8,
@@ -58,15 +58,15 @@ for subspace_size in subspace_sizes:
     X_ = X[:, :subspace_size].clone()
     print("d:", subspace_size)
     t0 = time.time()
-    for _ in range(3):
+    for _ in range(1):
         subspaces, clusterings = function(X_, params["neighborhood_size"], params["F"], params["num_obj"],
                                           params["min_size"])
     t = time.time() - t0
-    times.append(t / 3)
+    times.append(t / 1)
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
     no_clusters.append(INSCY.count_number_of_clusters(subspaces, clusterings))
     np.savez('plot_data/inc_d/' + name + '.npz', subspace_sizes=subspace_sizes, no_clusters=no_clusters, times=times,
              params=params)
-    if t > 3 * 60. * 60.:
+    if t > 6 * 60. * 60.:
         break

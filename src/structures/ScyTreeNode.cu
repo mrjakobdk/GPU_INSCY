@@ -6,6 +6,7 @@
 #include "ScyTreeArray.h"
 #include "../utils/util.h"
 #include "../algorithms/clustering/ClusteringCpu.h"
+#include <memory>
 
 int ScyTreeNode::get_dims_idx() {
     int sum = 0;
@@ -16,11 +17,11 @@ int ScyTreeNode::get_dims_idx() {
     return sum;
 }
 
-Node *ScyTreeNode::set_s_connection(Node *node, int cell_no, int &node_counter) {
+shared_ptr <Node> ScyTreeNode::set_s_connection(shared_ptr <Node>node, int cell_no, int &node_counter) {
     if (node->s_connections.find(cell_no) == node->s_connections.end()) {
-        Node *s_connection = new Node(cell_no);
+        shared_ptr <Node> s_connection(new Node(cell_no));
         s_connection->count = -1;
-        node->s_connections.insert(pair<int, Node *>(cell_no, s_connection));
+        node->s_connections.insert(pair < int, shared_ptr < Node >> (cell_no, s_connection));
         node_counter++;
         return s_connection;
     } else {
@@ -28,13 +29,13 @@ Node *ScyTreeNode::set_s_connection(Node *node, int cell_no, int &node_counter) 
     }
 }
 
-void ScyTreeNode::construct_s_connection(float neighborhood_size, int &node_counter, Node *node,
+void ScyTreeNode::construct_s_connection(float neighborhood_size, int &node_counter, shared_ptr <Node> node,
                                          float *x_i, int j, float x_ij, int cell_no) {
     if (x_ij >= ((cell_no + 1) * cell_size - neighborhood_size)) {
         //todo maybe change neighborhood_size to something else
 
-        Node *s_connection = set_s_connection(node, cell_no, node_counter);
-        Node *pre_s_connection = s_connection;
+        shared_ptr <Node> s_connection = set_s_connection(node, cell_no, node_counter);
+        shared_ptr <Node> pre_s_connection = s_connection;
         for (int k = j + 1; k < number_of_dims; k++) {
             float x_ik = x_i[dims[k]];
             int cell_no_k = get_cell_no(x_ik);
@@ -45,12 +46,12 @@ void ScyTreeNode::construct_s_connection(float neighborhood_size, int &node_coun
     }
 }
 
-Node *ScyTreeNode::set_node(Node *node, int &cell_no, int &node_counter) {
+shared_ptr <Node> ScyTreeNode::set_node(shared_ptr <Node> node, int &cell_no, int &node_counter) {
 
-    Node *child;
+    shared_ptr <Node> child(nullptr);
     if (node->children.find(cell_no) == node->children.end()) {
-        child = new Node(cell_no);
-        node->children.insert(pair<int, Node *>(cell_no, child));
+        child = make_shared<Node>(cell_no);
+        node->children.insert(pair < int, shared_ptr < Node >> (cell_no, child));
         node_counter++;
 
     } else {
@@ -73,11 +74,11 @@ ScyTreeNode::ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int s
     this->number_of_dims = subspace_size;
     this->number_of_restricted_dims = 0;
 
-    Node *root = new Node(-1);
+    shared_ptr <Node> root(new Node(-1));
     int node_counter = 0;
     for (int i = 0; i < n; i++) {
         root->count += 1;
-        Node *node = root;
+        shared_ptr <Node> node = root;
         //printf("constructing SCY-tree: %d%%\r", int((i * 100) / X.size()));
         float *x_i = X[i].data_ptr<float>();
 
@@ -88,7 +89,7 @@ ScyTreeNode::ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int s
             int cell_no = this->get_cell_no(x_ij);
 
             //update cell
-            Node *child = set_node(node, cell_no, node_counter);
+            shared_ptr <Node> child = set_node(node, cell_no, node_counter);
             child->count += 1;
 
             //construct/update s-connection
@@ -113,11 +114,11 @@ ScyTreeNode::ScyTreeNode(vector<int> points, at::Tensor X, int *subspace, int nu
     this->number_of_dims = subspace_size;
     this->number_of_restricted_dims = 0;
 
-    Node *root = new Node(-1);
+    shared_ptr <Node> root(new Node(-1));
     int node_counter = 0;
     for (int i :points) {
         root->count += 1;
-        Node *node = root;
+        shared_ptr <Node> node = root;
         //printf("constructing SCY-tree: %d%%\r", int((i * 100) / X.size()));
         float *x_i = X[i].data_ptr<float>();
 
@@ -128,7 +129,7 @@ ScyTreeNode::ScyTreeNode(vector<int> points, at::Tensor X, int *subspace, int nu
             int cell_no = this->get_cell_no(x_ij);
 
             //update cell
-            Node *child = set_node(node, cell_no, node_counter);
+            shared_ptr <Node> child = set_node(node, cell_no, node_counter);
             child->count += 1;
 
             //construct/update s-connection
@@ -145,7 +146,7 @@ ScyTreeNode::ScyTreeNode(vector<int> points, at::Tensor X, int *subspace, int nu
 }
 
 bool
-ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cell_no, int depth,
+ScyTreeNode::restrict_node(shared_ptr <Node> old_node, shared_ptr <Node> new_parent, int dim_no, int cell_no, int depth,
                            bool &s_connection_found) {
     bool is_on_restricted_dim = this->dims[depth] == dim_no;
     bool is_restricted_cell = old_node->cell_no == cell_no;
@@ -186,14 +187,14 @@ ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cel
 
         if (!old_node->is_leaf) { // restricted region is encountered and is a branch of the scy_tree
             // skip restricted dimension and make the children of old_node children of new_parent
-            for (pair < int, Node * > child_pair: old_node->children) {
-                Node *old_child = child_pair.second;
+            for (pair<int, shared_ptr<Node> > child_pair: old_node->children) {
+                shared_ptr <Node> old_child = child_pair.second;
                 this->restrict_node(old_child, new_parent, dim_no, cell_no, depth + 1,
                                     s_connection_found);
             }
             // also copy s_connections in the same manner
-            for (pair < int, Node * > child_pair: old_node->s_connections) {
-                Node *old_child = child_pair.second;
+            for (pair<int, shared_ptr<Node> > child_pair: old_node->s_connections) {
+                shared_ptr <Node> old_child = child_pair.second;
                 this->restrict_node(old_child, new_parent, dim_no, cell_no, depth + 1,
                                     s_connection_found);
             }
@@ -201,17 +202,17 @@ ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cel
             return true;
         }
     } else { //// Not on restricted dimension
-        Node *new_node = new Node(old_node);
+        shared_ptr <Node>new_node( new Node(old_node));
         bool is_included = this->dims[depth] > dim_no;
         if (old_node->count == -1) { // node is a s-connection
-            for (pair < int, Node * > child_pair: old_node->s_connections) {
-                Node *old_child = child_pair.second;
+            for (pair < int, shared_ptr <Node> > child_pair: old_node->s_connections) {
+                shared_ptr <Node>old_child = child_pair.second;
                 //printf("visiting s-connection!\n");
                 is_included = this->restrict_node(old_child, new_node, dim_no, cell_no,
                                                   depth + 1, s_connection_found) || is_included;
             }
             if (is_included)
-                new_parent->s_connections.insert(pair<int, Node *>(new_node->cell_no, new_node));
+                new_parent->s_connections.insert(pair<int, shared_ptr <Node>>(new_node->cell_no, new_node));
         } else {
             if (!old_node->is_leaf)
                 new_node->count = 0;
@@ -219,22 +220,22 @@ ScyTreeNode::restrict_node(Node *old_node, Node *new_parent, int dim_no, int cel
                 is_included = true;
 
 
-            for (pair < int, Node * > child_pair: old_node->children) {
-                Node *old_child = child_pair.second;
+            for (pair < int, shared_ptr <Node> > child_pair: old_node->children) {
+                shared_ptr <Node>old_child = child_pair.second;
                 //printf("visiting node!\n");
                 is_included = this->restrict_node(old_child, new_node, dim_no, cell_no,
                                                   depth + 1, s_connection_found) || is_included;
             }
 
-            for (pair < int, Node * > child_pair: old_node->s_connections) {
-                Node *old_child = child_pair.second;
+            for (pair < int, shared_ptr <Node> > child_pair: old_node->s_connections) {
+                shared_ptr <Node>old_child = child_pair.second;
                 //printf("visiting s-connection!\n");
                 is_included = this->restrict_node(old_child, new_node, dim_no, cell_no,
                                                   depth + 1, s_connection_found) || is_included;
             }
 
             if (is_included) {//only insert if subtree is not empty
-                new_parent->children.insert(pair<int, Node *>(new_node->cell_no, new_node));
+                new_parent->children.insert(pair<int, shared_ptr <Node>>(new_node->cell_no, new_node));
                 new_parent->count += new_node->count;
             }
         }
@@ -282,14 +283,14 @@ ScyTreeNode *ScyTreeNode::restrict(int dim_no, int cell_no) {
 
     int depth = 0;
     restricted_scy_tree->is_s_connected = false;
-    for (pair < int, Node * > child_pair: this->root->children) {
-        Node *old_child = child_pair.second;
+    for (pair < int, shared_ptr <Node> > child_pair: this->root->children) {
+        shared_ptr <Node>old_child = child_pair.second;
         this->restrict_node(old_child, restricted_scy_tree->root, dim_no, cell_no, depth,
                             restricted_scy_tree->is_s_connected);
     }
 
-    for (pair < int, Node * > child_pair: this->root->s_connections) {
-        Node *old_child = child_pair.second;
+    for (pair < int, shared_ptr <Node> > child_pair: this->root->s_connections) {
+        shared_ptr <Node>old_child = child_pair.second;
         this->restrict_node(old_child, restricted_scy_tree->root, dim_no, cell_no, depth,
                             restricted_scy_tree->is_s_connected);
     }
@@ -313,19 +314,18 @@ vector <pair<int, int>> ScyTreeNode::get_descriptors() {
  * @param min_size (smallest possible size for any subspace)
  * @return
  */
-int ScyTreeNode::pruneRecursionNode(Node *node, int min_size) {//todo this seems wrong
+int ScyTreeNode::pruneRecursionNode(shared_ptr <Node>node, int min_size) {//todo this seems wrong
     int total_pruned_count = 0;
 
-    for (pair<const int, Node *> child_pair: node->children) {
+    for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
         int cell_no = child_pair.first;
-        Node *child = child_pair.second;
+        shared_ptr <Node>child = child_pair.second;
 
         int pruned_count = this->pruneRecursionNode(child, min_size);
 
         if (pruned_count > 0) {
             total_pruned_count += pruned_count;
             node->children.erase(cell_no);
-            delete child;
         }
     }
 
@@ -340,24 +340,24 @@ int ScyTreeNode::pruneRecursionNode(Node *node, int min_size) {//todo this seems
     return total_pruned_count;//node->count should be zero because all the children should be larger than min_size
 }
 
-void ScyTreeNode::get_leafs(Node *node, vector<Node *> &leafs) {
+void ScyTreeNode::get_leafs(shared_ptr <Node>node, vector<shared_ptr <Node>> &leafs) {
     if (node->children.empty() && node->s_connections.empty()) {
         leafs.push_back(node);
     } else {
-        for (pair<const int, Node *> child_pair: node->children) {
-            Node *child = child_pair.second;
+        for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
+            shared_ptr <Node>child = child_pair.second;
             this->get_leafs(child, leafs);
         }
     }
 }
 
-void ScyTreeNode::propergate_count(Node *node) {
+void ScyTreeNode::propergate_count(shared_ptr <Node>node) {
     if (node->children.empty() && node->s_connections.empty()) {
         // do nothing
     } else {
         node->count = 0;
-        for (pair<const int, Node *> child_pair: node->children) {
-            Node *child = child_pair.second;
+        for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
+            shared_ptr <Node>child = child_pair.second;
             this->propergate_count(child);
             node->count += child->count;
         }
@@ -452,7 +452,8 @@ bool ScyTreeNode::pruneRedundancy(float r, map <vector<int>, vector<int>, vec_cm
             int min_size = -1;
             for (std::pair<int, int> cluster_size : cluster_sizes) {
                 int size = cluster_size.second;
-                if (min_size == -1 || size < min_size) {//todo this min size should only be for clusters covering the region in question
+                if (min_size == -1 ||
+                    size < min_size) {//todo this min size should only be for clusters covering the region in question
                     min_size = size;
                 }
             }
@@ -473,21 +474,21 @@ bool ScyTreeNode::pruneRedundancy(float r, map <vector<int>, vector<int>, vec_cm
 }
 
 ScyTreeNode::ScyTreeNode() {//todo not god to have public
-    this->root = new Node(-1);
+    this->root = make_shared<Node>(-1);
     this->is_s_connected = false;
 }
 
-int ScyTreeNode::leaf_count(Node *node) {
+int ScyTreeNode::leaf_count(shared_ptr <Node>node) {
     if (node->children.empty() && node->s_connections.empty()) {
         return 1;
     } else {
         int sum = 0;
-        for (pair<const int, Node *> child_pair: node->children) {
-            Node *child = child_pair.second;
+        for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
+            shared_ptr <Node>child = child_pair.second;
             sum += leaf_count(child);
         }
-        for (pair<const int, Node *> child_pair: node->s_connections) {
-            Node *child = child_pair.second;
+        for (pair<const int, shared_ptr <Node>> child_pair: node->s_connections) {
+            shared_ptr <Node>child = child_pair.second;
             sum += leaf_count(child);
         }
         return sum;
@@ -497,16 +498,16 @@ int ScyTreeNode::leaf_count(Node *node) {
 void ScyTreeNode::print() {
 
     printf("r:  %d/%d\n", root->cell_no, root->count);
-    vector < Node * > next_nodes = vector<Node *>();
+    vector < shared_ptr <Node> > next_nodes = vector<shared_ptr <Node>>();
     next_nodes.push_back(this->root);
     for (int i = 0; i < this->number_of_dims; i++) {
         printf("%d: ", this->dims[i]);
 
-        vector < Node * > nodes = next_nodes;
-        next_nodes = vector<Node *>();
-        for (Node *node : nodes) {
-            for (pair<const int, Node *> child_pair: node->children) {
-                Node *child = child_pair.second;
+        vector < shared_ptr <Node> > nodes = next_nodes;
+        next_nodes = vector<shared_ptr <Node>>();
+        for (shared_ptr <Node>node : nodes) {
+            for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
+                shared_ptr <Node>child = child_pair.second;
                 next_nodes.push_back(child);
 
                 if (child->cell_no < 100) printf(" ");
@@ -519,8 +520,8 @@ void ScyTreeNode::print() {
                     printf("        ");
                 }
             }
-            for (pair<const int, Node *> child_pair: node->s_connections) {
-                Node *child = child_pair.second;
+            for (pair<const int, shared_ptr <Node>> child_pair: node->s_connections) {
+                shared_ptr <Node>child = child_pair.second;
                 next_nodes.push_back(child);
 
                 if (child->cell_no < 100) printf(" ");
@@ -539,32 +540,32 @@ void ScyTreeNode::print() {
     printf("\n");
 }
 
-void mergeNodes(Node *node_1, Node *node_2) {
+void mergeNodes(shared_ptr <Node>node_1, shared_ptr <Node>node_2) {
 
     if (node_1->count > 0) {
         node_1->count += node_2->count;
         node_1->points.insert(node_1->points.end(), node_2->points.begin(), node_2->points.end());
     }
 
-    for (pair<const int, Node *> child_pair: node_2->children) {
+    for (pair<const int, shared_ptr <Node>> child_pair: node_2->children) {
         int cell_no_2 = child_pair.first;
-        Node *child_2 = child_pair.second;
+        shared_ptr <Node>child_2 = child_pair.second;
         if (node_1->children.count(cell_no_2)) {
-            Node *child_1 = node_1->children[cell_no_2];
+            shared_ptr <Node>child_1 = node_1->children[cell_no_2];
             mergeNodes(child_1, child_2);
         } else {
-            node_1->children.insert(pair<int, Node *>(cell_no_2, child_2));
+            node_1->children.insert(pair<int, shared_ptr <Node>>(cell_no_2, child_2));
         }
     }
 
-    for (pair<const int, Node *> child_pair: node_2->s_connections) {
+    for (pair<const int, shared_ptr <Node>> child_pair: node_2->s_connections) {
         int cell_no_2 = child_pair.first;
-        Node *child_2 = child_pair.second;
+        shared_ptr <Node>child_2 = child_pair.second;
         if (node_1->s_connections.count(cell_no_2)) {
-            Node *child_1 = node_1->s_connections[cell_no_2];
+            shared_ptr <Node>child_1 = node_1->s_connections[cell_no_2];
             mergeNodes(child_1, child_2);
         } else {
-            node_1->s_connections.insert(pair<int, Node *>(cell_no_2, child_2));
+            node_1->s_connections.insert(pair<int, shared_ptr <Node>>(cell_no_2, child_2));
         }
     }
 }
@@ -581,6 +582,7 @@ ScyTreeNode *ScyTreeNode::mergeWithNeighbors(ScyTreeNode *parent_SCYTree, int di
     while (restricted_scy_tree->is_s_connected && cell_no < this->number_of_cells - 1) {
         restricted_scy_tree = (ScyTreeNode *) ((ScyTreeNode *) parent_SCYTree)->restrict(dim_no, cell_no + 1);
         this->merge(restricted_scy_tree);
+        delete restricted_scy_tree;
         cell_no++;
     }
     this->number_of_points = this->root->count;
@@ -596,12 +598,12 @@ vector<int> ScyTreeNode::get_points() {
     return result;
 }
 
-void ScyTreeNode::get_points_node(Node *node, vector<int> &result) {
+void ScyTreeNode::get_points_node(shared_ptr <Node>node, vector<int> &result) {
     if (node->children.empty()) {
         result.insert(result.end(), node->points.begin(), node->points.end());
     }
-    for (pair<const int, Node *> child_pair: node->children) {
-        Node *child = child_pair.second;
+    for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
+        shared_ptr <Node>child = child_pair.second;
         get_points_node(child, result);
     }
 }
@@ -610,14 +612,14 @@ int ScyTreeNode::get_number_of_nodes() {
     return get_number_of_nodes_in_subtree(this->root);
 }
 
-int ScyTreeNode::get_number_of_nodes_in_subtree(Node *node) {
+int ScyTreeNode::get_number_of_nodes_in_subtree(shared_ptr <Node>node) {
     int count = 1;
-    for (pair<const int, Node *> child_pair: node->children) {
-        Node *child = child_pair.second;
+    for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
+        shared_ptr <Node>child = child_pair.second;
         count += get_number_of_nodes_in_subtree(child);
     }
-    for (pair<const int, Node *> child_pair: node->s_connections) {
-        Node *child = child_pair.second;
+    for (pair<const int, shared_ptr <Node>> child_pair: node->s_connections) {
+        shared_ptr <Node>child = child_pair.second;
         count += get_number_of_nodes_in_subtree(child);
     }
     return count;
@@ -632,7 +634,7 @@ int ScyTreeNode::get_count() {
 }
 
 void
-ScyTreeNode::get_possible_neighbors_from(vector<int> &list, float *p, Node *node, int depth,
+ScyTreeNode::get_possible_neighbors_from(vector<int> &list, float *p, shared_ptr <Node>node, int depth,
                                          int subspace_index, int *subspace, int subspace_size,
                                          float neighborhood_size) {
 
@@ -653,9 +655,9 @@ ScyTreeNode::get_possible_neighbors_from(vector<int> &list, float *p, Node *node
     }
 
     //printf("neighborhood 3\n");
-    for (pair<const int, Node *> child_pair : node->children) {
+    for (pair<const int, shared_ptr <Node>> child_pair : node->children) {
         int cell_no = child_pair.first;
-        Node *child = child_pair.second;
+        shared_ptr <Node>child = child_pair.second;
         bool with_in_possible_neighborhood = false;
         if (is_restricted_dim) {
             if (center_cell_no - 1 <= cell_no && cell_no <= center_cell_no + 1) {
@@ -675,7 +677,7 @@ vector<int> ScyTreeNode::get_possible_neighbors(float *p,
                                                 int *subspace, int subspace_size,
                                                 float neighborhood_size) {
     vector<int> list;
-    vector < Node * > nodes;
+    vector < shared_ptr <Node> > nodes;
     int depth = -1;
     int subspace_index = 0;
     get_possible_neighbors_from(list, p, root, depth, subspace_index, subspace, subspace_size, neighborhood_size);
@@ -700,7 +702,7 @@ ScyTreeArray *ScyTreeNode::convert_to_ScyTreeArray() {
     scy_tree_array->cell_size = this->cell_size;
     scy_tree_array->is_s_connected = this->is_s_connected;
 
-    vector < Node * > next_nodes = vector<Node *>();
+    vector < shared_ptr <Node> > next_nodes = vector<shared_ptr <Node>>();
     next_nodes.push_back(this->root);
     scy_tree_array->h_dim_start[0] = 1;
 
@@ -720,12 +722,12 @@ ScyTreeArray *ScyTreeNode::convert_to_ScyTreeArray() {
 
     for (int i = 0; i < this->number_of_dims; i++) {
 
-        vector < Node * > nodes = next_nodes;
-        next_nodes = vector<Node *>();
+        vector < shared_ptr <Node> > nodes = next_nodes;
+        next_nodes = vector<shared_ptr <Node>>();
         for (int k = 0; k < nodes.size(); k++) {
-            Node *node = nodes[k];
-            for (pair<const int, Node *> child_pair: node->children) {
-                Node *child = child_pair.second;
+            shared_ptr <Node>node = nodes[k];
+            for (pair<const int, shared_ptr <Node>> child_pair: node->children) {
+                shared_ptr <Node>child = child_pair.second;
                 next_nodes.push_back(child);
                 scy_tree_array->h_cells[j] = child->cell_no;
                 scy_tree_array->h_counts[j] = child->count;
@@ -737,8 +739,8 @@ ScyTreeArray *ScyTreeNode::convert_to_ScyTreeArray() {
                 }
                 j++;
             }
-            for (pair<const int, Node *> child_pair: node->s_connections) {
-                Node *child = child_pair.second;
+            for (pair<const int, shared_ptr <Node>> child_pair: node->s_connections) {
+                shared_ptr <Node>child = child_pair.second;
                 next_nodes.push_back(child);
                 scy_tree_array->h_cells[j] = child->cell_no;
                 scy_tree_array->h_counts[j] = child->count;
@@ -752,4 +754,3 @@ ScyTreeArray *ScyTreeNode::convert_to_ScyTreeArray() {
 
     return scy_tree_array;
 }
-

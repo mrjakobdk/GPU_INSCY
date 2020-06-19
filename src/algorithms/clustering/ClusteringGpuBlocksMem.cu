@@ -470,7 +470,7 @@ ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering_full, vector <vector<S
         for (int j = 0; j < L_pruned[i].size(); j++) {
             avg_number_of_points += L_pruned[i][j]->number_of_points;
             count++;
-            if(min_number_of_points>L_pruned[i][j]->number_of_points)
+            if (min_number_of_points > L_pruned[i][j]->number_of_points)
                 min_number_of_points = L_pruned[i][j]->number_of_points;
 
             h_points_full[i * number_of_cells + j] = L_pruned[i][j]->d_points;
@@ -528,12 +528,13 @@ ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering_full, vector <vector<S
     gpuErrchk(cudaPeekAtLastError());
 
 
-    int number_of_threads = min(avg_number_of_points, BLOCK_SIZE);
+    int number_of_threads = min(max(1,avg_number_of_points), BLOCK_SIZE);
     if (restricted_dims > 0) {
 
+//        printf("%d, %d\n", rrestricted_dims, max(1,avg_number_of_points));
         //compute number of neighbors
-        dim3 block(min(64, avg_number_of_points));
-        dim3 grid(restricted_dims, avg_number_of_points);
+        dim3 block(min(64, max(1,avg_number_of_points)));
+        dim3 grid(restricted_dims, max(1,avg_number_of_points));
         compute_number_of_neighbors_blocks_mem<<< grid, block>>>(d_restricteds_pr_dim,
                                                                  restricted_dims,
                                                                  d_number_of_neighbors_full,
@@ -566,8 +567,8 @@ ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering_full, vector <vector<S
         gpuErrchk(cudaPeekAtLastError());
 
         //compute is dense
-        block = dim3(min(64, avg_number_of_points));
-        grid = dim3(restricted_dims, avg_number_of_points);
+//        block = dim3(min(64, avg_number_of_points));
+//        grid = dim3(restricted_dims, avg_number_of_points);
         compute_is_dense_blocks_mem<<<grid, block>>>(d_restricteds_pr_dim, d_is_dense_full,
                                                      d_points_full, d_number_of_points,
                                                      d_neighborhood_end_position_full,
@@ -593,4 +594,10 @@ ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering_full, vector <vector<S
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
     }
+
+    delete[] h_restricteds_pr_dim;
+    delete[] h_points_full;
+    delete[] h_restricted_dims_full;
+    delete[] h_number_of_points;
+    delete[] h_number_of_restricted_dims;
 }

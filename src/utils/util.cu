@@ -45,9 +45,9 @@ float *copy_to_device(at::Tensor X, int number_of_points, int number_of_dims) {
 __global__
 void print_array_gpu(int *x, int n) {
     for (int i = 0; i < n; i++) {
-        if (x[i] < 10)
+        if (x[i] < 10 && x[i] > -1)
             printf(" ");
-        if (x[i] < 100)
+        if (x[i] < 100 && x[i] > -10)
             printf(" ");
         printf("%d ", x[i]);
     }
@@ -170,8 +170,9 @@ void inclusive_scan(int *source, int *result, int n) {
         inclusive_scan(S, S, numBlocks);
         gpuErrchk(cudaPeekAtLastError());
         scan_kernel_eff_large3 << < numBlocks, SECTION_SIZE >> > (result, S, n);
+        cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
-        //cudaFree(S);//todo fix
+        cudaFree(S);//todo fix
         gpuErrchk(cudaPeekAtLastError());
     } else {
         gpuErrchk(cudaPeekAtLastError());
@@ -373,9 +374,9 @@ void print_array(int *x, int n) {
 
     if (n <= left + right) {
         for (int i = 0; i < n; i++) {
-            if (x[i] < 10)
+            if (x[i] < 10 && x[i] > -1)
                 printf(" ");
-            if (x[i] < 100)
+            if (x[i] < 100 && x[i] > -10)
                 printf(" ");
             printf("%d ", (int) x[i]);
         }
@@ -584,7 +585,8 @@ bool vec_cmp::operator()(const vector<int> &a, const vector<int> &b) const {
     return a[i] < b[j];
 }
 
-void join(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, vector<int> subspace, int min_size, float r) {
+void join(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, vector<int> subspace, int min_size,
+          float r) {
 
     int clustering_max = v_max(clustering);
     if (clustering_max < 0) {

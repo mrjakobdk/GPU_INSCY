@@ -58,11 +58,11 @@ subspaces, clusterings = INSCY.run_gpu(X[:100, :2], params["neighborhood_size"],
 for F in Fs:
     print("F:", F)
     t0 = time.time()
-    for _ in range(3):
+    for _ in range(1):
         subspaces, clusterings = function(X, params["neighborhood_size"], F,
                                           params["num_obj"], params["min_size"], r=params["r"],
                                           number_of_cells=params["number_of_cells"])
-    times.append((time.time() - t0) / 3)
+    times.append((time.time() - t0) / 1)
     no_clusters.append(INSCY.count_number_of_clusters(subspaces, clusterings))
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()

@@ -22,25 +22,25 @@ ns = data["ns"]
 times = data["times"]
 plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Multi2")
 
-data = np.load('plot_data/inc_n/multi2_cl_multi.npz', allow_pickle=True)
-ns = data["ns"]
-times = data["times"]
-plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Multi2-Cl-Multi")
+# data = np.load('plot_data/inc_n/multi2_cl_multi.npz', allow_pickle=True)
+# ns = data["ns"]
+# times = data["times"]
+# plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Multi2-Cl-Multi")
 
 data = np.load('plot_data/inc_n/multi2_cl_multi_mem.npz', allow_pickle=True)
 ns = data["ns"]
 times = data["times"]
 plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Multi2-Cl-Multi-Mem")
 
-data = np.load('plot_data/inc_n/mix.npz', allow_pickle=True)
-ns = data["ns"]
-times = data["times"]
-plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="CPU/GPU-MIX")
-
-data = np.load('plot_data/inc_n/mix_streams.npz', allow_pickle=True)
-ns = data["ns"]
-times = data["times"]
-plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="CPU/GPU-MIX-streams")
+# data = np.load('plot_data/inc_n/mix.npz', allow_pickle=True)
+# ns = data["ns"]
+# times = data["times"]
+# plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="CPU/GPU-MIX")
+#
+# data = np.load('plot_data/inc_n/mix_streams.npz', allow_pickle=True)
+# ns = data["ns"]
+# times = data["times"]
+# plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="CPU/GPU-MIX-streams")
 
 
 plt.legend()

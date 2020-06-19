@@ -1214,8 +1214,9 @@ ScyTreeArray::restrict_gpu_multi(int first_dim_no, int number_of_dims,
                 //todo create a new restricted scy_tree for each restriction
 
                 if (new_number_of_points > scy_tree->number_of_points) {
-                    printf("new_number_of_points: %d\n", new_number_of_points);
-                    printf("new_number_of_nodes: %d\n", new_number_of_nodes);
+                    printf("old_number_of_points: %d, new_number_of_points: %d\n", scy_tree->number_of_points,
+                           new_number_of_points);
+                    printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", new_number_of_nodes, scy_tree->number_of_nodes);
                 }
                 ScyTreeArray *restricted_scy_tree = new ScyTreeArray(new_number_of_nodes,
                                                                      scy_tree->number_of_dims - 1,
@@ -1578,8 +1579,9 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                 //todo create a new restricted scy_tree for each restriction
 
                 if (new_number_of_points > scy_tree->number_of_points) {
-                    printf("new_number_of_points: %d\n", new_number_of_points);
-                    printf("new_number_of_nodes: %d\n", new_number_of_nodes);
+                    printf("old_number_of_points: %d, new_number_of_points: %d\n", scy_tree->number_of_points,
+                           new_number_of_points);
+                    printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", new_number_of_nodes, scy_tree->number_of_nodes);
                 }
                 ScyTreeArray *restricted_scy_tree = new ScyTreeArray(new_number_of_nodes,
                                                                      scy_tree->number_of_dims - 1,
@@ -1605,8 +1607,8 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
             dim_no++;
         }
 
-        cudaStream_t streams[number_of_restrictions];
-        for (int i = 0; i < number_of_restrictions; i++) {
+        cudaStream_t streams[min(10, number_of_restrictions)];
+        for (int i = 0; i < min(10, number_of_restrictions); i++) {
             cudaStreamCreate(&streams[i]);
         }
 
@@ -1623,7 +1625,7 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                 //todo parallellilize over restrictions
                 number_of_blocks = scy_tree->number_of_nodes / BLOCK_WIDTH;
                 if (scy_tree->number_of_nodes % BLOCK_WIDTH) number_of_blocks++;
-                restrict_move << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset] >> >
+                restrict_move << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
                                                                      (scy_tree->d_cells, restricted_scy_tree->d_cells,
                                                                              scy_tree->d_parents, restricted_scy_tree->d_parents,
                                                                              d_new_counts +
@@ -1656,7 +1658,7 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                     if (restricted_scy_tree->number_of_dims % BLOCK_WIDTH) number_of_blocks++;
 
                     //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
-                    restrict_update_dim_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset] >> >
+                    restrict_update_dim_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
                                                                                  (scy_tree->d_dim_start, scy_tree->d_dims,
                                                                                          restricted_scy_tree->d_dim_start,
                                                                                          restricted_scy_tree->d_dims,
@@ -1686,7 +1688,7 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                 //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
                 number_of_blocks = restricted_scy_tree->number_of_restricted_dims / BLOCK_WIDTH;
                 if (restricted_scy_tree->number_of_restricted_dims % BLOCK_WIDTH) number_of_blocks++;
-                restrict_update_restricted_dim << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset] >> >
+                restrict_update_restricted_dim << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
                                                                                       (dim_no, scy_tree->d_restricted_dims, restricted_scy_tree->d_restricted_dims, scy_tree->number_of_restricted_dims);
 
 
@@ -1709,7 +1711,7 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
 
                 number_of_blocks = number_of_points / BLOCK_WIDTH;
                 if (number_of_points % BLOCK_WIDTH) number_of_blocks++;
-                compute_is_points_included_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset] >> >
+                compute_is_points_included_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
                                                                                     (scy_tree->d_points_placement, scy_tree->d_cells,
                                                                                             d_is_included + node_offset,
                                                                                             d_is_point_included +
@@ -1735,7 +1737,7 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                 int one_offset = i * number_of_cells + cell_no;
                 ScyTreeArray *restricted_scy_tree = L[i][cell_no];
 
-                cudaStreamSynchronize(streams[one_offset]);
+                cudaStreamSynchronize(streams[one_offset % 10]);
                 inclusive_scan(d_is_point_included + point_offset,
                                d_point_new_indecies + point_offset,
                                number_of_points);
@@ -1758,7 +1760,7 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                 ScyTreeArray *restricted_scy_tree = L[i][cell_no];
 
                 //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
-                move_points_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset] >> > (scy_tree->d_parents,
+                move_points_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> > (scy_tree->d_parents,
                         scy_tree->d_points, scy_tree->d_points_placement, restricted_scy_tree->d_points,
                         restricted_scy_tree->d_points_placement, d_point_new_indecies + point_offset,
                         d_new_indecies + node_offset, d_is_point_included + point_offset, d_dim_i + i,
@@ -1770,8 +1772,12 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
         }
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
-
+        for (int i = 0; i < min(number_of_restrictions, 10); i++) {
+            cudaStreamDestroy(streams[i]);
+        }
     }
+
+
     return L;
 }
 
@@ -1782,9 +1788,10 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
 
     //restricted-tree := restrict(scy-tree, descriptor);
 
+    ScyTreeArray *scy_tree = this;
+
     tmps->reset_counters();
 
-    ScyTreeArray *scy_tree = this;
 
     int number_of_blocks;
     dim3 block(128);
@@ -1975,7 +1982,7 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                                                                          scy_tree->number_of_restricted_dims + 1,
                                                                          new_number_of_points,
                                                                          scy_tree->number_of_cells);
-//                cudaDeviceSynchronize();
+                    cudaDeviceSynchronize();
                     gpuErrchk(cudaPeekAtLastError());
 
                     L[i][cell_no] = restricted_scy_tree;
@@ -1987,18 +1994,19 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                     restricted_scy_tree->is_s_connected = (bool) h_tmp[0];
 
 
-//                cudaDeviceSynchronize();
+                    cudaDeviceSynchronize();
                     gpuErrchk(cudaPeekAtLastError());
+                    delete[] h_tmp;
                 }
                 cell_no++;
             }
             dim_no++;
         }
 
-        cudaStream_t streams[number_of_restrictions];
-        for (int i = 0; i < min(number_of_restrictions, 10); i++) {
-            cudaStreamCreate(&streams[i % 10]);
-        }
+//        cudaStream_t streams[number_of_restrictions];
+//        for (int i = 0; i < min(number_of_restrictions, 10); i++) {
+//            cudaStreamCreate(&streams[i % 10]);
+//        }
 
         dim_no = first_dim_no;
         while (dim_no < total_number_of_dim) {
@@ -2011,23 +2019,28 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                 if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
                     ScyTreeArray *restricted_scy_tree = L[i][cell_no];
 
+
+                    if (scy_tree->number_of_nodes == 0) {
+                        printf("something strange happened!\n");
+                    }
+
                     //todo parallellilize over restrictions
                     number_of_blocks = scy_tree->number_of_nodes / BLOCK_WIDTH;
                     if (scy_tree->number_of_nodes % BLOCK_WIDTH) number_of_blocks++;
-                    restrict_move << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
-                                                                         (scy_tree->d_cells, restricted_scy_tree->d_cells,
-                                                                                 scy_tree->d_parents, restricted_scy_tree->d_parents,
-                                                                                 d_new_counts +
-                                                                                 node_offset, restricted_scy_tree->d_counts,
-                                                                                 d_new_indecies + node_offset,
-                                                                                 d_is_included +
-                                                                                 node_offset, scy_tree->number_of_nodes);
+                    restrict_move << < number_of_blocks, BLOCK_WIDTH, 0 >> >//, streams[one_offset % 10]
+                                                                      (scy_tree->d_cells, restricted_scy_tree->d_cells,
+                                                                              scy_tree->d_parents, restricted_scy_tree->d_parents,
+                                                                              d_new_counts +
+                                                                              node_offset, restricted_scy_tree->d_counts,
+                                                                              d_new_indecies + node_offset,
+                                                                              d_is_included +
+                                                                              node_offset, scy_tree->number_of_nodes);
                 }
                 cell_no++;
             }
             dim_no++;
         }
-//        cudaDeviceSynchronize();
+        cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
 
         dim_no = first_dim_no;
@@ -2048,14 +2061,15 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                         if (restricted_scy_tree->number_of_dims % BLOCK_WIDTH) number_of_blocks++;
 
                         //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
-                        restrict_update_dim_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
-                                                                                     (scy_tree->d_dim_start, scy_tree->d_dims,
-                                                                                             restricted_scy_tree->d_dim_start,
-                                                                                             restricted_scy_tree->d_dims,
-                                                                                             d_new_indecies +
-                                                                                             node_offset,
-                                                                                             d_dim_i +
-                                                                                             i, restricted_scy_tree->number_of_dims);
+                        restrict_update_dim_3 << < number_of_blocks, BLOCK_WIDTH, 0 >> >
+                                                                                  //, streams[one_offset % 10] >> >
+                                                                                  (scy_tree->d_dim_start, scy_tree->d_dims,
+                                                                                          restricted_scy_tree->d_dim_start,
+                                                                                          restricted_scy_tree->d_dims,
+                                                                                          d_new_indecies +
+                                                                                          node_offset,
+                                                                                          d_dim_i +
+                                                                                          i, restricted_scy_tree->number_of_dims);
 
                     }
                 }
@@ -2080,8 +2094,9 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                     //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
                     number_of_blocks = restricted_scy_tree->number_of_restricted_dims / BLOCK_WIDTH;
                     if (restricted_scy_tree->number_of_restricted_dims % BLOCK_WIDTH) number_of_blocks++;
-                    restrict_update_restricted_dim << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
-                                                                                          (dim_no, scy_tree->d_restricted_dims, restricted_scy_tree->d_restricted_dims, scy_tree->number_of_restricted_dims);
+                    restrict_update_restricted_dim << < number_of_blocks, BLOCK_WIDTH, 0 >> >
+                                                                                       //, streams[one_offset % 10] >> >
+                                                                                       (dim_no, scy_tree->d_restricted_dims, restricted_scy_tree->d_restricted_dims, scy_tree->number_of_restricted_dims);
 
                 }
                 cell_no++;
@@ -2106,13 +2121,13 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                     number_of_blocks = number_of_points / BLOCK_WIDTH;
                     if (number_of_points % BLOCK_WIDTH) number_of_blocks++;
                     restrict_merge_is_points_included
-                            << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
-                                                                   (scy_tree->d_points_placement, scy_tree->d_cells,
-                                                                           d_is_included + node_offset,
-                                                                           d_is_point_included + point_offset,
-                                                                           d_dim_i + i,
-                                                                           d_merge_map + i * number_of_cells,
-                                                                           scy_tree->number_of_dims, scy_tree->number_of_points, cell_no);
+                            << < number_of_blocks, BLOCK_WIDTH, 0 >> >//, streams[one_offset % 10] >> >
+                                                                (scy_tree->d_points_placement, scy_tree->d_cells,
+                                                                        d_is_included + node_offset,
+                                                                        d_is_point_included + point_offset,
+                                                                        d_dim_i + i,
+                                                                        d_merge_map + i * number_of_cells,
+                                                                        scy_tree->number_of_dims, scy_tree->number_of_points, cell_no);
 
                 }
                 cell_no++;
@@ -2134,7 +2149,7 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                 if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
                     ScyTreeArray *restricted_scy_tree = L[i][cell_no];
 
-                    cudaStreamSynchronize(streams[one_offset % 10]);
+                    //cudaStreamSynchronize(streams[one_offset % 10]);
                     inclusive_scan(d_is_point_included + point_offset,
                                    d_point_new_indecies + point_offset,
                                    number_of_points);
@@ -2158,15 +2173,15 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
                     ScyTreeArray *restricted_scy_tree = L[i][cell_no];
 
                     //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
-                    move_points_3 << < number_of_blocks, BLOCK_WIDTH, 0, streams[one_offset % 10] >> >
-                                                                         (scy_tree->d_parents,
-                                                                                 scy_tree->d_points, scy_tree->d_points_placement, restricted_scy_tree->d_points,
-                                                                                 restricted_scy_tree->d_points_placement,
-                                                                                 d_point_new_indecies + point_offset,
-                                                                                 d_new_indecies + node_offset,
-                                                                                 d_is_point_included + point_offset,
-                                                                                 d_dim_i + i,
-                                                                                 number_of_points, scy_tree->number_of_dims);
+                    move_points_3 << < number_of_blocks, BLOCK_WIDTH, 0 >> >//, streams[one_offset % 10] >> >
+                                                                      (scy_tree->d_parents,
+                                                                              scy_tree->d_points, scy_tree->d_points_placement, restricted_scy_tree->d_points,
+                                                                              restricted_scy_tree->d_points_placement,
+                                                                              d_point_new_indecies + point_offset,
+                                                                              d_new_indecies + node_offset,
+                                                                              d_is_point_included + point_offset,
+                                                                              d_dim_i + i,
+                                                                              number_of_points, scy_tree->number_of_dims);
                 }
                 cell_no++;
             }
@@ -2175,10 +2190,521 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
         cudaDeviceSynchronize();
         gpuErrchk(cudaPeekAtLastError());
 
-        for (int i = 0; i < min(number_of_restrictions, 10); i++) {
-            cudaStreamDestroy(streams[i]);
+//        for (int i = 0; i < min(number_of_restrictions, 10); i++) {
+//            cudaStreamDestroy(streams[i]);
+//        }
+    }
+
+    delete[] h_new_number_of_points;
+    delete[] h_new_number_of_nodes;
+    delete[] h_merge_map;
+
+    return L_merged;
+}
+
+
+vector <vector<ScyTreeArray *>>
+ScyTreeArray::restrict_merge_gpu_multi2(TmpMalloc *tmps, int first_dim_no, int number_of_dims,
+                                        int number_of_cells) {//todo  number_of_dims is different from this->number_of_dims find a better name
+
+    //restricted-tree := restrict(scy-tree, descriptor);
+
+    ScyTreeArray *scy_tree = this;
+
+    tmps->reset_counters();
+
+
+    int number_of_blocks;
+    dim3 block(128);
+    dim3 grid(number_of_dims, number_of_cells);
+
+    int c = scy_tree->number_of_cells;
+    int d = scy_tree->number_of_dims;
+
+    int total_number_of_dim = first_dim_no + number_of_dims;
+    int number_of_restrictions = number_of_dims * number_of_cells;
+
+    vector <vector<ScyTreeArray *>> L(number_of_dims);
+
+    vector <vector<ScyTreeArray *>> L_merged(number_of_dims);
+
+    if (scy_tree->number_of_nodes * number_of_restrictions == 0)
+        return L_merged;
+    gpuErrchk(cudaPeekAtLastError());
+
+    //allocate tmp arrays - start
+    int *d_new_indecies = tmps->get_int_array(tmps->int_array_counter++, scy_tree->number_of_nodes *
+                                                                         number_of_restrictions);//tmps->d_new_indecies;
+    int *d_new_counts = tmps->get_int_array(tmps->int_array_counter++,
+                                            scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_new_counts;
+    int *d_is_included = tmps->get_int_array(tmps->int_array_counter++,
+                                             scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_is_included;
+
+    int *d_children_full = tmps->get_int_array(tmps->int_array_counter++,
+                                               2 * scy_tree->number_of_nodes * number_of_restrictions *
+                                               scy_tree->number_of_cells);
+
+    int *d_parents_full = tmps->get_int_array(tmps->int_array_counter++,
+                                              scy_tree->number_of_nodes * number_of_restrictions);
+    gpuErrchk(cudaPeekAtLastError());
+
+    cudaMemset(d_new_indecies, 0, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
+    cudaMemset(d_new_counts, 0, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
+    cudaMemset(d_is_included, 0, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
+    cudaMemset(d_parents_full, -1, scy_tree->number_of_nodes * number_of_restrictions * sizeof(int));
+    cudaMemset(d_children_full, -1,
+               2 * scy_tree->number_of_nodes * number_of_restrictions * scy_tree->number_of_cells * sizeof(int));
+    for (int i = 0; i < number_of_dims; i++) {
+        for (int cell_no = 0; cell_no < number_of_cells; cell_no++) {
+            int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+            memset << < 1, 1 >> > (d_is_included + node_offset, 0, 1);//todo not a good way to do this
         }
     }
+    gpuErrchk(cudaPeekAtLastError());
+
+    int *d_is_point_included = tmps->get_int_array(tmps->int_array_counter++, this->number_of_points *
+                                                                              number_of_restrictions);//tmps->d_is_point_included;
+    gpuErrchk(cudaPeekAtLastError());
+    int *d_point_new_indecies = tmps->get_int_array(tmps->int_array_counter++, this->number_of_points *
+                                                                               number_of_restrictions);//tmps->d_point_new_indecies;
+    gpuErrchk(cudaPeekAtLastError());
+
+    cudaMemset(d_is_point_included, 0, this->number_of_points * number_of_restrictions * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
+
+    int *d_is_s_connected = tmps->get_int_array(tmps->int_array_counter++,
+                                                number_of_restrictions);//tmps->d_is_s_connected;
+    cudaMemset(d_is_s_connected, 0, number_of_restrictions * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
+
+    int *d_dim_i = tmps->get_int_array(tmps->int_array_counter++, number_of_dims);//tmps->d_dim_i;
+
+    gpuErrchk(cudaPeekAtLastError());
+
+    int *h_new_number_of_points = new int[number_of_restrictions];
+    int *h_new_number_of_nodes = new int[number_of_restrictions];
+
+    int *d_merge_map = tmps->get_int_array(tmps->int_array_counter++, number_of_restrictions);
+    int *h_merge_map = new int[number_of_restrictions];
+//    cudaMalloc(&d_merge_map, number_of_restrictions * sizeof(int));
+    //allocate tmp arrays - end
+
+    int dim_no = first_dim_no;
+    while (dim_no < total_number_of_dim) {
+        int i = dim_no - first_dim_no;
+        L[i] = vector<ScyTreeArray *>(number_of_cells);
+
+        //todo find each dim that are being restricted - same for all cells - dependent on the scy_tree and dim
+        find_dim_i << < 1, 1 >> >
+                           (d_dim_i + i, scy_tree->d_dims, dim_no, scy_tree->number_of_dims);
+        dim_no++;
+    }
+
+    if (number_of_dims > 0) {
+
+        if (true) {
+
+            check_is_s_connected << < number_of_dims, block >> >
+                                                      (scy_tree->d_parents, scy_tree->d_cells, scy_tree->d_counts, scy_tree->d_dim_start,
+                                                              d_is_included, d_new_counts, d_is_s_connected, d_dim_i,
+                                                              scy_tree->number_of_dims, scy_tree->number_of_nodes,
+                                                              scy_tree->number_of_cells, scy_tree->number_of_points);
+            gpuErrchk(cudaPeekAtLastError());
+
+            compute_merge_map << < 1, number_of_dims >> >//todo fix num_of_dims>1024
+                                      (d_is_s_connected, d_merge_map, scy_tree->number_of_cells);
+            gpuErrchk(cudaPeekAtLastError());
+            cudaMemcpy(h_merge_map, d_merge_map, number_of_restrictions * sizeof(int), cudaMemcpyDeviceToHost);
+//            printf("is_s_connected:\n");
+//            print_array_gpu<< <1,1>>>(d_is_s_connected, number_of_restrictions);
+//            cudaDeviceSynchronize();
+//            printf("h_merge_map:\n");
+//            print_array(h_merge_map, number_of_restrictions);
+
+            gpuErrchk(cudaPeekAtLastError());
+
+            restrict_merge_dim_multi2 << < number_of_dims, block >> >
+                                                           (d_parents_full, scy_tree->d_parents, scy_tree->d_cells, scy_tree->d_counts, scy_tree->d_dim_start,
+                                                                   d_is_included, d_new_counts, d_is_s_connected, d_dim_i, d_merge_map,
+                                                                   scy_tree->number_of_dims, scy_tree->number_of_nodes,
+                                                                   scy_tree->number_of_cells, scy_tree->number_of_points);
+//            cudaDeviceSynchronize();
+            gpuErrchk(cudaPeekAtLastError());
+
+            restrict_dim_prop_up_multi2 << < grid, block >> >
+                                                   (d_parents_full, d_children_full, scy_tree->d_parents, scy_tree->d_counts, scy_tree->d_cells, scy_tree->d_dim_start,
+                                                           d_is_included, d_new_counts, d_dim_i,
+                                                           scy_tree->number_of_dims, scy_tree->number_of_nodes,
+                                                           scy_tree->number_of_cells, scy_tree->number_of_points);
+
+            cudaDeviceSynchronize();
+            gpuErrchk(cudaPeekAtLastError());
+
+            restrict_merge_dim_prop_down_first_multi2 << < grid, block >> >
+                                                                 (d_parents_full, d_children_full, scy_tree->d_parents, scy_tree->d_counts, scy_tree->d_cells, scy_tree->d_dim_start,
+                                                                         d_is_included, d_new_counts, d_dim_i, d_merge_map,
+                                                                         scy_tree->number_of_dims, scy_tree->number_of_nodes,
+                                                                         scy_tree->number_of_cells, scy_tree->number_of_points);
+
+            cudaDeviceSynchronize();
+            gpuErrchk(cudaPeekAtLastError());
+
+            restrict_dim_prop_down_multi2 << < grid, block >> >
+                                                     (d_parents_full, d_children_full, scy_tree->d_parents, scy_tree->d_counts, scy_tree->d_cells, scy_tree->d_dim_start,
+                                                             d_is_included, d_new_counts, d_dim_i,
+                                                             scy_tree->number_of_dims, scy_tree->number_of_nodes,
+                                                             scy_tree->number_of_cells, scy_tree->number_of_points);
+
+
+        } else {
+            restrict_dim_once_and_for_all << < grid, block >> >
+                                                     (scy_tree->d_parents, scy_tree->d_cells, scy_tree->d_counts, scy_tree->d_dim_start,
+                                                             d_is_included, d_new_counts, d_is_s_connected, d_dim_i,
+                                                             scy_tree->number_of_dims, scy_tree->number_of_nodes,
+                                                             scy_tree->number_of_cells, scy_tree->number_of_points);
+//            cudaDeviceSynchronize();
+            gpuErrchk(cudaPeekAtLastError());
+        }
+//        printf("test1\n");
+
+//        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+//        printf("test3\n");
+        dim_no = first_dim_no;
+        while (dim_no < total_number_of_dim) {
+            int i = dim_no - first_dim_no;
+            int cell_no = 0;
+            while (cell_no < number_of_cells) {
+                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+                int one_offset = i * number_of_cells + cell_no;
+
+                if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
+                    // 2. do a scan to find the new indecies for the nodes in the restricted tree
+                    //todo should be done partial for each restriction - maybe this can be parallellized over blocks for each restriction
+                    //todo make a inclusive_scan_multi
+                    inclusive_scan(d_is_included + node_offset, d_new_indecies + node_offset,
+                                   scy_tree->number_of_nodes);
+
+                    // 3. construct restricted tree
+//                cudaDeviceSynchronize();
+                    gpuErrchk(cudaPeekAtLastError());
+
+                    //todo find new_number_of_points and new_number_of_nodes for each restricted scy_tree
+                    int *h_tmp = new int[1];
+                    h_tmp[0] = 0;
+                    cudaMemcpy(h_tmp, d_new_counts + node_offset, sizeof(int), cudaMemcpyDeviceToHost);
+                    cudaDeviceSynchronize();
+                    gpuErrchk(cudaPeekAtLastError());
+                    int new_number_of_points = h_tmp[0];
+
+                    cudaMemcpy(h_tmp, d_new_indecies + node_offset + scy_tree->number_of_nodes - 1, sizeof(int),
+                               cudaMemcpyDeviceToHost);
+                    cudaDeviceSynchronize();
+                    gpuErrchk(cudaPeekAtLastError());
+                    int new_number_of_nodes = h_tmp[0];
+
+//                cudaDeviceSynchronize();
+                    gpuErrchk(cudaPeekAtLastError());
+
+                    //gpuErrchk(cudaPeekAtLastError());
+                    //todo create a new restricted scy_tree for each restriction
+
+                    if (new_number_of_points > scy_tree->number_of_points || new_number_of_points < 0
+                        || new_number_of_nodes > scy_tree->number_of_nodes || new_number_of_nodes < 0) {
+                            printf("old_number_of_points: %d, new_number_of_points: %d\n", scy_tree->number_of_points,
+                                   new_number_of_points);
+                            printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", scy_tree->number_of_nodes, new_number_of_nodes);
+                        }
+                    ScyTreeArray *restricted_scy_tree = new ScyTreeArray(new_number_of_nodes,
+                                                                         scy_tree->number_of_dims - 1,
+                                                                         scy_tree->number_of_restricted_dims + 1,
+                                                                         new_number_of_points,
+                                                                         scy_tree->number_of_cells);
+                    cudaDeviceSynchronize();
+                    gpuErrchk(cudaPeekAtLastError());
+
+                    L[i][cell_no] = restricted_scy_tree;
+                    L_merged[i].push_back(restricted_scy_tree);
+
+                    //todo set is s-connected for each restriction
+                    restricted_scy_tree->cell_size = scy_tree->cell_size;//todo maybe not used
+//                    cudaMemcpy(h_tmp, d_is_s_connected + one_offset, sizeof(int), cudaMemcpyDeviceToHost);
+                    restricted_scy_tree->is_s_connected = false;//(bool) h_tmp[0];
+
+                    cudaDeviceSynchronize();
+                    gpuErrchk(cudaPeekAtLastError());
+                    delete[] h_tmp;
+                }
+                cell_no++;
+            }
+            dim_no++;
+        }
+
+//        cudaStream_t streams[number_of_restrictions];
+//        for (int i = 0; i < min(number_of_restrictions, 10); i++) {
+//            cudaStreamCreate(&streams[i % 10]);
+//        }
+
+//        printf("test5\n");
+
+        dim_no = first_dim_no;
+        while (dim_no < total_number_of_dim) {
+            int i = dim_no - first_dim_no;
+            int cell_no = 0;
+            while (cell_no < number_of_cells) {
+                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+                int one_offset = i * number_of_cells + cell_no;
+                if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
+                    ScyTreeArray *restricted_scy_tree = L[i][cell_no];
+
+
+                    if (scy_tree->number_of_nodes == 0) {
+                        printf("something strange happened!\n");
+                    }
+
+                    //todo parallellilize over restrictions
+                    number_of_blocks = scy_tree->number_of_nodes / BLOCK_WIDTH;
+                    if (scy_tree->number_of_nodes % BLOCK_WIDTH) number_of_blocks++;
+                    restrict_move_multi2<<< number_of_blocks, BLOCK_WIDTH, 0 >>>//, streams[one_offset % 10]
+                            (d_parents_full + node_offset, scy_tree->d_cells, restricted_scy_tree->d_cells,
+                             scy_tree->d_parents, restricted_scy_tree->d_parents, d_new_counts + node_offset,
+                             restricted_scy_tree->d_counts, d_new_indecies + node_offset,
+                             d_is_included + node_offset, scy_tree->number_of_nodes);
+                }
+                cell_no++;
+            }
+            dim_no++;
+        }
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+        dim_no = first_dim_no;
+        while (dim_no < total_number_of_dim) {
+            int i = dim_no - first_dim_no;
+            int cell_no = 0;
+            while (cell_no < number_of_cells) {
+                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+                int one_offset = i * number_of_cells + cell_no;
+                if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
+                    ScyTreeArray *restricted_scy_tree = L[i][cell_no];
+
+                    //todo this if statement would be the same for all restrictions because it is allways restricted on one more than scy_tree - which is really nice!
+                    if (scy_tree->number_of_dims > 1) {//if not restricted on all dimensions
+
+                        number_of_blocks = restricted_scy_tree->number_of_dims / BLOCK_WIDTH;
+                        if (restricted_scy_tree->number_of_dims % BLOCK_WIDTH) number_of_blocks++;
+
+                        //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
+                        restrict_update_dim_3 << < number_of_blocks, BLOCK_WIDTH, 0 >> >
+                                                                                  //, streams[one_offset % 10] >> >
+                                                                                  (scy_tree->d_dim_start, scy_tree->d_dims,
+                                                                                          restricted_scy_tree->d_dim_start,
+                                                                                          restricted_scy_tree->d_dims,
+                                                                                          d_new_indecies +
+                                                                                          node_offset,
+                                                                                          d_dim_i +
+                                                                                          i, restricted_scy_tree->number_of_dims);
+
+                    }
+                }
+                cell_no++;
+            }
+            dim_no++;
+        }
+//        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+        dim_no = first_dim_no;
+        while (dim_no < total_number_of_dim) {
+            int i = dim_no - first_dim_no;
+            int cell_no = 0;
+            while (cell_no < number_of_cells) {
+                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+                int one_offset = i * number_of_cells + cell_no;
+                if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
+                    ScyTreeArray *restricted_scy_tree = L[i][cell_no];
+
+                    //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
+                    number_of_blocks = restricted_scy_tree->number_of_restricted_dims / BLOCK_WIDTH;
+                    if (restricted_scy_tree->number_of_restricted_dims % BLOCK_WIDTH) number_of_blocks++;
+                    restrict_update_restricted_dim << < number_of_blocks, BLOCK_WIDTH, 0 >> >
+                                                                                       //, streams[one_offset % 10] >> >
+                                                                                       (dim_no, scy_tree->d_restricted_dims, restricted_scy_tree->d_restricted_dims, scy_tree->number_of_restricted_dims);
+
+                }
+                cell_no++;
+            }
+            dim_no++;
+        }
+//        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+        dim_no = first_dim_no;
+        while (dim_no < total_number_of_dim) {
+            int i = dim_no - first_dim_no;
+            int cell_no = 0;
+            while (cell_no < number_of_cells) {
+                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+                int one_offset = i * number_of_cells + cell_no;
+
+                if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
+                    ScyTreeArray *restricted_scy_tree = L[i][cell_no];
+
+                    number_of_blocks = number_of_points / BLOCK_WIDTH;
+                    if (number_of_points % BLOCK_WIDTH) number_of_blocks++;
+                    restrict_merge_is_points_included_multi2
+                    <<< number_of_blocks, BLOCK_WIDTH, 0 >>>//, streams[one_offset % 10] >> >
+                            (d_parents_full + node_offset, scy_tree->d_points_placement, scy_tree->d_cells,
+                             d_is_included + node_offset,
+                             d_is_point_included + point_offset,
+                             d_dim_i + i,
+                             d_merge_map + i * number_of_cells,
+                             scy_tree->number_of_dims, scy_tree->number_of_points, cell_no);
+
+                }
+                cell_no++;
+            }
+            dim_no++;
+        }
+//        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+        dim_no = first_dim_no;
+        while (dim_no < total_number_of_dim) {
+            int i = dim_no - first_dim_no;
+            int cell_no = 0;
+            while (cell_no < number_of_cells) {
+                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+                int one_offset = i * number_of_cells + cell_no;
+
+                if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
+                    ScyTreeArray *restricted_scy_tree = L[i][cell_no];
+
+                    //cudaStreamSynchronize(streams[one_offset % 10]);
+                    inclusive_scan(d_is_point_included + point_offset,
+                                   d_point_new_indecies + point_offset,
+                                   number_of_points);
+                }
+                cell_no++;
+            }
+            dim_no++;
+        }
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+
+//        for (int i = 0; i < min(number_of_restrictions, 10); i++) {
+//            cudaStreamDestroy(streams[i]);
+//        }
+
+//        dim_no = first_dim_no;
+//        while (dim_no < total_number_of_dim) {
+//            int i = dim_no - first_dim_no;
+//            int cell_no = 0;
+//            while (cell_no < number_of_cells) {
+//                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+//                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+//                int one_offset = i * number_of_cells + cell_no;
+//
+//                cudaDeviceSynchronize();
+//                gpuErrchk(cudaPeekAtLastError());
+//                printf("d_children_full:\n");
+//                print_array_gpu<<<1, 1>>>(
+//                        d_children_full + 2 * i * number_of_cells * number_of_cells * number_of_nodes +
+//                        2 * cell_no * number_of_cells * number_of_nodes, 2 * scy_tree->number_of_nodes *
+//                                                                         scy_tree->number_of_cells);
+//                cudaDeviceSynchronize();
+//                printf("d_is_included:\n");
+//                print_array_gpu<<<1, 1>>>(d_is_included + node_offset, scy_tree->number_of_nodes);
+//                cudaDeviceSynchronize();
+//                printf("d_is_point_included:\n");
+//                print_array_gpu<<<1, 1>>>(d_is_point_included + point_offset, scy_tree->number_of_points);
+//                cudaDeviceSynchronize();
+//                printf("\nd_parents_full:\n");
+//                print_array_gpu<<<1, 1>>>(d_parents_full + node_offset, scy_tree->number_of_nodes);
+//                cudaDeviceSynchronize();
+//                gpuErrchk(cudaPeekAtLastError());
+//                printf("\nd_new_counts:\n");
+//                print_array_gpu<<<1, 1>>>(d_new_counts + node_offset, scy_tree->number_of_nodes);
+//                cudaDeviceSynchronize();
+//                gpuErrchk(cudaPeekAtLastError());
+//                printf("d_parents:\n");
+//                print_array_gpu<<<1, 1>>>(scy_tree->d_parents, scy_tree->number_of_nodes);
+//                cudaDeviceSynchronize();
+//                printf("\nd_counts:\n");
+//                print_array_gpu<<<1, 1>>>(scy_tree->d_counts, scy_tree->number_of_nodes);
+//                cudaDeviceSynchronize();
+//                printf("\nd_cells:\n");
+//                print_array_gpu<<<1, 1>>>(scy_tree->d_cells, scy_tree->number_of_nodes);
+//                cudaDeviceSynchronize();
+//                printf("\nd_merge_map:\n");
+//                print_array_gpu<<<1, 1>>>(d_merge_map, number_of_restrictions);
+//                cudaDeviceSynchronize();
+//                printf("\nd_is_s_connected:\n");
+//                print_array_gpu<<<1, 1>>>(d_is_s_connected, number_of_restrictions);
+//                cudaDeviceSynchronize();
+//                gpuErrchk(cudaPeekAtLastError());
+//
+//                cell_no++;
+//            }
+//            dim_no++;
+//        }
+
+        dim_no = first_dim_no;
+        while (dim_no < total_number_of_dim) {
+            int i = dim_no - first_dim_no;
+            int cell_no = 0;
+            while (cell_no < number_of_cells) {
+                int point_offset = i * number_of_cells * number_of_points + cell_no * number_of_points;
+                int node_offset = i * number_of_cells * number_of_nodes + cell_no * number_of_nodes;
+                int one_offset = i * number_of_cells + cell_no;
+                if (cell_no == 0 || h_merge_map[one_offset - 1] != h_merge_map[one_offset]) {
+                    ScyTreeArray *restricted_scy_tree = L[i][cell_no];
+
+//                    printf("number_of_nodes:%d, number_of_points:%d\n", restricted_scy_tree->number_of_nodes,
+//                           restricted_scy_tree->number_of_points);
+                    if (restricted_scy_tree->number_of_points > 0) {
+
+
+                        //todo parallellilize over restrictions - maybe stride instead of distribute onto blocks - it would be easier to read and code
+                        move_points_3_multi2 <<< number_of_blocks, BLOCK_WIDTH, 0 >>>//, streams[one_offset % 10] >> >
+                                (d_parents_full + node_offset, d_children_full
+                                                               + 2 * i * number_of_cells * number_of_cells *
+                                                                 number_of_nodes
+                                                               + 2 * cell_no * number_of_nodes * number_of_cells,
+                                 scy_tree->d_parents, scy_tree->d_cells,
+                                 scy_tree->d_points, scy_tree->d_points_placement, restricted_scy_tree->d_points,
+                                 restricted_scy_tree->d_points_placement,
+                                 d_point_new_indecies +
+                                 point_offset,
+                                 d_new_indecies + node_offset,
+                                 d_is_point_included + point_offset,
+                                 d_dim_i + i,
+                                 number_of_points, scy_tree->number_of_dims, scy_tree->number_of_cells);
+//                        printf("d:%d, c:%d\n", i, cell_no);
+                        cudaDeviceSynchronize();
+                        gpuErrchk(cudaPeekAtLastError());
+                    }
+                }
+                cell_no++;
+            }
+            dim_no++;
+        }
+        cudaDeviceSynchronize();
+        gpuErrchk(cudaPeekAtLastError());
+    }
+
+    delete[] h_new_number_of_points;
+    delete[] h_new_number_of_nodes;
+    delete[] h_merge_map;
+
+//    printf("test10\n");
     return L_merged;
 }
 
@@ -3013,16 +3539,24 @@ ScyTreeArray::~ScyTreeArray() {
         cudaFree(d_parents);
         cudaFree(d_cells);
         cudaFree(d_counts);
+        delete[] h_parents;
+        delete[] h_cells;
+        delete[] h_counts;
     }
     if (number_of_dims > 0) {
         cudaFree(d_dim_start);
         cudaFree(d_dims);
+        delete[] h_dim_start;
+        delete[] h_dims;
     }
     if (number_of_restricted_dims > 0) {
         cudaFree(d_restricted_dims);
+        delete[] h_restricted_dims;
     }
     if (number_of_points > 0) {
         cudaFree(d_points);
         cudaFree(d_points_placement);
+        delete[] h_points;
+        delete[] h_points_placement;
     }
 }

@@ -197,6 +197,7 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
 
 //    map<int, int> sizes;
 
+    queue<int> q;
     for (int i : points) {
 
         if (clustering[i] != -1) {//already checked
@@ -206,7 +207,6 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
         int label = next_cluster_label;
         prev_clustered_count = clustered_count;
 //        sizes.insert(pair<int, int>(label, 0));
-        queue<int> q;
         q.push(i);
 
         int c = 0;
@@ -243,6 +243,8 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
             next_cluster_label++;
         }
     }
+
+    delete neighborhood_tree;
 //    return labels;
 
 

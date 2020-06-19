@@ -71,6 +71,7 @@ INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, i
 
                 }
             }
+            delete restricted_scy_tree;
             cell_no++;
         }
 
@@ -80,6 +81,6 @@ INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, i
         dim_no++;
     }
     int total_inscy = pow(2, d);
-    printf("CPU-INSCY(%d): %d%%      \r", calls, int((result.size() * 100) / total_inscy));
+    printf("INSCYCPU2(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
 }
 
