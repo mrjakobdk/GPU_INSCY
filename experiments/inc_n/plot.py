@@ -6,10 +6,10 @@ subspace_sizes = data["ns"]
 times = data["times"]
 plt.plot(subspace_sizes[:len(times)], times, label="CPU")
 
-data = np.load('plot_data/inc_n/gpu.npz', allow_pickle=True)
-subspace_sizes = data["ns"]
-times = data["times"]
-plt.plot(subspace_sizes[:len(times)], times, label="GPU")
+# data = np.load('plot_data/inc_n/gpu.npz', allow_pickle=True)
+# subspace_sizes = data["ns"]
+# times = data["times"]
+# plt.plot(subspace_sizes[:len(times)], times, label="GPU")
 
 # data = np.load('plot_data/inc_n/multi.npz', allow_pickle=True)
 # subspace_sizes = data["ns"]

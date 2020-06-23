@@ -6,20 +6,20 @@ subspace_sizes = data["subspace_sizes"]
 times = data["times"]
 plt.plot(subspace_sizes[:len(times)], times, label="CPU")
 
-data = np.load('plot_data/inc_d/gpu.npz', allow_pickle=True)
-subspace_sizes = data["subspace_sizes"]
-times = data["times"]
-plt.plot(subspace_sizes[:len(times)], times, label="GPU")
+# data = np.load('plot_data/inc_d/gpu.npz', allow_pickle=True)
+# subspace_sizes = data["subspace_sizes"]
+# times = data["times"]
+# plt.plot(subspace_sizes[:len(times)], times, label="GPU")
 
 # data = np.load('plot_data/inc_d/multi.npz', allow_pickle=True)
 # subspace_sizes = data["subspace_sizes"]
 # times = data["times"]
 # plt.plot(subspace_sizes[:len(times)], times, label="GPU-Multi")
 #
-# data = np.load('plot_data/inc_d/multi2.npz', allow_pickle=True)
-# subspace_sizes = data["subspace_sizes"]
-# times = data["times"]
-# plt.plot(subspace_sizes[:len(times)], times, label="GPU-Multi2")
+data = np.load('plot_data/inc_d/multi2.npz', allow_pickle=True)
+subspace_sizes = data["subspace_sizes"]
+times = data["times"]
+plt.plot(subspace_sizes[:len(times)], times, label="GPU-Multi2")
 #
 # data = np.load('plot_data/inc_d/multi2_cl_multi.npz', allow_pickle=True)
 # subspace_sizes = data["subspace_sizes"]

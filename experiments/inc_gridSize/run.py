@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 params = {"n": 1500,
-          "neighborhood_size": 0.02,
+          "neighborhood_size": 0.01,
           "num_obj": 8,
           "min_size": 75,
           "subspace_size": 15,

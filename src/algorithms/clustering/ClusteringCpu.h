@@ -22,6 +22,12 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
                        int num_obj, vector<int> &clustering, int min_size, float r,
                        map<vector<int>, vector<int>, vec_cmp> result);
 
+void
+INSCYClusteringImplCPUAll(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
+                       float neighborhood_size, float F,
+                       int num_obj, vector<int> &clustering, int min_size, float r,
+                       map<vector<int>, vector<int>, vec_cmp> result);
+
 float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tensor X, int *subspace,
           int subspace_size);
 

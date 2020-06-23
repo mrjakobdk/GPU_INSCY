@@ -12,6 +12,7 @@
 using namespace std;
 
 class ScyTreeArray;
+
 class TmpMalloc;
 
 vector<int> ClusteringGPU(ScyTreeArray *scy_tree, float *d_X, int n, int d, float neighborhood_size, float F,
@@ -25,8 +26,11 @@ void ClusteringGPU(TmpMalloc *tmps, int *d_clustering, ScyTreeArray *scy_tree, f
                    float neighborhood_size, float F,
                    int num_obj);
 
-void ClusteringGPU2(TmpMalloc *tmps, int *d_clustering, ScyTreeArray *scy_tree, float *d_X, int n, int d,
-                   float neighborhood_size, float F,
-                   int num_obj);
+void find_neighborhoods(int *&d_neighborhoods, int *&d_neighborhood_end, int *&d_neighborhood_sizes, float *d_X, int n,
+                        int d, float neighborhood_size);
+
+void ClusteringGPUAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, TmpMalloc *tmps, int *d_clustering, ScyTreeArray *scy_tree, float *d_X, int n, int d,
+                      float neighborhood_size, float F,
+                      int num_obj);
 
 #endif //GPU_INSCY_CLUSTERINGGPU_CUH

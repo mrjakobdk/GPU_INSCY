@@ -6,12 +6,12 @@ import time
 import numpy as np
 
 params = {"n": 1500,
-          "neighborhood_size": 0.02,
+          "neighborhood_size": 0.01,
           "num_obj": 8,
           "min_size": 75,
           "subspace_size": 15,
-          "min_F": 0,
-          "max_F": 50,
+          "F_min": 0,
+          "F_max": 50,
           "r": 1.,
           "number_of_cells": 10}
 
@@ -35,6 +35,9 @@ if method == "multi":
 if method == "multi2":
     function = INSCY.run_gpu_multi2
     name = "multi2"
+if method == "multi2_cl_all":
+    function = INSCY.run_gpu_multi2_cl_all
+    name = "multi2_cl_all"
 if method == "multi2_cl_multi":
     function = INSCY.run_gpu_multi2_cl_multi
     name = "multi2_cl_multi"
@@ -50,7 +53,7 @@ print("Finished loading Glove, took: %.4fs" % (time.time() - t0))
 print("Running INSCY. ")
 print()
 
-Fs = [F*1.0 for F in range(params["F_min"], params["F_max"] + 1, 5)]
+Fs = [F*1.0 for F in range(params["F_min"], params["F_max"] + 1, 10)]
 
 times = []
 no_clusters = []

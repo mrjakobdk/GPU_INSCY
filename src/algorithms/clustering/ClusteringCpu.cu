@@ -299,5 +299,82 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
 //    }
 
 }
+void
+INSCYClusteringImplCPUAll(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
+                       float neighborhood_size, float F,
+                       int num_obj, vector<int> &clustering, int min_size, float r,
+                       map <vector<int>, vector<int>, vec_cmp> result) {
+    int *subspace = scy_tree->restricted_dims;
+    int subspace_size = scy_tree->number_of_restricted_dims;
+
+//    printf("subspace: ");
+//    print_array(subspace, subspace_size);
+//
+//    printf("point 5: ");
+//    print_array(X[5].data(), X[5].size());
+
+//    vector<int> labels(n, -1);
+
+    int clustered_count = 0;
+    int prev_clustered_count = 0;
+    int next_cluster_label = max(0, v_max(clustering)) + 1; //1; //todo maybe +1 is not needed?
+    vector<int> points = scy_tree->get_points();
+
+    int d = X.size(1);
+    neighborhood_tree = new ScyTreeNode(points, X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
+                                        neighborhood_size);
+
+//    map<int, int> sizes;
+
+    queue<int> q;
+    for (int i : points) {
+
+        if (clustering[i] != -1) {//already checked
+            continue;
+        }
+
+        int label = next_cluster_label;
+        prev_clustered_count = clustered_count;
+//        sizes.insert(pair<int, int>(label, 0));
+        q.push(i);
+
+        int c = 0;
+        while (!q.empty()) {
+            c++;
+            int p_id = q.front();
+            q.pop();
+            //todo how long is this function taking?
+            //todo would it be faster to use a tree to restrict the neighborhood?
+            vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
+                                                 subspace_size);
+//            vector<int> neighbors = neighborhood(points, p_id, X, neighborhood_size, subspace,
+//                                                 subspace_size);
+
+
+            //printf("%d neighborhood: ",p_id);
+            //print_array(neighbors, neighbors.size());
+
+            bool is_dense = dense(p_id, neighbors, neighborhood_size, X, subspace, subspace_size, F, n, num_obj);
+            //printf("%d is dense: %d\n", p_id, is_dense);
+            if (is_dense) {
+                clustering[p_id] = label;
+//                sizes[label]++;
+                clustered_count++;
+                for (int q_id : neighbors) {//todo should we actually add all neighbors to the que? should it not just be neighbors in the tree?
+                    if (clustering[q_id] == -1) {
+                        clustering[q_id] = -2;
+                        q.push(q_id);
+                    }
+                }
+            }
+        }
+        if (clustered_count > prev_clustered_count) {
+            next_cluster_label++;
+        }
+    }
+
+    delete neighborhood_tree;
+
+}
 
 

@@ -68,5 +68,5 @@ for r in rs:
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
     np.savez('plot_data/inc_r/' + name + '.npz', rs=rs, no_clusters=no_clusters, times=times, params=params)
-    if t > 6 * 60. * 60.:
+    if t > 2 * 60. * 60.:
         break

@@ -7,10 +7,10 @@ times = data["times"]
 base_times = times
 plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="CPU")
 
-data = np.load('plot_data/inc_n/gpu.npz', allow_pickle=True)
-ns = data["ns"]
-times = data["times"]
-plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU")
+# data = np.load('plot_data/inc_n/gpu.npz', allow_pickle=True)
+# ns = data["ns"]
+# times = data["times"]
+# plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU")
 
 # data = np.load('plot_data/inc_n/multi.npz', allow_pickle=True)
 # ns = data["ns"]
@@ -21,6 +21,11 @@ data = np.load('plot_data/inc_n/multi2.npz', allow_pickle=True)
 ns = data["ns"]
 times = data["times"]
 plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Multi2")
+
+data = np.load('plot_data/inc_n/multi2_cl_all.npz', allow_pickle=True)
+ns = data["ns"]
+times = data["times"]
+plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Multi2-All")
 
 # data = np.load('plot_data/inc_n/multi2_cl_multi.npz', allow_pickle=True)
 # ns = data["ns"]

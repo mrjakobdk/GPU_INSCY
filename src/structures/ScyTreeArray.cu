@@ -1216,7 +1216,8 @@ ScyTreeArray::restrict_gpu_multi(int first_dim_no, int number_of_dims,
                 if (new_number_of_points > scy_tree->number_of_points) {
                     printf("old_number_of_points: %d, new_number_of_points: %d\n", scy_tree->number_of_points,
                            new_number_of_points);
-                    printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", new_number_of_nodes, scy_tree->number_of_nodes);
+                    printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", new_number_of_nodes,
+                           scy_tree->number_of_nodes);
                 }
                 ScyTreeArray *restricted_scy_tree = new ScyTreeArray(new_number_of_nodes,
                                                                      scy_tree->number_of_dims - 1,
@@ -1581,7 +1582,8 @@ ScyTreeArray::restrict_gpu_multi(TmpMalloc *tmps, int first_dim_no, int number_o
                 if (new_number_of_points > scy_tree->number_of_points) {
                     printf("old_number_of_points: %d, new_number_of_points: %d\n", scy_tree->number_of_points,
                            new_number_of_points);
-                    printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", new_number_of_nodes, scy_tree->number_of_nodes);
+                    printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", new_number_of_nodes,
+                           scy_tree->number_of_nodes);
                 }
                 ScyTreeArray *restricted_scy_tree = new ScyTreeArray(new_number_of_nodes,
                                                                      scy_tree->number_of_dims - 1,
@@ -2235,14 +2237,17 @@ ScyTreeArray::restrict_merge_gpu_multi2(TmpMalloc *tmps, int first_dim_no, int n
     //allocate tmp arrays - start
     int *d_new_indecies = tmps->get_int_array(tmps->int_array_counter++, scy_tree->number_of_nodes *
                                                                          number_of_restrictions);//tmps->d_new_indecies;
+    gpuErrchk(cudaPeekAtLastError());
     int *d_new_counts = tmps->get_int_array(tmps->int_array_counter++,
                                             scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_new_counts;
+    gpuErrchk(cudaPeekAtLastError());
     int *d_is_included = tmps->get_int_array(tmps->int_array_counter++,
                                              scy_tree->number_of_nodes * number_of_restrictions);//tmps->d_is_included;
-
+    gpuErrchk(cudaPeekAtLastError());
     int *d_children_full = tmps->get_int_array(tmps->int_array_counter++,
                                                2 * scy_tree->number_of_nodes * number_of_restrictions *
                                                scy_tree->number_of_cells);
+    gpuErrchk(cudaPeekAtLastError());
 
     int *d_parents_full = tmps->get_int_array(tmps->int_array_counter++,
                                               scy_tree->number_of_nodes * number_of_restrictions);
@@ -2405,7 +2410,7 @@ ScyTreeArray::restrict_merge_gpu_multi2(TmpMalloc *tmps, int first_dim_no, int n
                     gpuErrchk(cudaPeekAtLastError());
                     int new_number_of_nodes = h_tmp[0];
 
-//                cudaDeviceSynchronize();
+                    cudaDeviceSynchronize();
                     gpuErrchk(cudaPeekAtLastError());
 
                     //gpuErrchk(cudaPeekAtLastError());
@@ -2413,10 +2418,11 @@ ScyTreeArray::restrict_merge_gpu_multi2(TmpMalloc *tmps, int first_dim_no, int n
 
                     if (new_number_of_points > scy_tree->number_of_points || new_number_of_points < 0
                         || new_number_of_nodes > scy_tree->number_of_nodes || new_number_of_nodes < 0) {
-                            printf("old_number_of_points: %d, new_number_of_points: %d\n", scy_tree->number_of_points,
-                                   new_number_of_points);
-                            printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", scy_tree->number_of_nodes, new_number_of_nodes);
-                        }
+                        printf("old_number_of_points: %d, new_number_of_points: %d\n", scy_tree->number_of_points,
+                               new_number_of_points);
+                        printf("old_number_of_nodes: %d, new_number_of_nodes: %d\n", scy_tree->number_of_nodes,
+                               new_number_of_nodes);
+                    }
                     ScyTreeArray *restricted_scy_tree = new ScyTreeArray(new_number_of_nodes,
                                                                          scy_tree->number_of_dims - 1,
                                                                          scy_tree->number_of_restricted_dims + 1,
@@ -3057,6 +3063,8 @@ ScyTreeArray::ScyTreeArray(int number_of_nodes, int number_of_dims, int number_o
     this->number_of_restricted_dims = number_of_restricted_dims;
     this->number_of_points = number_of_points;
     this->number_of_cells = number_of_cells;
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
 
 //    printf("\nScyTreeArray - small - number_of_nodes:%d, number_of_dims:%d, number_of_restricted_dims:%d, number_of_points:%d, number_of_cells:%d\n", number_of_nodes, number_of_dims, number_of_restricted_dims, number_of_points,
 //           number_of_cells);

@@ -17,5 +17,7 @@ class TmpMalloc;
 
 void ClusteringGPUBlocksMem(TmpMalloc *tmps, int *d_clustering, vector<vector<ScyTreeArray *>> L_pruned, float *d_X, int n,
                          int d, float neighborhood_size, float F, int num_obj, int number_of_cells);
+void ClusteringGPUBlocksMemAll(TmpMalloc *tmps, int *d_clustering, vector<vector<ScyTreeArray *>> L_pruned, float *d_X, int n,
+                         int d, float neighborhood_size, float F, int num_obj, int number_of_cells);
 
 #endif //GPU_INSCY_CLUSTERINGGPUBLOCKSMEM_CUH

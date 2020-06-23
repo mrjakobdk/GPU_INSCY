@@ -34,6 +34,8 @@
 
 using namespace std;
 
+#define BLOCK_SIZE 512
+
 vector<vector<vector<int>>>
 run_cpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells) {
 
@@ -557,6 +559,93 @@ run_gpu_multi2(at::Tensor X, float neighborhood_size, float F, int num_obj, int 
 
 
 vector<vector<vector<int>>>
+run_gpu_multi2_cl_all(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
+                      int number_of_cells) {
+    nvtxRangePushA("InscyArrayGpuMulti2ClAll");
+
+    //int number_of_cells = 3;
+    int n = X.size(0);
+    int subspace_size = X.size(1);
+
+
+    int *subspace = new int[subspace_size];
+
+    for (int i = 0; i < subspace_size; i++) {
+        subspace[i] = i;
+    }
+
+
+    nvtxRangePushA("copy X to device");
+    float *d_X = copy_to_device(X, n, subspace_size);
+    nvtxRangePop();
+
+
+    nvtxRangePushA("constructing ScyTree");
+//    printf("GPU-INSCY(Building ScyTree...): 0%%      \n");
+    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size);
+
+    map<vector<int>, vector<int>, vec_cmp> result;
+
+    int calls = 0;
+//    scy_tree->print();
+//    printf("GPU-INSCY(Converting ScyTree...): 0%%      \n");
+    ScyTreeArray *scy_tree_gpu = scy_tree->convert_to_ScyTreeArray();
+//    printf("GPU-INSCY(Copying to Device...): 0%%      \n");
+    scy_tree_gpu->copy_to_device();
+//    scy_tree_gpu->print();
+
+//    printf("GPU-INSCY(0): 0%%      \n");
+    nvtxRangePop();
+
+    TmpMalloc *tmps = new TmpMalloc();
+
+
+    int *d_neighborhoods;
+    int *d_neighborhood_sizes;
+    int *d_neighborhood_end;
+
+    find_neighborhoods(d_neighborhoods, d_neighborhood_end, d_neighborhood_sizes, d_X, n, subspace_size,
+                       neighborhood_size);
+
+
+    InscyArrayGpuMulti2All(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
+                           neighborhood_size, F, num_obj, min_size,
+                           result, 0, subspace_size, r, calls);
+    delete tmps;
+    cudaFree(d_X);
+    cudaFree(d_neighborhoods);
+    cudaFree(d_neighborhood_sizes);
+    cudaFree(d_neighborhood_end);
+    delete scy_tree_gpu;
+
+    cudaDeviceSynchronize();
+
+    nvtxRangePushA("saving result");
+    printf("InscyArrayGpuMulti2All(%d): 100%%      \n", calls);
+
+    vector<vector<vector<int>>> tuple;
+    vector<vector<int>> subspaces(result.size());
+    vector<vector<int>> clusterings(result.size());
+
+    int j = 0;
+    for (auto p : result) {
+        vector<int> dims = p.first;
+        subspaces[j] = dims;
+        vector<int> clustering = p.second;
+        clusterings[j] = clustering;
+        j++;
+    }
+    tuple.push_back(subspaces);
+    tuple.push_back(clusterings);
+    nvtxRangePop();
+
+    nvtxRangePop();
+
+    return tuple;
+}
+
+
+vector<vector<vector<int>>>
 run_gpu_multi2_cl_multi(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
                         int number_of_cells) {
     nvtxRangePushA("run_gpu_multi2_cl_multi");
@@ -652,7 +741,7 @@ run_gpu_multi2_cl_multi(at::Tensor X, float neighborhood_size, float F, int num_
 
 vector<vector<vector<int>>>
 run_gpu_multi2_cl_multi_mem(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
-                        int number_of_cells) {
+                            int number_of_cells) {
     nvtxRangePushA("run_gpu_multi2_cl_multi_mem");
 
     //int number_of_cells = 3;
@@ -693,7 +782,7 @@ run_gpu_multi2_cl_multi_mem(at::Tensor X, float neighborhood_size, float F, int 
 
 
     InscyArrayGpuMulti2ClMultiMem(tmps, scy_tree_gpu, d_X, n, subspace_size, neighborhood_size, F, num_obj, min_size,
-                               result, 0, subspace_size, r, calls);
+                                  result, 0, subspace_size, r, calls);
     delete tmps;
     cudaFree(d_X);
     delete scy_tree_gpu;
@@ -809,6 +898,7 @@ m.def("run_cpu_gpu_mix_cl_steam",    &run_cpu_gpu_mix_cl_steam,    "");
 m.def("run_gpu",    &run_gpu,    "");
 m.def("run_gpu_multi",    &run_gpu_multi,    "");
 m.def("run_gpu_multi2",    &run_gpu_multi2,    "");
+m.def("run_gpu_multi2_cl_all",    &run_gpu_multi2_cl_all,    "");
 m.def("run_gpu_multi2_cl_multi",    &run_gpu_multi2_cl_multi,    "");
 m.def("run_gpu_multi2_cl_multi_mem",    &run_gpu_multi2_cl_multi_mem,    "");
 m.def("run_gpu_stream",    &run_gpu_stream,    "");

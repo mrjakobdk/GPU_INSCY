@@ -13,7 +13,7 @@ params = {"n_min": 500,
           "num_obj": 8,
           "min_size": 0.05,
           "subspace_size": 15,
-          "number_of_cells": 10}
+          "number_of_cells": 5}
 
 method = sys.argv[1]
 
@@ -32,6 +32,9 @@ if method == "mix":
 if method == "multi":
     function = INSCY.run_gpu_multi
     name = "multi"
+if method == "multi2_cl_all":
+    function = INSCY.run_gpu_multi2_cl_all
+    name = "multi2_cl_all"
 if method == "multi2":
     function = INSCY.run_gpu_multi2
     name = "multi2"
@@ -41,11 +44,9 @@ if method == "multi2_cl_multi":
 if method == "multi2_cl_multi_mem":
     function = INSCY.run_gpu_multi2_cl_multi_mem
     name = "multi2_cl_multi_mem"
-
-#print("Loading Glove...")
-#t0 = time.time()
-#X = INSCY.normalize(INSCY.load_glove(params["n_max"], params["subspace_size"]))
-#print("Finished loading Glove, took: %.4fs" % (time.time() - t0))
+if method == "multi2_cl_multi_mem_10":
+    function = INSCY.run_gpu_multi2_cl_multi_mem
+    name = "multi2_cl_multi_mem_10"
 
 print("Running INSCY. ")
 print()
@@ -57,7 +58,6 @@ X = INSCY.load_synt(name="cluster")
 subspaces, clusterings = INSCY.run_gpu(X[:100, :2], params["neighborhood_size"], params["F"], params["num_obj"], 4)
 for n in ns:
     print("n:", n)
-    # X_ = X[:n, :].clone()
 
     print("Loading synthetic data...")
     t0 = time.time()
@@ -76,5 +76,5 @@ for n in ns:
     no_clusters.append(INSCY.count_number_of_clusters(subspaces, clusterings))
     print(no_clusters[len(no_clusters)-1], "clusters were found!")
     np.savez('plot_data/inc_n/' + name + '.npz', ns=ns, no_clusters=no_clusters, times=times, params=params)
-    if t > 6 * 60. * 60.:
+    if t > 2 * 60. * 60.:
         break
