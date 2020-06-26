@@ -35,6 +35,12 @@ if method == "multi":
 if method == "multi2":
     function = INSCY.run_gpu_multi2
     name = "multi2"
+if method == "multi2_cl_all":
+    function = INSCY.run_gpu_multi2_cl_all
+    name = "multi2_cl_all"
+if method == "multi2_cl_re_all":
+    function = INSCY.run_gpu_multi2_cl_re_all
+    name = "multi2_cl_re_all"
 if method == "multi2_cl_multi":
     function = INSCY.run_gpu_multi2_cl_multi
     name = "multi2_cl_multi"

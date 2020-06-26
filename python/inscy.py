@@ -150,6 +150,11 @@ def run_gpu_multi2_cl_all(X, neighborhood_size, F, num_obj, min_size, r=1., numb
     return subspaces, clusterings
 
 
+def run_gpu_multi2_cl_re_all(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
+    subspaces, clusterings = inscy.run_gpu_multi2_cl_re_all(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
+    return subspaces, clusterings
+
+
 def run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r,
                                                            number_of_cells)

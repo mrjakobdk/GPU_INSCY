@@ -38,6 +38,9 @@ if method == "multi2":
 if method == "multi2_cl_all":
     function = INSCY.run_gpu_multi2_cl_all
     name = "multi2_cl_all"
+if method == "multi2_cl_re_all":
+    function = INSCY.run_gpu_multi2_cl_re_all
+    name = "multi2_cl_re_all"
 if method == "multi2_cl_all_c3":
     function = INSCY.run_gpu_multi2_cl_all
     params["number_of_cells"] = 3

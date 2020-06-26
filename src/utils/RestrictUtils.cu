@@ -785,8 +785,8 @@ restrict_dim_prop_up_multi2(int *d_new_parents_full, int *d_children_full, int *
         for (int i = threadIdx.x; i < lvl_size; i += blockDim.x) {
             int n_i = lvl_start + i;
             atomicMax(&d_is_included[d_parents[n_i]], d_is_included[n_i]);
-            atomicAdd(&d_new_counts[d_parents[n_i]], d_new_counts[n_i] > 0 ? d_new_counts[n_i] : 0);
-            if (d_counts[n_i] < 0) {
+            atomicAdd(&d_new_counts[d_parents[n_i]], d_new_counts[n_i] > 0 ? d_new_counts[n_i] : 0);//todo should this be new_count of just count?
+            if (d_counts[n_i] < 0) {//todo why is this not the same?
                 d_new_counts[n_i] = -1;
             }
 

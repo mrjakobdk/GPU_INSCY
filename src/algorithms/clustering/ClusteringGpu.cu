@@ -550,16 +550,6 @@ find_neighborhoods(int *&d_neighborhoods, int *&d_neighborhood_end, int *&d_neig
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
-//    printf("neighbor sizes:\n");
-//    print_array_gpu << < 1, 1 >> > (d_neighborhood_sizes, 100);
-//    cudaDeviceSynchronize();
-//    printf("neighbor end:\n");
-//    print_array_gpu << < 1, 1 >> > (d_neighborhood_end, 100);
-//    cudaDeviceSynchronize();
-//    printf("neighbors:\n");
-//    print_array_gpu << < 1, 1 >> > (d_neighborhoods, 100);
-//    cudaDeviceSynchronize();
-
 }
 
 __global__
@@ -760,6 +750,321 @@ void ClusteringGPUAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, TmpMa
                                         (d_clustering, d_disjoint_set,
                                                 d_neighborhoods, d_number_of_neighbors, d_is_dense,
                                                 scy_tree->d_points, number_of_points);
+
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+}
+
+
+__global__
+void
+kernel_find_neighborhood_sizes_re1(int *d_new_neighborhood_sizes, float *d_X, int n, int d, float neighborhood_size,
+                                   int *subspace, int subspace_size) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+
+    int number_of_neighbors = 0;
+    for (int j = 0; j < n; j++) {
+        if (i != j) {
+            float distance = dist_gpu(i, j, d_X, subspace, subspace_size, d);
+            if (neighborhood_size >= distance) {
+                number_of_neighbors++;
+            }
+        }
+    }
+    d_new_neighborhood_sizes[i] = number_of_neighbors;
+}
+
+__global__
+void
+kernel_find_neighborhood_sizes_re2(int *d_neighborhoods, int *d_neighborhood_end, int *d_new_neighborhood_sizes,
+                                   float *d_X, int n, int d, float neighborhood_size,
+                                   int *points, int number_of_points,
+                                   int *subspace, int subspace_size) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= number_of_points) return;
+
+    int p_id = points[i];
+
+    int number_of_neighbors = 0;
+    int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
+    for (int j = offset; j < d_neighborhood_end[p_id]; j++) {
+        int q_id = d_neighborhoods[j];
+
+        if (p_id != q_id) {
+            float distance = dist_gpu(p_id, q_id, d_X, subspace, subspace_size, d);
+            if (neighborhood_size >= distance) {
+                number_of_neighbors++;
+            }
+        }
+    }
+    d_new_neighborhood_sizes[p_id] = number_of_neighbors;
+}
+
+__global__
+void kernel_find_neighborhoods_re1(int *d_new_neighborhoods, int *d_new_neighborhood_end, float *d_X, int n, int d,
+                                   float neighborhood_size, int *subspace, int subspace_size) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+
+    int new_offset = i > 0 ? d_new_neighborhood_end[i - 1] : 0;
+    int *d_new_neighborhood = d_new_neighborhoods + new_offset;
+
+    int number_of_neighbors = 0;
+    for (int j = 0; j < n; j++) {
+        if (i != j) {
+            float distance = dist_gpu(i, j, d_X, subspace, subspace_size, d);
+            if (neighborhood_size >= distance) {
+                d_new_neighborhood[number_of_neighbors] = j;
+                number_of_neighbors++;
+            }
+        }
+    }
+}
+
+__global__
+void kernel_find_neighborhoods_re2(int *d_neighborhoods, int *d_neighborhood_end,
+                                   int *d_new_neighborhoods, int *d_new_neighborhood_end,
+                                   float *d_X, int n, int d, float neighborhood_size,
+                                   int *points, int number_of_points,
+                                   int *subspace, int subspace_size) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= number_of_points) return;
+
+    int p_id = points[i];
+
+    int new_offset = p_id > 0 ? d_new_neighborhood_end[p_id - 1] : 0;
+    int *d_new_neighborhood = d_new_neighborhoods + new_offset;
+
+    int number_of_neighbors = 0;
+
+    int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
+    for (int j = offset; j < d_neighborhood_end[p_id]; j++) {
+        int q_id = d_neighborhoods[j];
+        if (p_id != q_id) {
+            float distance = dist_gpu(p_id, q_id, d_X, subspace, subspace_size, d);
+            if (neighborhood_size >= distance) {
+                d_new_neighborhood[number_of_neighbors] = q_id;
+                number_of_neighbors++;
+            }
+        }
+    }
+}
+
+void find_neighborhoods_re(int *d_neighborhoods, int *d_neighborhood_end,
+                           int *&d_new_neighborhoods, int *&d_new_neighborhood_end, int *&d_new_neighborhood_sizes,
+                           float *d_X, int n, int d, ScyTreeArray *scy_tree, ScyTreeArray *restricted_scy_tree,
+                           float neighborhood_size) {
+    gpuErrchk(cudaPeekAtLastError());
+
+    int total_size;
+    cudaMalloc(&d_new_neighborhood_sizes, n * sizeof(int));
+    cudaMalloc(&d_new_neighborhood_end, n * sizeof(int));
+
+    if (scy_tree->number_of_restricted_dims == 0) {
+
+        int number_of_blocks = n / BLOCK_SIZE;
+        if (n % BLOCK_SIZE) number_of_blocks++;
+        int number_of_threads = min(n, BLOCK_SIZE);
+        dim3 block(number_of_threads);
+        dim3 grid(number_of_blocks);
+
+        cudaMemset(d_new_neighborhood_sizes, 0, n * sizeof(int));
+        cudaMemset(d_new_neighborhood_end, 0, n * sizeof(int));
+        gpuErrchk(cudaPeekAtLastError());
+
+        kernel_find_neighborhood_sizes_re1<<<grid, block >> >(d_new_neighborhood_sizes, d_X, n, d, neighborhood_size,
+                                                              restricted_scy_tree->d_restricted_dims,
+                                                              restricted_scy_tree->number_of_restricted_dims);
+        gpuErrchk(cudaPeekAtLastError());
+
+        inclusive_scan(d_new_neighborhood_sizes, d_new_neighborhood_end, n);
+        gpuErrchk(cudaPeekAtLastError());
+
+        cudaMemcpy(&total_size, d_new_neighborhood_end + n - 1, sizeof(int), cudaMemcpyDeviceToHost);
+        gpuErrchk(cudaPeekAtLastError());
+
+        cudaMalloc(&d_new_neighborhoods, total_size * sizeof(int));
+        gpuErrchk(cudaPeekAtLastError());
+
+        kernel_find_neighborhoods_re1<<<grid, block >> >(d_new_neighborhoods, d_new_neighborhood_end,
+                                                         d_X, n, d, neighborhood_size,
+                                                         restricted_scy_tree->d_restricted_dims,
+                                                         restricted_scy_tree->number_of_restricted_dims);
+        gpuErrchk(cudaPeekAtLastError());
+    } else {
+        if (restricted_scy_tree->number_of_points > 0) {
+            int number_of_blocks = restricted_scy_tree->number_of_points / BLOCK_SIZE;
+            if (restricted_scy_tree->number_of_points % BLOCK_SIZE) number_of_blocks++;
+            int number_of_threads = min(restricted_scy_tree->number_of_points, BLOCK_SIZE);
+            dim3 block(number_of_threads);
+            dim3 grid(number_of_blocks);
+
+            cudaMemset(d_new_neighborhood_sizes, 0, n * sizeof(int));
+            cudaMemset(d_new_neighborhood_end, 0, n * sizeof(int));
+            gpuErrchk(cudaPeekAtLastError());
+
+            kernel_find_neighborhood_sizes_re2<<<grid, block >> >(d_neighborhoods, d_neighborhood_end,
+                                                                  d_new_neighborhood_sizes, d_X, n, d,
+                                                                  neighborhood_size,
+                                                                  restricted_scy_tree->d_points,
+                                                                  restricted_scy_tree->number_of_points,
+                                                                  restricted_scy_tree->d_restricted_dims,
+                                                                  restricted_scy_tree->number_of_restricted_dims);
+            cudaDeviceSynchronize();
+            gpuErrchk(cudaPeekAtLastError());
+
+            inclusive_scan(d_new_neighborhood_sizes, d_new_neighborhood_end, n);
+            gpuErrchk(cudaPeekAtLastError());
+
+            cudaMemcpy(&total_size, d_new_neighborhood_end + n - 1, sizeof(int), cudaMemcpyDeviceToHost);
+            gpuErrchk(cudaPeekAtLastError());
+
+            cudaMalloc(&d_new_neighborhoods, total_size * sizeof(int));
+
+            kernel_find_neighborhoods_re2<<<grid, block >> >(d_neighborhoods, d_neighborhood_end,
+                                                             d_new_neighborhoods, d_new_neighborhood_end,
+                                                             d_X, n, d, neighborhood_size,
+                                                             restricted_scy_tree->d_points,
+                                                             restricted_scy_tree->number_of_points,
+                                                             restricted_scy_tree->d_restricted_dims,
+                                                             restricted_scy_tree->number_of_restricted_dims);
+        }
+    }
+}
+
+__global__
+void compute_is_dense_re_all(bool *d_is_dense, int *d_points, int number_of_points,
+                             int *d_neighborhoods, float neighborhood_size, int *d_neighborhood_end,
+                             float *X, int *subspace, int subspace_size, float F, int n, int num_obj, int d) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < number_of_points) {
+
+        int p_id = d_points[i];
+
+        float p = 0;
+        int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
+        for (int j = offset; j < d_neighborhood_end[p_id]; j++) {
+            int q_id = d_neighborhoods[j];
+            if (q_id >= 0) {
+                float distance = dist_gpu(p_id, q_id, X, subspace, subspace_size, d) / neighborhood_size;
+                float sq = distance * distance;
+                p += (1. - sq);
+            }
+        }
+        float a = alpha_gpu(subspace_size, neighborhood_size, n);
+        float w = omega_gpu(subspace_size);
+        d_is_dense[p_id] = p >= max(F * a, num_obj * w);
+    }
+}
+
+
+__global__
+void
+disjoint_set_clustering_re_all(int *d_clustering, int *d_disjoint_set,
+                               int *d_neighborhoods, int *d_neighborhood_end,
+                               bool *d_is_dense, int *d_points, int number_of_points) {
+    __shared__ int changed;
+    changed = 1;
+    __syncthreads();
+    //init
+    for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
+        int p_id = d_points[i];
+
+        if (d_is_dense[p_id]) {
+            d_disjoint_set[p_id] = p_id;
+        } else {
+            d_disjoint_set[p_id] = -1;
+        }
+    }
+
+    __syncthreads();
+
+    //for (int itr = 1; itr < number_of_points; itr *= 2) {
+    while (changed) {
+        //disjoint_set_pass1
+        __syncthreads();
+        changed = 0;
+        __syncthreads();
+        for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
+            int p_id = d_points[i];
+            if (!d_is_dense[p_id]) continue;
+            int root = d_disjoint_set[p_id];
+
+
+            int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
+            for (int j = offset; j < d_neighborhood_end[p_id]; j++) {
+                int q_id = d_neighborhoods[j];
+                if (d_is_dense[q_id]) {
+                    if (d_disjoint_set[q_id] < root) {
+                        root = d_disjoint_set[q_id];
+                        atomicMax(&changed, 1);
+                    }
+                }
+            }
+            d_disjoint_set[p_id] = root;
+        }
+        __syncthreads();
+
+        //disjoint_set_pass2
+        for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
+            int p_id = d_points[i];
+            int root = d_disjoint_set[p_id];
+            while (root >= 0 && root != d_disjoint_set[root]) {
+                root = d_disjoint_set[root];
+            }
+            d_disjoint_set[p_id] = root;
+        }
+        __syncthreads();
+
+    }
+
+    //gather_clustering
+    for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
+        int p_id = d_points[i];
+        if (d_is_dense[p_id]) {
+            d_clustering[p_id] = d_disjoint_set[p_id];
+        }
+    }
+}
+
+void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, int *d_clustering,
+                        ScyTreeArray *scy_tree, float *d_X, int n, int d,
+                        float neighborhood_size, float F,
+                        int num_obj) {
+
+    if (scy_tree->number_of_points <= 0) return;
+
+    int number_of_points = scy_tree->number_of_points;
+    int number_of_restricted_dims = scy_tree->number_of_restricted_dims;
+
+    bool *d_is_dense = tmps->get_bool_array(tmps->bool_array_counter++, n);
+
+    cudaMemset(d_is_dense, 0, n * sizeof(bool));
+
+    int *d_disjoint_set = tmps->get_int_array(tmps->int_array_counter++, n);
+
+    int number_of_blocks = number_of_points / BLOCK_SIZE;
+    if (number_of_points % BLOCK_SIZE) number_of_blocks++;
+    int number_of_threads = min(number_of_points, BLOCK_SIZE);
+
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+
+    compute_is_dense_re_all<<< number_of_blocks, number_of_threads >> >
+            (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size,
+             d_neighborhood_end, d_X, scy_tree->d_restricted_dims,
+             scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+
+
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+
+    disjoint_set_clustering_re_all<<< 1, number_of_threads >> >
+            (d_clustering, d_disjoint_set,
+             d_neighborhoods, d_neighborhood_end,
+             d_is_dense,
+             scy_tree->d_points, number_of_points);
 
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());

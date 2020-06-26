@@ -25,7 +25,13 @@ plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], l
 data = np.load('plot_data/inc_d/multi2_cl_all.npz', allow_pickle=True)
 subspace_sizes = data["subspace_sizes"]
 times = data["times"]
-plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], label="GPU-Multi2-All")
+plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], label="GPU-Multi2-Cl-All")
+
+
+data = np.load('plot_data/inc_d/multi2_cl_re_all.npz', allow_pickle=True)
+subspace_sizes = data["subspace_sizes"]
+times = data["times"]
+plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], label="GPU-Multi2-Cl-Re-All")
 
 data = np.load('plot_data/inc_d/multi2_cl_all_c3.npz', allow_pickle=True)
 subspace_sizes = data["subspace_sizes"]
