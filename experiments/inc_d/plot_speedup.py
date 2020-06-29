@@ -7,6 +7,11 @@ times = data["times"]
 base_times = times
 plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], label="CPU")
 
+data = np.load('plot_data/inc_d/cpu_weak.npz', allow_pickle=True)
+subspace_sizes = data["subspace_sizes"]
+times = data["times"]
+plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], label="CPU-Weak")
+
 # data = np.load('plot_data/inc_d/gpu.npz', allow_pickle=True)
 # subspace_sizes = data["subspace_sizes"]
 # times = data["times"]
@@ -21,6 +26,11 @@ data = np.load('plot_data/inc_d/multi2.npz', allow_pickle=True)
 subspace_sizes = data["subspace_sizes"]
 times = data["times"]
 plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], label="GPU-Multi2")
+
+data = np.load('plot_data/inc_d/gpu_weak.npz', allow_pickle=True)
+subspace_sizes = data["subspace_sizes"]
+times = data["times"]
+plt.plot(subspace_sizes[:len(base_times)], base_times/times[:len(base_times)], label="GPU-Weak")
 
 data = np.load('plot_data/inc_d/multi2_cl_all.npz', allow_pickle=True)
 subspace_sizes = data["subspace_sizes"]

@@ -299,21 +299,14 @@ INSCYClusteringImplCPU(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at
 //    }
 
 }
+
 void
 INSCYClusteringImplCPUAll(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
-                       float neighborhood_size, float F,
-                       int num_obj, vector<int> &clustering, int min_size, float r,
-                       map <vector<int>, vector<int>, vec_cmp> result) {
+                          float neighborhood_size, float F,
+                          int num_obj, vector<int> &clustering, int min_size, float r,
+                          map <vector<int>, vector<int>, vec_cmp> result) {
     int *subspace = scy_tree->restricted_dims;
     int subspace_size = scy_tree->number_of_restricted_dims;
-
-//    printf("subspace: ");
-//    print_array(subspace, subspace_size);
-//
-//    printf("point 5: ");
-//    print_array(X[5].data(), X[5].size());
-
-//    vector<int> labels(n, -1);
 
     int clustered_count = 0;
     int prev_clustered_count = 0;
@@ -321,8 +314,8 @@ INSCYClusteringImplCPUAll(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree,
     vector<int> points = scy_tree->get_points();
 
     int d = X.size(1);
-    neighborhood_tree = new ScyTreeNode(points, X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
-                                        neighborhood_size);
+//    neighborhood_tree = new ScyTreeNode(points, X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
+//                                        neighborhood_size);
 
 //    map<int, int> sizes;
 
@@ -373,7 +366,7 @@ INSCYClusteringImplCPUAll(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree,
         }
     }
 
-    delete neighborhood_tree;
+//    delete neighborhood_tree;
 
 }
 

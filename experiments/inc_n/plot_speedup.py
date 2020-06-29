@@ -7,6 +7,11 @@ times = data["times"]
 base_times = times
 plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="CPU")
 
+data = np.load('plot_data/inc_n/cpu_weak.npz', allow_pickle=True)
+ns = data["ns"]
+times = data["times"]
+plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="CPU-Weak")
+
 # data = np.load('plot_data/inc_n/gpu.npz', allow_pickle=True)
 # ns = data["ns"]
 # times = data["times"]
@@ -31,6 +36,11 @@ data = np.load('plot_data/inc_n/multi2_cl_re_all.npz', allow_pickle=True)
 ns = data["ns"]
 times = data["times"]
 plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Multi2-Re-All")
+
+data = np.load('plot_data/inc_n/gpu_weak.npz', allow_pickle=True)
+ns = data["ns"]
+times = data["times"]
+plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Weak")
 
 # data = np.load('plot_data/inc_n/multi2_cl_multi.npz', allow_pickle=True)
 # ns = data["ns"]

@@ -89,8 +89,8 @@ INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
           int num_obj, int min_size, map <vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
           int d, float r, int &calls) {
 
-//    printf("call: %d, first_dim_no: %d, points: %d\n", calls, first_dim_no, scy_tree->number_of_points);
-//    scy_tree->print();
+    int total_inscy = pow(2, d);
+    printf("INSCYCPU2Weak(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
 
     int dim_no = first_dim_no;
     calls++;
@@ -111,21 +111,20 @@ INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 
 
             //pruneRecursion(restricted-tree); //prune sparse regions
-            if (restricted_scy_tree->pruneRecursion(min_size, neighborhood_tree, X, neighborhood_size,
+            if (restricted_scy_tree->pruneRecursionAndRemove(min_size, neighborhood_tree, X, neighborhood_size,
                                                     restricted_scy_tree->restricted_dims,
                                                     restricted_scy_tree->number_of_restricted_dims, F,
                                                     num_obj, n, d)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 map <vector<int>, vector<int>, vec_cmp> sub_result;
-                INSCYCPU2(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
+                INSCYCPU2Weak(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
                           F, num_obj, min_size, sub_result,
                           dim_no + 1, d, r, calls);
                 result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                if (restricted_scy_tree->pruneRedundancy(r,
-                                                         result)) {//todo should it be result or sub_result? is sub_result enough or do we need more? -i think we need the hole result...
+                if (restricted_scy_tree->pruneRedundancy(r, result)) {//todo should it be result or sub_result? is sub_result enough or do we need more? -i think we need the hole result...
 
                     //result := DBClustering(restricted-tree) ∪ result;
 //                    int idx = restricted_scy_tree->get_dims_idx();
@@ -133,7 +132,7 @@ INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 //                    vector<int> new_clustering = INSCYClusteringImplCPU2(restricted_scy_tree, neighborhood_tree, X, n,
 //                                                                         neighborhood_size, F,
 //                                                                         num_obj);
-                    INSCYClusteringImplCPU(restricted_scy_tree, neighborhood_tree, X, n,
+                    INSCYClusteringImplCPUAll(restricted_scy_tree, neighborhood_tree, X, n,
                                            neighborhood_size, F,
                                            num_obj, subspace_clustering, min_size, r, result);
 
@@ -148,6 +147,4 @@ INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 
         dim_no++;
     }
-    int total_inscy = pow(2, d);
-    printf("INSCYCPU2(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
 }

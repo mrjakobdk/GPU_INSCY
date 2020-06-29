@@ -5,7 +5,7 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params = {"n": 500,
+params = {"n": 5000,
           "neighborhood_size": 0.01,
           "F": 1.,
           "r": 1.,
@@ -17,7 +17,7 @@ params = {"n": 500,
 print("Loading Glove...")
 t0 = time.time()
 # X = INSCY.normalize(INSCY.load_glove(params["n"], params["subspace_size"]))
-X = INSCY.load_synt("cluster_n500")
+X = INSCY.load_synt("cluster_n5000")
 print("Finished loading Glove, took: %.4fs" % (time.time() - t0))
 
 print()

@@ -30,12 +30,12 @@ for subspace_size in subspace_sizes:
     X_ = X[:params["n"], :subspace_size].clone()
     print(X_.size())
     t0 = time.time()
-    subspaces_cpu, clusterings_cpu = INSCY.run_cpu(X_, params["neighborhood_size"], params["F"], params["num_obj"],
+    subspaces_cpu, clusterings_cpu = INSCY.run_cpu_weak(X_, params["neighborhood_size"], params["F"], params["num_obj"],
                                                    params["min_size"], params["r"], params["number_of_cells"])
     print("Finished CPU-INSCY, took: %.4fs" % (time.time() - t0))
     print()
     t0 = time.time()
-    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_multi2_cl_re_all(X_, params["neighborhood_size"], params["F"],
+    subspaces_gpu, clusterings_gpu = INSCY.run_gpu_weak(X_, params["neighborhood_size"], params["F"],
                                                    params["num_obj"],
                                                    params["min_size"], params["r"], params["number_of_cells"])
     print("Finished GPU-INSCY, took: %.4fs" % (time.time() - t0))

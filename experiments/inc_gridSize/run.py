@@ -12,8 +12,8 @@ params = {"n": 1500,
           "subspace_size": 15,
           "F": 1.,
           "r": 1.,
-          "number_of_cells_min": 2,
-          "number_of_cells_max": 20}
+          "number_of_cells_min": 3,
+          "number_of_cells_max": 9}
 
 method = sys.argv[1]
 
@@ -23,9 +23,15 @@ name = None
 if method == "cpu":
     function = INSCY.run_cpu
     name = "cpu"
+if method == "cpu_weak":
+    function = INSCY.run_cpu_weak
+    name = "cpu_weak"
 if method == "gpu":
     function = INSCY.run_gpu
     name = "gpu"
+if method == "gpu_weak":
+    function = INSCY.run_gpu_weak
+    name = "gpu_weak"
 if method == "mix":
     function = INSCY.run_cpu_gpu_mix
     name = "mix"
@@ -64,11 +70,11 @@ subspaces, clusterings = INSCY.run_gpu(X[:100, :2], params["neighborhood_size"],
 for gridSize in gridSizes:
     print("gridSize:", gridSize)
     t0 = time.time()
-    for _ in range(3):
+    for _ in range(1):
         subspaces, clusterings = function(X, params["neighborhood_size"], params["F"],
                                           params["num_obj"], params["min_size"], r=params["r"],
                                           number_of_cells=gridSize)
-    times.append((time.time() - t0) / 3)
+    times.append((time.time() - t0) / 1)
     no_clusters.append(INSCY.count_number_of_clusters(subspaces, clusterings))
     print("Finished INSCY, took: %.4fs" % (time.time() - t0))
     print()
