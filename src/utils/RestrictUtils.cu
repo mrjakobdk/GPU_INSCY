@@ -881,7 +881,7 @@ restrict_merge_dim_prop_down_first_multi2(int *d_new_parents_full, int *d_childr
 //                    printf("restrict_merge_dim_prop_down_first_multi2 n_i:%d\n", n_i);
 //                }
 
-                if (d_counts[n_i] > 0) {
+                if (d_counts[n_i] >= 0) {
                     atomicAdd(&d_new_counts[n_new], d_counts[n_i]);
                 } else {
                     d_new_counts[n_new] = -1;
@@ -956,7 +956,7 @@ void restrict_dim_prop_down_multi2(int *d_new_parents_full, int *d_children_full
 //                }
 
 
-                if (d_counts[n_i] > 0) {
+                if (d_counts[n_i] >= 0) {
                     atomicAdd(&d_new_counts[n_new], d_counts[n_i]);
                 } else {
                     d_new_counts[n_new] = -1;

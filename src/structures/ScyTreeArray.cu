@@ -2206,11 +2206,14 @@ ScyTreeArray::restrict_merge_gpu_multi(TmpMalloc *tmps, int first_dim_no, int nu
 
 __global__
 void check_parents(int *d_point_placement, int number_of_points, int *d_parents, int number_of_nodes) {
+    if (threadIdx.x == 0)
+        printf("checking...\n");
     for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
         int node = d_point_placement[i];
         while (d_parents[node] != node) {
-            if (node<=d_parents[node]){
-                printf("hmmm... node:%d, parent:%d, number_of_nodes:%d, d_point_placement[i]:%d\n",node, d_parents[node], number_of_nodes, d_point_placement[i]);
+            if (node <= d_parents[node]) {
+                printf("hmmm... node:%d, parent:%d, number_of_nodes:%d, d_point_placement[i]:%d\n", node,
+                       d_parents[node], number_of_nodes, d_point_placement[i]);
                 break;
             }
             node = d_parents[node];
@@ -2710,7 +2713,9 @@ ScyTreeArray::restrict_merge_gpu_multi2(TmpMalloc *tmps, int first_dim_no, int n
                         cudaDeviceSynchronize();
                         gpuErrchk(cudaPeekAtLastError());
 
-                        check_parents<<<1,512>>>(restricted_scy_tree->d_points_placement, restricted_scy_tree->number_of_points, restricted_scy_tree->d_parents, restricted_scy_tree->number_of_nodes);
+//                        check_parents<<<1, 512>>>(restricted_scy_tree->d_points_placement,
+//                                                  restricted_scy_tree->number_of_points, restricted_scy_tree->d_parents,
+//                                                  restricted_scy_tree->number_of_nodes);
                     }
                 }
                 cell_no++;
@@ -3622,7 +3627,8 @@ void reset_counts_prune(int *d_counts, int number_of_nodes) {
 }
 
 __global__
-void remove_pruned_points_prune(int *d_is_dense, int *d_new_indices, int *d_new_points, int *d_new_point_placement,
+void remove_pruned_points_prune(int *d_is_dense, int *d_new_indices,
+                                int *d_new_points, int *d_new_point_placement,
                                 int *d_points, int *d_point_placement, int number_of_points,
                                 int *d_counts, int *d_parents, int number_of_nodes) {
     for (int i = threadIdx.x; i < number_of_points; i += blockDim.x) {
@@ -3632,10 +3638,13 @@ void remove_pruned_points_prune(int *d_is_dense, int *d_new_indices, int *d_new_
             d_new_point_placement[new_i] = d_point_placement[i];
             int node = d_point_placement[i];
             atomicAdd(&d_counts[node], 1);
-            int count =0;
+            int count = 0;
             while (d_parents[node] != node) {
-                if (node<=d_parents[node]){
-                    printf("hmmm... node:%d, parent:%d, number_of_nodes:%d, d_point_placement[i]:%d\n",node, d_parents[node], number_of_nodes, d_point_placement[i]);
+                if(node<0 || node >= number_of_nodes)
+                    printf("out of range\n");
+                if (node <= d_parents[node]) {
+                    printf("remove_pruned_points_prune - hmmm... node:%d, parent:%d, number_of_nodes:%d, d_point_placement[i]:%d\n",
+                           node, d_parents[node], number_of_nodes, d_point_placement[i]);
                     break;
                 }
                 count++;
@@ -3647,15 +3656,15 @@ void remove_pruned_points_prune(int *d_is_dense, int *d_new_indices, int *d_new_
 }
 
 
-
-
-
 bool ScyTreeArray::pruneRecursionAndRemove_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
                                                int num_obj, int *d_neighborhoods, int *d_neighborhood_end) {
+
+
 
     if (this->number_of_points < min_size) {
         return false;
     }
+//    check_parents<<<1, 512>>>(this->d_points_placement, this->number_of_points, this->d_parents, this->number_of_nodes);
 
     int blocks_points = this->number_of_points / 512;
     if (this->number_of_points % 512) blocks_points++;
@@ -3664,7 +3673,7 @@ bool ScyTreeArray::pruneRecursionAndRemove_gpu(int min_size, float *d_X, int n, 
 
     int *d_is_dense;
     cudaMalloc(&d_is_dense, sizeof(int) * this->number_of_points);
-    cudaMemset(d_is_dense, 0, sizeof(int) * this->number_of_points);
+//    cudaMemset(d_is_dense, 0, sizeof(int) * this->number_of_points);
 
     int *d_new_indices;
     cudaMalloc(&d_new_indices, sizeof(int) * this->number_of_points);
@@ -3690,7 +3699,7 @@ bool ScyTreeArray::pruneRecursionAndRemove_gpu(int min_size, float *d_X, int n, 
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
-    if(new_number_of_points == 0){
+    if (new_number_of_points == 0) {
         cudaFree(d_is_dense);
         cudaFree(d_new_indices);
         return false;
@@ -3698,13 +3707,13 @@ bool ScyTreeArray::pruneRecursionAndRemove_gpu(int min_size, float *d_X, int n, 
 
     int *d_new_points;
     cudaMalloc(&d_new_points, sizeof(int) * new_number_of_points);
-    cudaMemset(d_new_points, 0, sizeof(int) * new_number_of_points);
+//    cudaMemset(d_new_points, 0, sizeof(int) * new_number_of_points);
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
     int *d_new_point_placement;
     cudaMalloc(&d_new_point_placement, sizeof(int) * new_number_of_points);
-    cudaMemset(d_new_point_placement, 0, sizeof(int) * new_number_of_points);
+//    cudaMemset(d_new_point_placement, 0, sizeof(int) * new_number_of_points);
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
@@ -3712,8 +3721,8 @@ bool ScyTreeArray::pruneRecursionAndRemove_gpu(int min_size, float *d_X, int n, 
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
-    remove_pruned_points_prune <<< 1, min(512, this->number_of_points) >>>(d_is_dense, d_new_indices, d_new_points,
-                                                                           d_new_point_placement,
+    remove_pruned_points_prune <<< 1, min(512, this->number_of_points) >>>(d_is_dense, d_new_indices,
+                                                                           d_new_points, d_new_point_placement,
                                                                            this->d_points, this->d_points_placement,
                                                                            this->number_of_points,
                                                                            this->d_counts, this->d_parents,
@@ -3744,6 +3753,9 @@ bool ScyTreeArray::pruneRecursionAndRemove_gpu(int min_size, float *d_X, int n, 
 //    printf("d_points_placement:\n");
 //    print_array_gpu<< <1,1>>>(this->d_points_placement, this->number_of_points);
 //    cudaDeviceSynchronize();
+
+
+
 
     return this->number_of_points >= min_size;
 }

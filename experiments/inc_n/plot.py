@@ -5,6 +5,10 @@ data = np.load('plot_data/inc_n/cpu.npz', allow_pickle=True)
 subspace_sizes = data["ns"]
 times = data["times"]
 plt.plot(subspace_sizes[:len(times)], times, label="CPU")
+data = np.load('plot_data/inc_n/cpu_weak.npz', allow_pickle=True)
+subspace_sizes = data["ns"]
+times = data["times"]
+plt.plot(subspace_sizes[:len(times)], times, label="CPU-Weak")
 
 # data = np.load('plot_data/inc_n/gpu.npz', allow_pickle=True)
 # subspace_sizes = data["ns"]
