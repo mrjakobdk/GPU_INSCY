@@ -48,6 +48,39 @@ void ScyTreeNode::construct_s_connection(float neighborhood_size, int &node_coun
     }
 }
 
+
+void ScyTreeNode::construct_weak_s_connection(at::Tensor X, int p_id, float neighborhood_size, int &node_counter, shared_ptr <Node> node,
+                                         float *x_i, int j, float x_ij, int cell_no, ScyTreeNode * neighborhood_tree, float F, int num_obj) {
+    if (x_ij >= ((cell_no + 1) * cell_size - neighborhood_size)) {
+
+        int n = X.size(0);
+        int d = X.size(1);
+        int subspace[1] = {j};
+        int subspace_size = 1;
+
+        vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
+                                             subspace_size);
+
+        float a = alpha(d, neighborhood_size, n);
+        float w = omega(d);
+        float p = phi(p_id, neighbors, neighborhood_size, X, subspace, subspace_size);
+
+        if (p >= max(F * a, num_obj * w)) {
+            shared_ptr <Node> s_connection = set_s_connection(node, cell_no, node_counter);
+            shared_ptr <Node> pre_s_connection = s_connection;
+            for (int k = j + 1; k < number_of_dims; k++) {
+                float x_ik = x_i[dims[k]];
+                int cell_no_k = get_cell_no(x_ik);
+                s_connection = set_s_connection(pre_s_connection, cell_no_k, node_counter);
+                pre_s_connection = s_connection;
+            }
+            pre_s_connection->is_leaf = true;
+        }else {
+            printf("ignored s-connection!\n");
+        }
+    }
+}
+
 shared_ptr <Node> ScyTreeNode::set_node(shared_ptr <Node> node, int &cell_no, int &node_counter) {
 
     shared_ptr <Node> child(nullptr);
@@ -96,6 +129,47 @@ ScyTreeNode::ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int s
 
             //construct/update s-connection
             this->construct_s_connection(neighborhood_size, node_counter, node, x_i, j, x_ij, cell_no);
+            node = child;
+        }
+        node->points.push_back(i);
+        node->is_leaf = true;
+    }
+    //printf("constructing SCY-tree: 100%%\n");
+    //printf("nodes in SCY-tree: %d\n", node_counter);
+    this->number_of_points = root->count;
+    this->root = root;
+}
+
+
+ScyTreeNode::ScyTreeNode(at::Tensor X, int *subspace, int number_of_cells, int subspace_size,
+                         int n, float neighborhood_size, ScyTreeNode *neighborhood_tree, float F, int num_obj) {
+    float v = 1.;
+    this->number_of_cells = number_of_cells;
+    this->cell_size = v / this->number_of_cells;
+    this->dims = subspace;
+    this->number_of_dims = subspace_size;
+    this->number_of_restricted_dims = 0;
+
+    shared_ptr <Node> root(new Node(-1));
+    int node_counter = 0;
+    for (int i = 0; i < n; i++) {
+        root->count += 1;
+        shared_ptr <Node> node = root;
+        //printf("constructing SCY-tree: %d%%\r", int((i * 100) / X.size()));
+        float *x_i = X[i].data_ptr<float>();
+
+        for (int j = 0; j < number_of_dims; j++) {
+
+            //computing cell no
+            float x_ij = x_i[this->dims[j]];
+            int cell_no = this->get_cell_no(x_ij);
+
+            //update cell
+            shared_ptr <Node> child = set_node(node, cell_no, node_counter);
+            child->count += 1;
+
+            //construct/update s-connection
+            this->construct_weak_s_connection(X,i, neighborhood_size, node_counter, node, x_i, j, x_ij, cell_no, neighborhood_tree, F, num_obj);
             node = child;
         }
         node->points.push_back(i);

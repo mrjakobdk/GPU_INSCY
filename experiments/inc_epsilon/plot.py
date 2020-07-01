@@ -5,6 +5,10 @@ data = np.load('plot_data/inc_epsilon/cpu.npz', allow_pickle=True)
 xs = data["neighborhood_sizes"]
 times = data["times"]
 plt.plot(xs[:len(times)], times, label="CPU")
+data = np.load('plot_data/inc_epsilon/cpu_weak.npz', allow_pickle=True)
+xs = data["neighborhood_sizes"]
+times = data["times"]
+plt.plot(xs[:len(times)], times, label="CPU-Weak")
 #
 # data = np.load('plot_data/inc_epsilon/gpu.npz', allow_pickle=True)
 # xs = data["neighborhood_sizes"]
@@ -20,6 +24,11 @@ data = np.load('plot_data/inc_epsilon/multi2.npz', allow_pickle=True)
 xs = data["neighborhood_sizes"]
 times = data["times"]
 plt.plot(xs[:len(times)], times, label="GPU-Multi2")
+
+data = np.load('plot_data/inc_epsilon/gpu_weak.npz', allow_pickle=True)
+xs = data["neighborhood_sizes"]
+times = data["times"]
+plt.plot(xs[:len(times)], times, label="GPU-Weak")
 
 data = np.load('plot_data/inc_epsilon/multi2_cl_all.npz', allow_pickle=True)
 xs = data["neighborhood_sizes"]
