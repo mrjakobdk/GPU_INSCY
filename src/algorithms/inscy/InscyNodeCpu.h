@@ -22,7 +22,11 @@ void INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor
                int first_dim_no, int total_number_of_dim, float r, int &calls);
 
 void INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size,
-               float F, int num_obj, int min_size, map<vector<int>, vector<int>, vec_cmp> &result,
-               int first_dim_no, int total_number_of_dim, float r, int &calls);
+                   float F, int num_obj, int min_size, map<vector<int>, vector<int>, vec_cmp> &result,
+                   int first_dim_no, int total_number_of_dim, float r, int &calls);
+
+void INSCYCPU3Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size,
+                   float F, int num_obj, int min_size, map<vector<int>, vector<int>, vec_cmp> &result,
+                   int first_dim_no, int total_number_of_dim, float r, int &calls);
 
 #endif //GPU_INSCY_INSCYNODECPU_H

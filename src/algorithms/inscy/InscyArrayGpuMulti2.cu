@@ -435,7 +435,7 @@ InscyArrayGpuMulti3Weak(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
                         int total_number_of_dim, float r, int &calls) {
     calls++;
     int total_inscy = pow(2, d);
-    printf("InscyArrayGpuMulti2Weak(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
+    printf("InscyArrayGpuMulti3Weak(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
 
     int number_of_dims = total_number_of_dim - first_dim_no;
     int number_of_cells = scy_tree->number_of_cells;

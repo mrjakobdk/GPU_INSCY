@@ -7,10 +7,10 @@ import numpy as np
 
 params = {"n": 5000,
           "neighborhood_size": 0.01,
-          "F": 1.,
+          "F": 200.,
           "r": 1.,
-          "num_obj": 8,
-          "min_size": 25,
+          "num_obj": 8*16,
+          "min_size": 250,
           "subspace_size": 15,
           "number_of_cells": 5}
 

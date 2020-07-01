@@ -114,7 +114,10 @@ def run_cpu(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3)
 
 def run_cpu_weak(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_cpu_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
-    # return clean_up(subspaces, clusterings, min_size)
+    return subspaces, clusterings
+
+def run_cpu3_weak(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
+    subspaces, clusterings = inscy.run_cpu3_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
     return subspaces, clusterings
 
 def run_gpu_reduced(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):

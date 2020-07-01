@@ -30,6 +30,11 @@ subspace_sizes = data["ns"]
 times = data["times"]
 plt.plot(subspace_sizes[:len(times)], times, label="GPU-Weak")
 #
+data = np.load('plot_data/inc_n/gpu_multi3_weak.npz', allow_pickle=True)
+subspace_sizes = data["ns"]
+times = data["times"]
+plt.plot(subspace_sizes[:len(times)], times, label="GPU-3-Weak")
+#
 data = np.load('plot_data/inc_n/multi2_cl_all.npz', allow_pickle=True)
 subspace_sizes = data["ns"]
 times = data["times"]

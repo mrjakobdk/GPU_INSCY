@@ -144,6 +144,52 @@ run_cpu_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int mi
     return tuple;
 }
 
+vector<vector<vector<int>>>
+run_cpu3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells) {
+
+    //int number_of_cells = 3;
+    int n = X.size(0);
+    int d = X.size(1);
+
+
+    int *subspace = new int[d];
+
+    for (int i = 0; i < d; i++) {
+        subspace[i] = i;
+    }
+
+    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, d, n, neighborhood_size);
+//    scy_tree->print();
+    ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), d, n,
+                                                     neighborhood_size);
+
+    map<vector<int>, vector<int>, vec_cmp> result;
+
+    int calls = 0;
+    INSCYCPU3Weak(scy_tree, neighborhood_tree, X, n, neighborhood_size, F, num_obj, min_size,
+                  result, 0, d, r, calls);
+    printf("INSCYCPU3Weak(%d): 100%%      \n", calls);
+
+    vector<vector<vector<int>>> tuple;
+    vector<vector<int>> subspaces(result.size());
+    vector<vector<int>> clusterings(result.size());
+
+    int j = 0;
+    for (auto p : result) {
+        vector<int> dims = p.first;
+        subspaces[j] = dims;
+        vector<int> clustering = p.second;
+        clusterings[j] = clustering;
+        j++;
+    }
+    tuple.push_back(subspaces);
+    tuple.push_back(clusterings);
+
+
+    return tuple;
+}
+
+
 
 vector<at::Tensor>
 run_cmp(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, int number_of_cells) {
@@ -1262,6 +1308,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m
 ) {
 m.def("run_cpu",    &run_cpu,    "");
 m.def("run_cpu_weak",    &run_cpu_weak,    "");
+m.def("run_cpu3_weak",    &run_cpu3_weak,    "");
 m.def("run_cmp",    &run_cmp,    "");
 m.def("run_cpu_gpu_mix",    &run_cpu_gpu_mix,    "");
 m.def("run_cpu_gpu_mix_cl_steam",    &run_cpu_gpu_mix_cl_steam,    "");

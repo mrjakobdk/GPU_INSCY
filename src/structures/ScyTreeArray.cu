@@ -4425,6 +4425,7 @@ ScyTreeArray::pruneRecursionAndRemove_gpu3(int min_size, float *d_X, int n, int 
     if (new_number_of_nodes <= 0) {
         cudaFree(d_is_included);
         cudaFree(d_new_indices);
+        cudaFree(d_has_child);
         return false;
     }
 
@@ -4484,6 +4485,7 @@ ScyTreeArray::pruneRecursionAndRemove_gpu3(int min_size, float *d_X, int n, int 
 
     cudaFree(d_is_included);
     cudaFree(d_new_indices);
+    cudaFree(d_has_child);
 
     return this->number_of_points >= min_size;
 }

@@ -19,6 +19,11 @@ ns = data["ns"]
 times = data["times"]
 plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-Weak")
 
+data = np.load('plot_data/inc_n/gpu_multi3_weak.npz', allow_pickle=True)
+ns = data["ns"]
+times = data["times"]
+plt.plot(ns[:len(base_times)], base_times/times[:min(len(times),len(base_times))], label="GPU-removeNodes-Weak")
+
 data = np.load('plot_data/inc_n/multi2_cl_re_all.npz', allow_pickle=True)
 ns = data["ns"]
 times = data["times"]

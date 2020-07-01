@@ -27,12 +27,18 @@ if method == "cpu":
 if method == "cpu_weak":
     function = INSCY.run_cpu_weak
     name = "cpu_weak"
+if method == "cpu3_weak":
+    function = INSCY.run_cpu3_weak
+    name = "cpu3_weak"
 if method == "gpu":
     function = INSCY.run_gpu
     name = "gpu"
 if method == "gpu_weak":
     function = INSCY.run_gpu_weak
     name = "gpu_weak"
+if method == "gpu_multi3_weak":
+    function = INSCY.run_gpu_multi3_weak
+    name = "gpu_multi3_weak"
 if method == "mix":
     function = INSCY.run_cpu_gpu_mix
     name = "mix"
