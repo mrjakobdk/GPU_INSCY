@@ -145,7 +145,7 @@ run_cpu_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int mi
 }
 
 vector<vector<vector<int>>>
-run_cpu3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells) {
+run_cpu3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells, bool rectangular) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -167,7 +167,7 @@ run_cpu3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int m
 
     int calls = 0;
     INSCYCPU3Weak(scy_tree, neighborhood_tree, X, n, neighborhood_size, F, num_obj, min_size,
-                  result, 0, d, r, calls);
+                  result, 0, d, r, calls, rectangular);
     printf("INSCYCPU3Weak(%d): 100%%      \n", calls);
 
     vector<vector<vector<int>>> tuple;
@@ -818,7 +818,7 @@ run_gpu_multi2_cl_re_all(at::Tensor X, float neighborhood_size, float F, int num
 
 vector<vector<vector<int>>>
 run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
-                         int number_of_cells) {
+                         int number_of_cells, bool rectangular) {
     nvtxRangePushA("run_gpu_multi3_weak");
 
     //int number_of_cells = 3;
@@ -864,7 +864,7 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
 
     InscyArrayGpuMulti3Weak(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
                              neighborhood_size, F, num_obj, min_size,
-                             result, 0, subspace_size, r, calls);
+                             result, 0, subspace_size, r, calls, rectangular);
     delete tmps;
     cudaFree(d_X);
     delete scy_tree_gpu;

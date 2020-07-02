@@ -419,12 +419,12 @@ int ScyTreeNode::pruneRecursionNode(shared_ptr <Node> node, int min_size) {//tod
     return total_pruned_count;//node->count should be zero because all the children should be larger than min_size
 }
 
-void ScyTreeNode::get_leafs(shared_ptr <Node> node, vector <shared_ptr<Node>> &leafs) {
+void ScyTreeNode::get_leafs(shared_ptr <Node> &node, vector <shared_ptr<Node>> &leafs) {
     if (node->children.empty() && node->s_connections.empty()) {
         leafs.push_back(node);
     } else {
         for (pair<const int, shared_ptr < Node>> child_pair: node->children) {
-            shared_ptr <Node> child = child_pair.second;
+            shared_ptr <Node> &child = child_pair.second;
             this->get_leafs(child, leafs);
         }
     }
@@ -581,22 +581,35 @@ bool ScyTreeNode::pruneRecursionAndRemove(int min_size, ScyTreeNode *neighborhoo
 
 bool ScyTreeNode::pruneRecursionAndRemove2(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X,
                                            float neighborhood_size,
-                                           int *subspace, int subspace_size, float F, int num_obj, int n, int d) {
+                                           int *subspace, int subspace_size, float F, int num_obj, int n, int d,
+                                           bool rectangular) {
+
+//    print_array(subspace, subspace_size);
 
     vector <shared_ptr<Node>> leafs;
     this->get_leafs(this->root, leafs);
 
     float a = alpha(d, neighborhood_size, n);
+//    float ex = expDen(d, neighborhood_size, n);
     float w = omega(d);
+
+
+    float v = 1.;//todo v is missing?? what is it??
+    float ex = n * c(d) * pow(neighborhood_size, d);
+//    printf("ex:%f\n", ex);
+    ex = ex / pow(v, d);
+//    printf("after ex:%f\n", ex);
+
+//    printf("n:%d, d:%d, neighborhood_size: %f, ex:%f, F:%f\n",n, d, neighborhood_size, ex, F);
 
 //    printf("subspace of size %d:\n", subspace_size);
 //    print_array(subspace,subspace_size);
 //
 //    printf("leafs:%d\n", leafs.size());
     int pruned_size = 0;
-    for (shared_ptr <Node> leaf: leafs) {
+    for (shared_ptr <Node> &leaf: leafs) {
 //        printf("leaf->count:%d\n", leaf->count);
-//        vector<int> points;
+        vector<int> points;
         bool is_weak_dense[leaf->points.size()];
         //for (int p_id: leaf->points) {
         int count = 0;
@@ -605,31 +618,49 @@ bool ScyTreeNode::pruneRecursionAndRemove2(int min_size, ScyTreeNode *neighborho
             vector<int> neighbors = neighborhood(neighborhood_tree, p_id, X, neighborhood_size, subspace,
                                                  subspace_size);
 
-            float p = phi(p_id, neighbors, neighborhood_size, X, subspace, subspace_size);
+//            printf("CPU size_of_neighborhood:%d, max:%f\n", neighbors.size(), max(F * ex, (float) num_obj));
 
-//            if (subspace_size == d - 1) {
-//                print_array(subspace, subspace_size);
-//                printf("CPU p_id: %d, p: %f, max: %f, n_size:%d\n", p_id, p, max(F * a, num_obj * w), neighbors.size());
-//            }
-            if (p >= max(F * a, num_obj * w)) {
+
+            bool is_dense;
+
+            if (rectangular) {
+                is_dense = neighbors.size() >= max(F * ex, (float) num_obj);
+            } else {
+                float p = phi(p_id, neighbors, neighborhood_size, X, subspace, subspace_size);
+                is_dense = p >= max(F * a, num_obj * w);
+            }
+
+            if (is_dense) {
 //                points.push_back(p_id);
                 pruned_size++;
                 count++;
                 is_weak_dense[i] = true;
+                points.push_back(p_id);
             } else {
+//                printf("is not dense\n");
                 is_weak_dense[i] = false;
             }
         }
-        for (int i = leaf->points.size() - 1; i >= 0; i--) {
-            if (!is_weak_dense[i]) {
-                leaf->points.erase(leaf->points.begin() + i);
-            }
-        }
+
+
+//        int before = leaf->points.size();
+//        for (int i = leaf->points.size() - 1; i >= 0; i--) {
+//            if (!is_weak_dense[i]) {
+//                leaf->points.erase(leaf->points.begin() + i);
+//            }
+//        }
+        leaf->points = points;
+
         leaf->count = count;
     }
     this->propergate_count2(this->root);
     this->number_of_points = this->root->count;
 //
+//    if (pruned_size >= min_size && pruned_size < min_size + 5) {
+//        printf("hep!\n");
+//    }
+
+
     return pruned_size >= min_size;
 
 //    return this->number_of_points >= min_size;

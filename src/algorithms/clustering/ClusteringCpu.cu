@@ -30,20 +30,20 @@
 using namespace std;
 
 
-double gamma(double d);
+float gamma(float d);
 
 
-double omega(int subspace_size) {
+float omega(int subspace_size) {
     return 2.0 / (subspace_size + 2.0);
 }
 
-double dist(int p_id, int q_id, at::Tensor X, int *subspace, int subspace_size) {
+float dist(int p_id, int q_id, at::Tensor X, int *subspace, int subspace_size) {
     float *p = X[p_id].data_ptr<float>();
     float *q = X[q_id].data_ptr<float>();
-    double distance = 0.;
+    float distance = 0.;
     for (int i = 0; i < subspace_size; i++) {
         int d_i = subspace[i];
-        double diff = p[d_i] - q[d_i];
+        float diff = p[d_i] - q[d_i];
         distance += diff * diff;
     }
     return sqrt(distance);
@@ -113,10 +113,10 @@ float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tens
           int subspace_size) {
 
 
-    double sum = 0;
+    float sum = 0;
     for (int q_id : neighbors) {
-        double d = dist(point_id, q_id, X, subspace, subspace_size) / neighborhood_size;
-        double sq = d * d;
+        float d = dist(point_id, q_id, X, subspace, subspace_size) / neighborhood_size;
+        float sq = d * d;
         sum += (1. - sq);
 //        printf("phi q_id: %d, d:%f\n", q_id, d);
     }
@@ -124,16 +124,16 @@ float phi(int point_id, vector<int> neighbors, float neighborhood_size, at::Tens
     return sum;
 }
 
-double gamma(double n) {
-    if (round(n) == 1) {//todo not nice cond n==1
-        return 1.;
-    } else if (n < 1) {//todo not nice cond n==1/2
-        return sqrt(PI);
-    }
-    return (n - 1.) * gamma(n - 1.);
-}
+//float gamma(float n) {
+//    if (round(n) == 1) {//todo not nice cond n==1
+//        return 1.;
+//    } else if (n < 1) {//todo not nice cond n==1/2
+//        return sqrt(PI);
+//    }
+//    return (n - 1.) * gamma(n - 1.);
+//}
 
-double gamma(int n) {
+float gamma(int n) {
     if (n == 2) {
         return 1.;
     } else if (n == 1) {
@@ -142,8 +142,8 @@ double gamma(int n) {
     return (n / 2. - 1.) * gamma(n - 2);
 }
 
-double c(int subspace_size) {
-    double r = pow(PI, subspace_size / 2.);
+float c(int subspace_size) {
+    float r = pow(PI, subspace_size / 2.);
     //r = r / gamma(subspace_size / 2. + 1.);
     r = r / gamma(subspace_size + 2);
     return r;
@@ -153,6 +153,13 @@ float alpha(int subspace_size, float neighborhood_size, int n) {
     float v = 1.;//todo v is missing?? what is it??
     float r = 2 * n * pow(neighborhood_size, subspace_size) * c(subspace_size);
     r = r / (pow(v, subspace_size) * (subspace_size + 2));
+    return r;
+}
+
+float expDen(int subspace_size, float neighborhood_size, int n) {
+    float v = 1.;//todo v is missing?? what is it??
+    float r = n * c(subspace_size) * pow(neighborhood_size, subspace_size);
+    r = r / pow(v, subspace_size);
     return r;
 }
 
@@ -166,6 +173,13 @@ bool dense(int point_id, vector<int> neighbors, float neighborhood_size, at::Ten
 //    printf("%d:%d, %f>=%f\n",point_id, subspace_size, p, max(F * a, num_obj * w));
 //    printf("%d:%d, F=%f, a=%f, num_obj=%d, w=%f\n",point_id, subspace_size, F, a, num_obj, w);
     return p >= max(F * a, num_obj * w);
+}
+
+bool dense_rectangular(int point_id, vector<int> neighbors, float neighborhood_size, at::Tensor X, int *subspace,
+                       int subspace_size,
+                       float F, int n, int num_obj) {
+    float a = expDen(subspace_size, neighborhood_size, n);
+    return neighbors.size() >= max(F * a, (float) num_obj);
 }
 
 
@@ -304,7 +318,7 @@ void
 INSCYClusteringImplCPUAll(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n,
                           float neighborhood_size, float F,
                           int num_obj, vector<int> &clustering, int min_size, float r,
-                          map <vector<int>, vector<int>, vec_cmp> result) {
+                          map <vector<int>, vector<int>, vec_cmp> result, bool rectangular) {
     int *subspace = scy_tree->restricted_dims;
     int subspace_size = scy_tree->number_of_restricted_dims;
 
@@ -347,7 +361,11 @@ INSCYClusteringImplCPUAll(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree,
             //printf("%d neighborhood: ",p_id);
             //print_array(neighbors, neighbors.size());
 
-            bool is_dense = dense(p_id, neighbors, neighborhood_size, X, subspace, subspace_size, F, n, num_obj);
+            bool is_dense = rectangular ?
+                            dense_rectangular(p_id, neighbors, neighborhood_size, X, subspace, subspace_size, F, n,
+                                              num_obj) :
+                            dense(p_id, neighbors, neighborhood_size, X, subspace, subspace_size, F, n, num_obj);
+
             //printf("%d is dense: %d\n", p_id, is_dense);
             if (is_dense) {
                 clustering[p_id] = label;

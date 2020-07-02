@@ -26,10 +26,10 @@ __device__
 float dist_gpu(int p_id, int q_id, float *X, int *subspace, int subspace_size, int d) {
     float *p = &X[p_id * d];
     float *q = &X[q_id * d];
-    double distance = 0;
+    float distance = 0;
     for (int i = 0; i < subspace_size; i++) {
         int d_i = subspace[i];
-        double diff = p[d_i] - q[d_i];
+        float diff = p[d_i] - q[d_i];
         distance += diff * diff;
     }
     //printf("dinstance = %f\n", distance);
@@ -76,18 +76,18 @@ float phi_gpu(int p_id, int *d_neighborhood, float neighborhood_size, int number
     return sum;
 }
 
-__device__
-float gamma_gpu(double n) {
-    if (round(n) == 1) {//todo not nice cond n==1
-        return 1.;
-    } else if (n < 1) {//todo not nice cond n==1/2
-        return sqrt(PI);
-    }
-    return (n - 1.) * gamma_gpu(n - 1.);
-}
+//__device__
+//float gamma_gpu(float n) {
+//    if (round(n) == 1) {//todo not nice cond n==1
+//        return 1.;
+//    } else if (n < 1) {//todo not nice cond n==1/2
+//        return sqrt(PI);
+//    }
+//    return (n - 1.) * gamma_gpu(n - 1.);
+//}
 
 __device__
-double gamma_gpu(int n) {
+float gamma_gpu(int n) {
     if (n == 2) {
         return 1.;
     } else if (n == 1) {
@@ -109,6 +109,14 @@ float alpha_gpu(int subspace_size, float neighborhood_size, int n) {
     float v = 1.;//todo v is missing?? what is it??
     float r = 2 * n * pow(neighborhood_size, subspace_size) * c_gpu(subspace_size);
     r = r / (pow(v, subspace_size) * (subspace_size + 2));
+    return r;
+}
+
+__device__
+float expDen_gpu(int subspace_size, float neighborhood_size, int n) {
+    float v = 1.;//todo v is missing?? what is it??
+    float r = n * c_gpu(subspace_size) * pow(neighborhood_size, subspace_size);
+    r = r / pow(v, subspace_size);
     return r;
 }
 
@@ -960,6 +968,24 @@ void compute_is_dense_re_all(bool *d_is_dense, int *d_points, int number_of_poin
 
 
 __global__
+void compute_is_dense_re_all_rectangular(bool *d_is_dense, int *d_points, int number_of_points,
+                                         int *d_neighborhoods, float neighborhood_size, int *d_neighborhood_end,
+                                         float *X, int *subspace, int subspace_size, float F, int n, int num_obj,
+                                         int d) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < number_of_points) {
+
+        int p_id = d_points[i];
+
+        int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
+        int neighbor_count = d_neighborhood_end[p_id] - offset;
+        float a = expDen_gpu(subspace_size, neighborhood_size, n);
+        d_is_dense[p_id] = neighbor_count >= max(F * a, (float) num_obj);
+    }
+}
+
+
+__global__
 void
 disjoint_set_clustering_re_all(int *d_clustering, int *d_disjoint_set,
                                int *d_neighborhoods, int *d_neighborhood_end,
@@ -1031,7 +1057,7 @@ disjoint_set_clustering_re_all(int *d_clustering, int *d_disjoint_set,
 void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, int *d_clustering,
                         ScyTreeArray *scy_tree, float *d_X, int n, int d,
                         float neighborhood_size, float F,
-                        int num_obj) {
+                        int num_obj, bool rectangular) {
 
     if (scy_tree->number_of_points <= 0) return;
 
@@ -1051,10 +1077,17 @@ void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
-    compute_is_dense_re_all<<< number_of_blocks, number_of_threads >> >
-            (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size,
-             d_neighborhood_end, d_X, scy_tree->d_restricted_dims,
-             scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+    if (rectangular) {
+        compute_is_dense_re_all_rectangular<<< number_of_blocks, number_of_threads >> >
+                (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size,
+                 d_neighborhood_end, d_X, scy_tree->d_restricted_dims,
+                 scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+    } else {
+        compute_is_dense_re_all<<< number_of_blocks, number_of_threads >> >
+                (d_is_dense, scy_tree->d_points, number_of_points, d_neighborhoods, neighborhood_size,
+                 d_neighborhood_end, d_X, scy_tree->d_restricted_dims,
+                 scy_tree->number_of_restricted_dims, F, n, num_obj, d);
+    }
 
 
     cudaDeviceSynchronize();

@@ -3787,7 +3787,7 @@ float dist_prune_gpu(int p_id, int q_id, float *X, int d, int *subspace, int sub
 //}
 
 __device__
-double gamma_prune_gpu(int n) {
+float gamma_prune_gpu(int n) {
     if (n == 2) {
         return 1.;
     } else if (n == 1) {
@@ -3809,6 +3809,14 @@ float alpha_prune_gpu(int subspace_size, float neighborhood_size, int n) {
     float v = 1.;//todo v is missing?? what is it??
     float r = 2 * n * pow(neighborhood_size, subspace_size) * c_prune_gpu(subspace_size);
     r = r / (pow(v, subspace_size) * (subspace_size + 2));
+    return r;
+}
+
+__device__
+float expDen_prune_gpu(int subspace_size, float neighborhood_size, int n) {
+    float v = 1.;//todo v is missing?? what is it??
+    float r = n * c_prune_gpu(subspace_size) * pow(neighborhood_size, subspace_size);
+    r = r / pow(v, subspace_size);
     return r;
 }
 
@@ -3992,6 +4000,7 @@ bool ScyTreeArray::pruneRecursion_gpu(int min_size, float *d_X, int n, int d, fl
 }
 
 bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, vec_cmp> result) {
+//    printf("\npruneRedundancy_gpu, %d\n", result.size());
     int max_min_size = 0;
 
     vector<int> subspace(this->h_restricted_dims, this->h_restricted_dims +
@@ -4000,10 +4009,12 @@ bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, v
 
     for (std::pair <vector<int>, vector<int>> subspace_clustering : result) {
 
-
         // find sizes of clusters
         vector<int> subspace_mark = subspace_clustering.first;
         if (subspace_of(subspace, subspace_mark)) {
+//            print_array(subspace.data(), subspace.size());
+//            printf("subspace of\n");
+//            print_array(subspace_mark.data(), subspace_mark.size());
 
             vector<int> clustering_mark = subspace_clustering.second;
             map<int, int> cluster_sizes;
@@ -4026,7 +4037,11 @@ bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, v
                     size < min_size) {//todo this min size should only be for clusters covering the region in question
                     min_size = size;
                 }
+//                printf("size:%d\n", min_size);
+
             }
+
+//            printf("min_size:%d\n", min_size);
 
             // find the maximum minimum size for each subspace
             if (min_size > max_min_size) {
@@ -4034,11 +4049,18 @@ bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, v
                 max_min_subspace = subspace_mark;
             }
         }
+//        else {
+//            print_array(subspace.data(), subspace.size());
+//            printf("not subspace of\n");
+//            print_array(subspace_mark.data(), subspace_mark.size());
+//        }
+//        printf("max_min_size:%d\n", max_min_size);
     }
 
     if (max_min_size == 0) {
         return true;
     }
+//    printf("did it get to here?");
 
     return this->number_of_points * r > max_min_size * 1.;
 }
@@ -4094,6 +4116,26 @@ void compute_is_weak_dense_prune(int *d_is_dense, int *d_neighborhoods, int *d_n
         float a = alpha_prune_gpu(d, neighborhood_size, n);
         float w = omega_prune_gpu(d);
         d_is_dense[i] = p >= max(F * a, num_obj * w) ? 1 : 0;
+    }
+}
+
+
+__global__
+void compute_is_weak_dense_rectangular_prune(int *d_is_dense, int *d_neighborhoods, int *d_neighborhood_end,
+                                             int *d_points, int number_of_points,
+                                             int *subspace, int subspace_size,
+                                             float *X, int n, int d, float F, int num_obj,
+                                             float neighborhood_size) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < number_of_points) {
+
+        int p_id = d_points[i];
+
+        int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
+        int neighbor_count = d_neighborhood_end[p_id] - offset;
+        float a = expDen_prune_gpu(d, neighborhood_size, n);
+        d_is_dense[i] = neighbor_count >= max(F * a, (float) num_obj);
+//        printf("GPU size_of_neighborhood:%d, max:%f\n", neighbor_count, max(F * a, (float) num_obj));
     }
 }
 
@@ -4303,7 +4345,8 @@ void update_dim_start(int *d_new_indices, int *d_dim_start, int number_of_dims) 
 
 bool
 ScyTreeArray::pruneRecursionAndRemove_gpu3(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
-                                           int num_obj, int *d_neighborhoods, int *d_neighborhood_end) {
+                                           int num_obj, int *d_neighborhoods, int *d_neighborhood_end,
+                                           bool rectangular) {
 
 
     if (this->number_of_points < min_size) {
@@ -4321,14 +4364,28 @@ ScyTreeArray::pruneRecursionAndRemove_gpu3(int min_size, float *d_X, int n, int 
     cudaMalloc(&d_new_indices, sizeof(int) * this->number_of_points);
     cudaMemset(d_new_indices, 0, sizeof(int) * this->number_of_points);
 
-    compute_is_weak_dense_prune <<< blocks_points, min(512, this->number_of_points) >>>(d_is_dense, d_neighborhoods,
-                                                                                        d_neighborhood_end,
-                                                                                        this->d_points,
-                                                                                        this->number_of_points,
-                                                                                        this->d_restricted_dims,
-                                                                                        this->number_of_restricted_dims,
-                                                                                        d_X, n, d,
-                                                                                        F, num_obj, neighborhood_size);
+    if (rectangular) {
+        compute_is_weak_dense_rectangular_prune <<< blocks_points, min(512, this->number_of_points) >>>(d_is_dense,
+                                                                                                        d_neighborhoods,
+                                                                                                        d_neighborhood_end,
+                                                                                                        this->d_points,
+                                                                                                        this->number_of_points,
+                                                                                                        this->d_restricted_dims,
+                                                                                                        this->number_of_restricted_dims,
+                                                                                                        d_X, n, d,
+                                                                                                        F, num_obj,
+                                                                                                        neighborhood_size);
+    } else {
+        compute_is_weak_dense_prune <<< blocks_points, min(512, this->number_of_points) >>>(d_is_dense, d_neighborhoods,
+                                                                                            d_neighborhood_end,
+                                                                                            this->d_points,
+                                                                                            this->number_of_points,
+                                                                                            this->d_restricted_dims,
+                                                                                            this->number_of_restricted_dims,
+                                                                                            d_X, n, d,
+                                                                                            F, num_obj,
+                                                                                            neighborhood_size);
+    }
     cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
@@ -4486,6 +4543,11 @@ ScyTreeArray::pruneRecursionAndRemove_gpu3(int min_size, float *d_X, int n, int 
     cudaFree(d_is_included);
     cudaFree(d_new_indices);
     cudaFree(d_has_child);
+
+
+//    if(this->number_of_points < min_size && this->number_of_points >= min_size - 1){
+//        printf("hep!\n");
+//    }
 
     return this->number_of_points >= min_size;
 }

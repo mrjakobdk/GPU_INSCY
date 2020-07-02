@@ -42,6 +42,6 @@ void ClusteringGPUAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, TmpMa
 void ClusteringGPUReAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, TmpMalloc *tmps, int *d_clustering,
                         ScyTreeArray *scy_tree, float *d_X, int n, int d,
                         float neighborhood_size, float F,
-                        int num_obj);
+                        int num_obj, bool rectangular);
 
 #endif //GPU_INSCY_CLUSTERINGGPU_CUH

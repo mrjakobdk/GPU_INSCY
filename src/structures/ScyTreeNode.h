@@ -60,7 +60,7 @@ public:
                                  int *subspace, int subspace_size, float F, int num_obj, int n, int d);
 
     bool pruneRecursionAndRemove2(int min_size, ScyTreeNode *neighborhood_tree, at::Tensor X, float neighborhood_size,
-                                 int *subspace, int subspace_size, float F, int num_obj, int n, int d);
+                                 int *subspace, int subspace_size, float F, int num_obj, int n, int d, bool rectangular);
 
     bool pruneRedundancy(float r, map<vector<int>, vector<int>, vec_cmp> max_number_of_previous_clustered_points);
 
@@ -68,7 +68,7 @@ public:
 
     vector<int> get_points();
 
-    void get_leafs(shared_ptr<Node> node, vector<shared_ptr<Node>> &leafs);
+    void get_leafs(shared_ptr<Node> &node, vector<shared_ptr<Node>> &leafs);
 
     ScyTreeNode();
 

@@ -85,9 +85,10 @@ INSCYCPU2(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, i
 }
 
 void
-INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size, float F,
-          int num_obj, int min_size, map <vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
-          int d, float r, int &calls) {
+INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size,
+              float F,
+              int num_obj, int min_size, map <vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
+              int d, float r, int &calls) {
 
     int total_inscy = pow(2, d);
     printf("INSCYCPU2Weak(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
@@ -117,19 +118,20 @@ INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 
             //pruneRecursion(restricted-tree); //prune sparse regions
             if (restricted_scy_tree->pruneRecursionAndRemove(min_size, neighborhood_tree, X, neighborhood_size,
-                                                    restricted_scy_tree->restricted_dims,
-                                                    restricted_scy_tree->number_of_restricted_dims, F,
-                                                    num_obj, n, d)) {
+                                                             restricted_scy_tree->restricted_dims,
+                                                             restricted_scy_tree->number_of_restricted_dims, F,
+                                                             num_obj, n, d)) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 map <vector<int>, vector<int>, vec_cmp> sub_result;
                 INSCYCPU2Weak(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
-                          F, num_obj, min_size, sub_result,
-                          dim_no + 1, d, r, calls);
+                              F, num_obj, min_size, sub_result,
+                              dim_no + 1, d, r, calls);
                 result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                if (restricted_scy_tree->pruneRedundancy(r, result)) {//todo should it be result or sub_result? is sub_result enough or do we need more? -i think we need the hole result...
+                if (restricted_scy_tree->pruneRedundancy(r,
+                                                         result)) {//todo should it be result or sub_result? is sub_result enough or do we need more? -i think we need the hole result...
 
                     //result := DBClustering(restricted-tree) ∪ result;
 //                    int idx = restricted_scy_tree->get_dims_idx();
@@ -138,8 +140,8 @@ INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 //                                                                         neighborhood_size, F,
 //                                                                         num_obj);
                     INSCYClusteringImplCPUAll(restricted_scy_tree, neighborhood_tree, X, n,
-                                           neighborhood_size, F,
-                                           num_obj, subspace_clustering, min_size, r, result);
+                                              neighborhood_size, F,
+                                              num_obj, subspace_clustering, min_size, r, result, false);
 
                 }
             }
@@ -155,15 +157,19 @@ INSCYCPU2Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 }
 
 void
-INSCYCPU3Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size, float F,
+INSCYCPU3Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor X, int n, float neighborhood_size,
+              float F,
               int num_obj, int min_size, map <vector<int>, vector<int>, vec_cmp> &result, int first_dim_no,
-              int d, float r, int &calls) {
+              int d, float r, int &calls, bool rectangular) {
 
+    calls++;
     int total_inscy = pow(2, d);
     printf("INSCYCPU3Weak(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
 
+//    printf("\nsubspace: %d\n", scy_tree->number_of_points);
+//    print_array(scy_tree->restricted_dims, scy_tree->number_of_restricted_dims);
+
     int dim_no = first_dim_no;
-    calls++;
     while (dim_no < d) {
         int cell_no = 0;
 
@@ -184,22 +190,26 @@ INSCYCPU3Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
             //updates cell_no if merged with neighbors
             restricted_scy_tree->mergeWithNeighbors(scy_tree, dim_no, cell_no);
 
-
+            int before = restricted_scy_tree->number_of_points;
             //pruneRecursion(restricted-tree); //prune sparse regions
             if (restricted_scy_tree->pruneRecursionAndRemove2(min_size, neighborhood_tree, X, neighborhood_size,
-                                                             restricted_scy_tree->restricted_dims,
-                                                             restricted_scy_tree->number_of_restricted_dims, F,
-                                                             num_obj, n, d)) {
+                                                              restricted_scy_tree->restricted_dims,
+                                                              restricted_scy_tree->number_of_restricted_dims, F,
+                                                              num_obj, n, d, rectangular)) {
+//                if (before != restricted_scy_tree->number_of_points) {
+//                    printf("it did change: before:%d, after:%d\n", before, restricted_scy_tree->number_of_points);
+//                }
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
                 map <vector<int>, vector<int>, vec_cmp> sub_result;
                 INSCYCPU3Weak(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
                               F, num_obj, min_size, sub_result,
-                              dim_no + 1, d, r, calls);
+                              dim_no + 1, d, r, calls, rectangular);
                 result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-                if (restricted_scy_tree->pruneRedundancy(r, result)) {//todo should it be result or sub_result? is sub_result enough or do we need more? -i think we need the hole result...
+                if (restricted_scy_tree->pruneRedundancy(r,
+                                                         result)) {//todo should it be result or sub_result? is sub_result enough or do we need more? -i think we need the hole result...
 
                     //result := DBClustering(restricted-tree) ∪ result;
 //                    int idx = restricted_scy_tree->get_dims_idx();
@@ -209,7 +219,7 @@ INSCYCPU3Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 //                                                                         num_obj);
                     INSCYClusteringImplCPUAll(restricted_scy_tree, neighborhood_tree, X, n,
                                               neighborhood_size, F,
-                                              num_obj, subspace_clustering, min_size, r, result);
+                                              num_obj, subspace_clustering, min_size, r, result, rectangular);
 
                 }
             }
