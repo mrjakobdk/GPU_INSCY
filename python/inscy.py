@@ -2,6 +2,7 @@ from torch.utils.cpp_extension import load
 import numpy as np
 import torch
 import time
+import os
 
 t0 = time.time()
 print("Compiling our c++/cuda code, this usually takes 1-2 min. ")
@@ -101,7 +102,7 @@ def count_number_of_clusters(subspaces, clusterings):
                     bins[cluster] = 1
         for bin in bins.keys():
             bin_size = bins[bin]
-            if bin_size>0:
+            if bin_size > 0:
                 count += 1
     return count
 
@@ -116,9 +117,13 @@ def run_cpu_weak(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cel
     subspaces, clusterings = inscy.run_cpu_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
     return subspaces, clusterings
 
-def run_cpu3_weak(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False):
-    subspaces, clusterings = inscy.run_cpu3_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells, rectangular)
+
+def CPU(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False,
+        entropy_order=0):
+    subspaces, clusterings = inscy.run_cpu3_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells,
+                                                 rectangular, entropy_order)
     return subspaces, clusterings
+
 
 def run_gpu_reduced(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_reduced(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
@@ -147,9 +152,11 @@ def run_gpu(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3)
     # return clean_up(subspaces, clusterings, min_size)
     return subspaces, clusterings
 
+
 def run_gpu_weak(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
     return subspaces, clusterings
+
 
 def run_gpu_multi(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_multi(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
@@ -167,11 +174,14 @@ def run_gpu_multi2_cl_all(X, neighborhood_size, F, num_obj, min_size, r=1., numb
 
 
 def run_gpu_multi2_cl_re_all(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
-    subspaces, clusterings = inscy.run_gpu_multi2_cl_re_all(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells)
+    subspaces, clusterings = inscy.run_gpu_multi2_cl_re_all(X, neighborhood_size, F, num_obj, min_size, r,
+                                                            number_of_cells)
     return subspaces, clusterings
 
-def run_gpu_multi3_weak(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False):
-    subspaces, clusterings = inscy.run_gpu_multi3_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells, rectangular)
+
+def GPU(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False, entropy_order=0):
+    subspaces, clusterings = inscy.run_gpu_multi3_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells,
+                                                       rectangular, entropy_order)
     return subspaces, clusterings
 
 
@@ -180,9 +190,10 @@ def run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r=1., nu
                                                            number_of_cells)
     return subspaces, clusterings
 
+
 def run_gpu_multi2_cl_multi_mem(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_multi2_cl_multi_mem(X, neighborhood_size, F, num_obj, min_size, r,
-                                                           number_of_cells)
+                                                               number_of_cells)
     return subspaces, clusterings
 
 
@@ -195,19 +206,22 @@ def run_gpu_stream(X, neighborhood_size, F, num_obj, min_size, number_of_cells=3
 def load_glove(n_max, d_max):
     return inscy.load_glove(n_max, d_max)
 
-def load_synt(name=None):
-    d = []
-    with open('data/synt/'+name+'.dat', 'r') as fp:
-        line = fp.readline()
-        for cnt, line in enumerate(fp):
-            d.append([float(value) for value in line.split(' ')])
-    return normalize(torch.tensor(d))
 
-def load_synt5(name=None):
-    print("synt5")
+def load_synt(d, n, cl, re):
+    name = "data_d" + str(d) + "_n" + str(n) + "_cl" + str(cl) + "_re" + str(re)
+
+    file = 'data/' + name + '.dat'
+
+    if not os.path.isfile(file):
+        print("generating new data set")
+        os.system("data/cluster_generator -n" + str(n) + " -d" + str(d) + " -k" + str(int(0.8 * d))
+                  + " -m" + str(cl) + " -f" + str(0.99) + " " + file)
+
+    print("loading data set...")
     d = []
-    with open('data/synt5/'+name+'.dat', 'r') as fp:
+    with open(file, 'r') as fp:
         line = fp.readline()
         for cnt, line in enumerate(fp):
             d.append([float(value) for value in line.split(' ')])
+    print("data set loaded!")
     return normalize(torch.tensor(d))

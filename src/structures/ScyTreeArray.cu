@@ -26,24 +26,6 @@ void CUDA_SAFE_CALL(cudaError_t call) {
         case cudaSuccess:
             //              printf("Success\n");
             break;
-            /*      case cudaErrorInvalidValue:
-                                    {
-                                    printf("ERROR: InvalidValue:%i.\n",__LINE__);
-                                    exit(-1);
-                                    break;
-                                    }
-                    case cudaErrorInvalidDevicePointer:
-                                    {
-                                    printf("ERROR:Invalid Device pointeri:%i.\n",__LINE__);
-                                    exit(-1);
-                                    break;
-                                    }
-                    case cudaErrorInvalidMemcpyDirection:
-                                    {
-                                    printf("ERROR:Invalid memcpy direction:%i.\n",__LINE__);
-                                    exit(-1);
-                                    break;
-                                    }                       */
         default: {
             printf(" ERROR at line :%i.%d' ' %s\n", __LINE__, ret, cudaGetErrorString(ret));
             exit(-1);

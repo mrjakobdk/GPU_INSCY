@@ -3,6 +3,7 @@
 //
 #include <ATen/ATen.h>
 #include <torch/extension.h>
+#include <bits/stdc++.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -12,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <bitset>
+#include <bits/stdc++.h>
 
 #include "src/utils/util_data.h"
 #include "src/utils/util.h"
@@ -35,6 +37,88 @@
 using namespace std;
 
 #define BLOCK_SIZE 512
+
+void pairsort(float a[], int b[], int n) {
+    pair<float, int> pairt[n];
+
+    // Storing the respective array
+    // elements in pairs.
+    for (int i = 0; i < n; i++) {
+        pairt[i].first = a[i];
+        pairt[i].second = b[i];
+    }
+
+    // Sorting the pair array.
+    sort(pairt, pairt + n);
+
+    // Modifying original arrays
+    for (int i = 0; i < n; i++) {
+        a[i] = pairt[i].first;
+        b[i] = pairt[i].second;
+    }
+}
+
+int *get_subspace_order(at::Tensor X, int n, int d, int number_of_cells, int entropy_order) {
+
+    int *subspace = new int[d];
+
+    for (int i = 0; i < d; i++) {
+        subspace[i] = i;
+    }
+    if (entropy_order != 0) {
+        float entropy[d];
+        int count[d][number_of_cells];
+
+        for (int i = 0; i < d; i++) {
+            for (int j = 0; j < number_of_cells; j++) {
+                count[i][j] = 0;
+            }
+        }
+
+        float v = 1.;
+        float cell_size = v / number_of_cells;
+
+        for (int i = 0; i < n; i++) {
+            float *x_i = X[i].data_ptr<float>();
+            for (int j = 0; j < d; j++) {
+                float x_ij = x_i[j];
+                int cell_no = min(int(x_ij / cell_size), number_of_cells - 1);
+                count[j][cell_no] += 1;
+            }
+        }
+
+
+        for (int i = 0; i < d; i++) {
+            entropy[i] = 0;
+            for (int j = 0; j < number_of_cells; j++) {
+                float p = ((float) count[i][j]) / ((float) n);
+                entropy[i] -= p * log(p);
+            }
+        }
+
+        pairsort(entropy, subspace, d);
+
+        if (entropy_order == -1) {
+            int start = 0;
+            int end = d - 1;
+            while (start < end) {
+                int temp = subspace[start];
+                subspace[start] = subspace[end];
+                subspace[end] = temp;
+                float tmp = entropy[start];
+                entropy[start] = entropy[end];
+                entropy[end] = tmp;
+                start++;
+                end--;
+            }
+        }
+        printf("entropy:");
+        print_array(entropy, d);
+        printf("subspace:");
+        print_array(subspace, d);
+    }
+    return subspace;
+}
 
 vector<vector<vector<int>>>
 run_cpu(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells) {
@@ -122,7 +206,7 @@ run_cpu_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int mi
 
     int calls = 0;
     INSCYCPU2Weak(scy_tree, neighborhood_tree, X, n, neighborhood_size, F, num_obj, min_size,
-              result, 0, d, r, calls);
+                  result, 0, d, r, calls);
     printf("INSCYCPU2Weak(%d): 100%%      \n", calls);
 
     vector<vector<vector<int>>> tuple;
@@ -145,18 +229,15 @@ run_cpu_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int mi
 }
 
 vector<vector<vector<int>>>
-run_cpu3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells, bool rectangular) {
+run_cpu3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r, int number_of_cells,
+              bool rectangular, int entropy_order) {
 
     //int number_of_cells = 3;
     int n = X.size(0);
     int d = X.size(1);
 
 
-    int *subspace = new int[d];
-
-    for (int i = 0; i < d; i++) {
-        subspace[i] = i;
-    }
+    int *subspace = get_subspace_order(X, n, d, number_of_cells, entropy_order);
 
     ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, d, n, neighborhood_size);
 //    scy_tree->print();
@@ -188,7 +269,6 @@ run_cpu3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int m
 
     return tuple;
 }
-
 
 
 vector<at::Tensor>
@@ -818,20 +898,14 @@ run_gpu_multi2_cl_re_all(at::Tensor X, float neighborhood_size, float F, int num
 
 vector<vector<vector<int>>>
 run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
-                         int number_of_cells, bool rectangular) {
+                    int number_of_cells, bool rectangular, int entropy_order) {
     nvtxRangePushA("run_gpu_multi3_weak");
 
     //int number_of_cells = 3;
     int n = X.size(0);
     int subspace_size = X.size(1);
 
-
-    int *subspace = new int[subspace_size];
-
-    for (int i = 0; i < subspace_size; i++) {
-        subspace[i] = i;
-    }
-
+    int *subspace = get_subspace_order(X, n, subspace_size, number_of_cells, entropy_order);
 
     nvtxRangePushA("copy X to device");
     float *d_X = copy_to_device(X, n, subspace_size);
@@ -863,8 +937,8 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
     int *d_neighborhood_end;
 
     InscyArrayGpuMulti3Weak(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
-                             neighborhood_size, F, num_obj, min_size,
-                             result, 0, subspace_size, r, calls, rectangular);
+                            neighborhood_size, F, num_obj, min_size,
+                            result, 0, subspace_size, r, calls, rectangular);
     delete tmps;
     cudaFree(d_X);
     delete scy_tree_gpu;
@@ -898,7 +972,7 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
 
 vector<vector<vector<int>>>
 run_gpu_reduced(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
-                         int number_of_cells) {
+                int number_of_cells) {
     nvtxRangePushA("run_gpu_reduced");
 
     //int number_of_cells = 3;
@@ -922,9 +996,11 @@ run_gpu_reduced(at::Tensor X, float neighborhood_size, float F, int num_obj, int
 //    printf("GPU-INSCY(Building ScyTree...): 0%%      \n");
 
 
-    ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), subspace_size, n, neighborhood_size);
+    ScyTreeNode *neighborhood_tree = new ScyTreeNode(X, subspace, ceil(1. / neighborhood_size), subspace_size, n,
+                                                     neighborhood_size);
 
-    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size, neighborhood_tree, F, num_obj);
+    ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size,
+                                            neighborhood_tree, F, num_obj);
 
     map<vector<int>, vector<int>, vec_cmp> result;
 
@@ -982,7 +1058,7 @@ run_gpu_reduced(at::Tensor X, float neighborhood_size, float F, int num_obj, int
 
 vector<vector<vector<int>>>
 run_gpu_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
-                         int number_of_cells) {
+             int number_of_cells) {
     nvtxRangePushA("InscyArrayGpuMulti2Weak");
 
     //int number_of_cells = 3;
@@ -1027,8 +1103,8 @@ run_gpu_weak(at::Tensor X, float neighborhood_size, float F, int num_obj, int mi
     int *d_neighborhood_end;
 
     InscyArrayGpuMulti2Weak(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
-                             neighborhood_size, F, num_obj, min_size,
-                             result, 0, subspace_size, r, calls);
+                            neighborhood_size, F, num_obj, min_size,
+                            result, 0, subspace_size, r, calls);
     delete tmps;
     cudaFree(d_X);
     delete scy_tree_gpu;
