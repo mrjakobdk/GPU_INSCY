@@ -88,7 +88,12 @@ struct vec_cmp : public std::binary_function<vector<int>, vector<int>, bool> {
 };
 
 
-void join(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, vector<int> subspace, int min_size, float r);
+void join(map<vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, vector<int> subspace, int min_size,
+          float r);
+
+void
+join_gpu(map<vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, int *d_clustering, vector<int> subspace, int min_size,
+         float r, int n);
 
 
 #endif //CUDATEST_UTIL_H

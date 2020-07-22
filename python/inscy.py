@@ -179,8 +179,15 @@ def run_gpu_multi2_cl_re_all(X, neighborhood_size, F, num_obj, min_size, r=1., n
     return subspaces, clusterings
 
 
-def GPU(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False, entropy_order=0):
+def GPU3(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False, entropy_order=0):
     subspaces, clusterings = inscy.run_gpu_multi3_weak(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells,
+                                                       rectangular, entropy_order)
+    return subspaces, clusterings
+
+
+
+def GPU(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False, entropy_order=0):
+    subspaces, clusterings = inscy.run_gpu_4(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells,
                                                        rectangular, entropy_order)
     return subspaces, clusterings
 

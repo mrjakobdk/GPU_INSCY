@@ -112,6 +112,8 @@ public:
 
     bool pruneRedundancy_gpu(float r, map<vector<int>, vector<int>, vec_cmp> result);
 
+//    bool pruneRedundancy_gpu2(float r, map<vector<int>, vector<int>, vec_cmp> result);
+
     int get_lvl_size(int dim_i);
 
     void copy_to_host();
