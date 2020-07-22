@@ -117,6 +117,7 @@ for n in params["n"]:
                                               "n", n, "d", d, "c", c, "N_size", N_size, "F", F, "r", r,
                                               "num_obj", num_obj, "min_size", min_size, "order", order)
                                         times = []
+                                        no_clusters = []
                                         for i in range(repeats):
                                             X = INSCY.load_synt(d, n, real_no_clusters, i)
 
@@ -129,5 +130,5 @@ for n in params["n"]:
                                             times.append(t)
                                             print("Finished " + name + ", took: %.4fs" % (time.time() - t0), i + 1, "/",
                                                   repeats)
-                                        no_clusters = INSCY.count_number_of_clusters(subspaces, clusterings)
+                                            no_clusters.append(INSCY.count_number_of_clusters(subspaces, clusterings))
                                         np.savez(run_file, times=times, no_clusters=no_clusters)
