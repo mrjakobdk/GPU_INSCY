@@ -919,7 +919,7 @@ void find_neighborhoods_re(int *d_neighborhoods, int *d_neighborhood_end,
                                                                   restricted_scy_tree->number_of_points,
                                                                   restricted_scy_tree->d_restricted_dims,
                                                                   restricted_scy_tree->number_of_restricted_dims);
-            cudaDeviceSynchronize();
+//            cudaDeviceSynchronize();
             gpuErrchk(cudaPeekAtLastError());
 
             inclusive_scan(d_new_neighborhood_sizes, d_new_neighborhood_end, n);
@@ -1306,7 +1306,7 @@ void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
     if (number_of_points % BLOCK_SIZE) number_of_blocks++;
     int number_of_threads = min(number_of_points, BLOCK_SIZE);
 
-    cudaDeviceSynchronize();
+//    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
     if (rectangular) {
@@ -1322,7 +1322,7 @@ void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
     }
 
 
-    cudaDeviceSynchronize();
+//    cudaDeviceSynchronize();
     gpuErrchk(cudaPeekAtLastError());
 
 //    disjoint_set_clustering_re_all_1<<< 1, number_of_threads >> >
