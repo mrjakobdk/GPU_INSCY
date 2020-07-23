@@ -972,7 +972,7 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
 
 vector<vector<vector<int>>>
 run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
-                    int number_of_cells, bool rectangular, int entropy_order) {
+          int number_of_cells, bool rectangular, int entropy_order) {
     nvtxRangePushA("run_gpu_multi3_weak");
 
     //int number_of_cells = 3;
@@ -990,7 +990,7 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
 //    printf("GPU-INSCY(Building ScyTree...): 0%%      \n");
     ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size);
 
-    map<vector<int>, vector<int>, vec_cmp> result;
+    map<vector<int>, int *, vec_cmp> result;
 
     int calls = 0;
 //    scy_tree->print();
@@ -1011,8 +1011,8 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
     int *d_neighborhood_end;
 
     InscyArrayGpu4(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
-                            neighborhood_size, F, num_obj, min_size,
-                            result, 0, subspace_size, r, calls, rectangular);
+                   neighborhood_size, F, num_obj, min_size,
+                   result, 0, subspace_size, r, calls, rectangular);
     delete tmps;
     cudaFree(d_X);
     delete scy_tree_gpu;
@@ -1020,7 +1020,7 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
     cudaDeviceSynchronize();
 
     nvtxRangePushA("saving result");
-    printf("InscyArrayGpuMulti3Weak(%d): 100%%      \n", calls);
+    printf("InscyArrayGpu4(%d): 100%%      \n", calls);
 
     vector<vector<vector<int>>> tuple;
     vector<vector<int>> subspaces(result.size());
@@ -1030,7 +1030,9 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
     for (auto p : result) {
         vector<int> dims = p.first;
         subspaces[j] = dims;
-        vector<int> clustering = p.second;
+        int *d_clustering = p.second;
+        vector<int> clustering(n);
+        cudaMemcpy(clustering.data(), d_clustering, n * sizeof(int), cudaMemcpyDeviceToHost);
         clusterings[j] = clustering;
         j++;
     }

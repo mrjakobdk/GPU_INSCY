@@ -112,7 +112,9 @@ public:
 
     bool pruneRedundancy_gpu(float r, map<vector<int>, vector<int>, vec_cmp> result);
 
-    bool pruneRedundancy_gpu2(float r, map<vector<int>, vector<int>, vec_cmp> result, int n);
+    bool pruneRedundancy_gpu1(float r, map<vector<int>, vector<int>, vec_cmp> result, int n);
+
+    bool pruneRedundancy_gpu2(float r, map<vector<int>, int *, vec_cmp> result, int n, TmpMalloc *tmps);
 
     int get_lvl_size(int dim_i);
 

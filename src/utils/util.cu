@@ -6,7 +6,8 @@
 
 #include <ATen/ATen.h>
 #include <torch/extension.h>
-
+#include "nvToolsExt.h"
+#include "TmpMalloc.cuh"
 
 #define SECTION_SIZE 64
 #define SECTION_SIZE_LARGE 512
@@ -499,7 +500,7 @@ float v_max(std::vector<float> v) {
 }
 
 int v_max(std::vector<int> v) {
-    int max = -100000.;//todo not good
+    int max = -100000;//todo not good
     for (int i = 0; i < v.size(); i++) {
         if (v[i] > max) {
             max = v[i];
@@ -737,15 +738,108 @@ void join_remove_kernel(int *d_to_be_removed, int *d_sizes, int *d_clustering, i
     }
 }
 
-void
-join_gpu(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, int *d_clustering,
-         vector<int> subspace, int min_size,
-         float r, int n) {
+__global__
+void copy_if_positive(int *d_clustering_old, int *d_clustering, int n) {
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n; i += blockDim.x * gridDim.x) {
+        if (d_clustering[i] >=0) {
+            d_clustering_old[i] = d_clustering[i];
+        }
+    }
+}
 
-//    int clustering_max = v_max(clustering);
-//    if (clustering_max < 0) {
-//        return;
-//    }
+__global__
+void v_max_gpu_kernel(int *d_max, int *d_array, int n) {
+    for (int i = threadIdx.x; i < n; i += blockDim.x) {
+        atomicMax(&d_max[0], d_array[i]);
+    }
+}
+
+int v_max_gpu(int *d_array, int n) {
+    int BLOCK_SIZE = 512;
+    int number_of_threads = min(n, BLOCK_SIZE);
+
+    int *d_max;
+    cudaMalloc(&d_max, sizeof(int));
+    cudaMemset(d_max, -1, sizeof(int));
+
+    v_max_gpu_kernel << < 1, number_of_threads >> > (d_max, d_array, n);
+
+    int h_max;
+    cudaMemcpy(&h_max, d_max, sizeof(int), cudaMemcpyDeviceToHost);
+    return h_max;
+}
+
+void
+join_gpu(map<vector<int>, int *, vec_cmp> &result, int *d_clustering,
+         vector<int> subspace, int min_size, float r, int n, TmpMalloc *tmps) {
+    tmps->reset_counters();
+
+    int BLOCK_SIZE = 512;
+    int number_of_blocks = n / BLOCK_SIZE;
+    if (n % BLOCK_SIZE) number_of_blocks++;
+    int number_of_threads = min(n, BLOCK_SIZE);
+
+    int *d_sizes = tmps->get_int_array(tmps->int_array_counter++, n);
+//    cudaMalloc(&d_sizes, n * sizeof(int));
+    cudaMemset(d_sizes, 0, n * sizeof(int));
+
+    join_count_kernel << < 1, number_of_threads >> > (d_sizes, d_clustering, n);
+
+    join_erease_kernel << < number_of_blocks, number_of_threads >> > (d_sizes, d_clustering, n, min_size);
+
+
+    int *d_clustering_H;
+    int *d_sizes_H = tmps->get_int_array(tmps->int_array_counter++, n);
+//    cudaMalloc(&d_sizes_H, n * sizeof(int));
+    int *d_to_be_removed = tmps->get_int_array(tmps->int_array_counter++, n);
+//    cudaMalloc(&d_to_be_removed, n * sizeof(int));
+
+    for (pair<vector<int>, int *> subspace_clustering : result) {
+
+        vector<int> subspace_H = subspace_clustering.first;
+        d_clustering_H = subspace_clustering.second;
+
+
+        nvtxRangePushA("subspace_of");
+        bool sub_of = subspace_of(subspace, subspace_H);
+        nvtxRangePop();
+        if (sub_of) {
+
+            cudaMemset(d_sizes_H, 0, n * sizeof(int));
+            cudaMemset(d_to_be_removed, 0, n * sizeof(int));
+
+            join_count_kernel << < 1, number_of_threads >> > (d_sizes_H, d_clustering_H, n);
+
+            join_marke_remove_kernel << < number_of_blocks, number_of_threads >> >
+                                                            (d_to_be_removed, d_sizes, d_clustering, d_sizes_H, d_clustering_H, n, r);
+
+            join_remove_kernel << < number_of_blocks, number_of_threads >> >
+                                                      (d_to_be_removed, d_sizes, d_clustering, n);
+        }
+    }
+
+
+    int clustering_max = v_max_gpu(d_clustering, n);
+    if (clustering_max >= 0) {
+        if (result.count(subspace)) {
+            int *d_clustering_old = result[subspace];
+
+            copy_if_positive << < number_of_blocks, number_of_threads >> > (d_clustering_old, d_clustering, n);
+            cudaFree(d_clustering);
+
+            result[subspace] = d_clustering_old;
+        } else {
+            result.insert(pair < vector < int > , int * > (subspace, d_clustering));
+        }
+    } else {
+        cudaFree(d_clustering);
+    }
+}
+
+void
+join_gpu1(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, int *d_clustering,
+          vector<int> subspace, int min_size,
+          float r, int n) {
 
     int BLOCK_SIZE = 512;
     int number_of_blocks = n / BLOCK_SIZE;
@@ -756,43 +850,11 @@ join_gpu(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clusterin
     cudaMalloc(&d_sizes, n * sizeof(int));
     cudaMemset(d_sizes, 0, n * sizeof(int));
 
-//    int *d_clustering;
-//    cudaMalloc(&d_clustering, n * sizeof(int));
-//    cudaMemcpy(d_clustering, clustering.data(), n * sizeof(int), cudaMemcpyHostToDevice);
-
-
-//    map<int, int> sizes;
-//
-//    for (int i = 0; i < n; i++) {
-//        int cluster = clustering[i];
-//        if (cluster >= 0) {
-//            if (sizes.count(cluster)) {
-//                sizes[cluster]++;
-//            } else {
-//                sizes.insert(pair<int, int>(cluster, 1));
-//            }
-//        }
-//    }
     join_count_kernel << < 1, number_of_threads >> > (d_sizes, d_clustering, n);
 
-
-//    for (int i = 0; i < n; i++) {
-//        int cluster = clustering[i];
-//        if (cluster >= 0 && sizes[cluster] < min_size) {
-//            clustering[i] = -1;
-//        }
-//    }
     join_erease_kernel << < number_of_blocks, number_of_threads >> > (d_sizes, d_clustering, n, min_size);
 
-
-
-//    vector<int> subspace_R(scy_tree->restricted_dims, scy_tree->restricted_dims +
-//                                                      scy_tree->number_of_restricted_dims);
-
-
     int *d_subspace_H;
-//    cudaMalloc(&d_subspace_H, d * sizeof(int));
-
     int *d_clustering_H;
     cudaMalloc(&d_clustering_H, n * sizeof(int));
 
@@ -805,7 +867,6 @@ join_gpu(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clusterin
     for (pair <vector<int>, vector<int>> subspace_clustering : result) {
 
         vector<int> subspace_H = subspace_clustering.first;
-//        cudaMemcpy(d_clustering, clustering.data(), n * sizeof(int), cudaMemcpyHostToDevice);
         vector<int> clustering_H = subspace_clustering.second;
         cudaMemcpy(d_clustering_H, clustering_H.data(), n * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -813,37 +874,12 @@ join_gpu(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clusterin
 
             cudaMemset(d_sizes_H, 0, n * sizeof(int));
             cudaMemset(d_to_be_removed, 0, n * sizeof(int));
-//            map<int, int> sizes_H;
-//            set<int> to_be_removed;
-//            for (int cluster_id: clustering_H) {//todo this seems a bit expensive?
-//                if (cluster_id >= 0) {
-//                    if (sizes_H.count(cluster_id)) {
-//                        sizes_H[cluster_id]++;
-//                    } else {
-//                        sizes_H.insert(pair<int, int>(cluster_id, 1));
-//                    }
-//                }
-//            }
+
             join_count_kernel << < 1, number_of_threads >> > (d_sizes_H, d_clustering_H, n);
 
-//            for (int i = 0; i < n; i++) {
-//                int cluster = clustering[i];
-//                int cluster_H = clustering_H[i];
-//                if (cluster >= 0 && cluster_H >= 0 && sizes[cluster] * r < sizes_H[cluster_H]) {
-//                    //subspace_clustering[i] = -1;//todo this could course problems - all points should be remove it a part of the cluster is covered by a large enough cluster.
-//                    to_be_removed.insert(cluster);
-//                }
-//            }
             join_marke_remove_kernel << < number_of_blocks, number_of_threads >> >
                                                             (d_to_be_removed, d_sizes, d_clustering, d_sizes_H, d_clustering_H, n, r);
 
-//            for (int i = 0; i < n; i++) {
-//                int cluster = clustering[i];
-//                if (cluster >= 0 &&
-//                    to_be_removed.find(cluster) != to_be_removed.end()) {//todo this seems a bit expensive to compute
-//                    clustering[i] = -1;
-//                }
-//            }
             join_remove_kernel << < number_of_blocks, number_of_threads >> >
                                                       (d_to_be_removed, d_sizes, d_clustering, n);
         }
@@ -851,14 +887,19 @@ join_gpu(map <vector<int>, vector<int>, vec_cmp> &result, vector<int> &clusterin
     cudaMemcpy(clustering.data(), d_clustering, n * sizeof(int), cudaMemcpyDeviceToHost);
 
     int clustering_max = v_max(clustering);
+    int clustering_max_other = v_max_gpu(d_clustering, n);
+    if (clustering_max != clustering_max_other)
+        printf("%d!=%d\n", clustering_max, clustering_max_other);
     if (clustering_max >= 0) {
         if (result.count(subspace)) {
             vector<int> clustering_old = result[subspace];
-            for (int i = 0; i < n; i++) {
-                if (clustering[i] >= 0) {
-                    clustering_old[i] = clustering[i];
-                }
-            }
+            int *d_clustering_old;
+            cudaMalloc(&d_clustering_old, n * sizeof(int));
+            cudaMemcpy(d_clustering_old, clustering_old.data(), n * sizeof(int), cudaMemcpyHostToDevice);
+
+            copy_if_positive << < number_of_blocks, number_of_threads >> > (d_clustering_old, d_clustering, n);
+            cudaMemcpy(clustering_old.data(), d_clustering_old, n * sizeof(int), cudaMemcpyDeviceToHost);
+
             result[subspace] = clustering_old;
         } else {
             result.insert(pair < vector < int > , vector < int >> (subspace, clustering));

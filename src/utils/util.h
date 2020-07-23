@@ -17,6 +17,8 @@
 
 using namespace std;
 
+class TmpMalloc;
+
 float *copy_to_device(vector<vector<float>> X, int number_of_points, int number_of_dims);
 
 float *copy_to_device(at::Tensor X, int number_of_points, int number_of_dims);
@@ -73,7 +75,10 @@ float v_min(std::vector<float> v);
 
 float v_max(std::vector<float> v);
 
+
 int v_max(std::vector<int> v);
+
+int v_max_gpu(int *d_array, int n);
 
 template<class T>
 vector<T> clone(vector<T> v_old);
@@ -92,7 +97,10 @@ void join(map<vector<int>, vector<int>, vec_cmp> &result, vector<int> &clusterin
           float r);
 
 void
-join_gpu(map<vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, int *d_clustering, vector<int> subspace, int min_size,
+join_gpu(map<vector<int>, int *, vec_cmp> &result, int *d_clustering, vector<int> subspace, int min_size,
+         float r, int n, TmpMalloc *tmps);
+
+void join_gpu1(map<vector<int>, vector<int>, vec_cmp> &result, vector<int> &clustering, int *d_clustering, vector<int> subspace, int min_size,
          float r, int n);
 
 

@@ -1289,6 +1289,7 @@ void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
                         ScyTreeArray *scy_tree, float *d_X, int n, int d,
                         float neighborhood_size, float F,
                         int num_obj, bool rectangular) {
+    tmps->reset_counters();
 
     if (scy_tree->number_of_points <= 0) return;
 

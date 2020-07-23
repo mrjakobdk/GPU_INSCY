@@ -201,11 +201,9 @@ INSCYCPU3Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
 //                }
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
-                map <vector<int>, vector<int>, vec_cmp> sub_result;
                 INSCYCPU3Weak(restricted_scy_tree, neighborhood_tree, X, n, neighborhood_size,
-                              F, num_obj, min_size, sub_result,
+                              F, num_obj, min_size, result,
                               dim_no + 1, d, r, calls, rectangular);
-                result.insert(sub_result.begin(), sub_result.end());
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 if (restricted_scy_tree->pruneRedundancy(r,
@@ -221,6 +219,8 @@ INSCYCPU3Weak(ScyTreeNode *scy_tree, ScyTreeNode *neighborhood_tree, at::Tensor 
                                               neighborhood_size, F,
                                               num_obj, subspace_clustering, min_size, r, result, rectangular);
 
+                } else {
+                    printf("pruned due to prune Redundancy\n");
                 }
             }
             delete restricted_scy_tree;

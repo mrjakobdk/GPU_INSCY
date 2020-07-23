@@ -4,6 +4,7 @@
 #include "../utils/util.h"
 #include "../utils/TmpMalloc.cuh"
 #include "../algorithms/clustering/ClusteringCpu.h"
+#include "nvToolsExt.h"
 //#include "../algorithms/clustering/ClusteringGpu.cuh"
 
 #define BLOCKSIZE 16
@@ -4053,6 +4054,7 @@ bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, v
 //        printf("max_min_size:%d\n", max_min_size);
     }
 
+//    printf("%d vs %d\n", max_min_size, this->number_of_points);
     if (max_min_size == 0) {
         return true;
     }
@@ -4087,18 +4089,90 @@ __global__
 void prune_min_cluster(int *d_min_size, int *d_cluster_to_use, int *d_sizes, int *d_clustering, int n) {
     for (int i = threadIdx.x; i < n; i += blockDim.x) {
         int size = d_sizes[i];
-        int cluster_id = d_clustering[i];
-        if (d_cluster_to_use[cluster_id]) {
+        if (d_cluster_to_use[i]) {
+            atomicCAS(&d_min_size[0], -1, size);
             atomicMin(&d_min_size[0], size);
         }
     }
 }
 
-bool ScyTreeArray::pruneRedundancy_gpu2(float r, map <vector<int>, vector<int>, vec_cmp> result, int n) {
+bool ScyTreeArray::pruneRedundancy_gpu2(float r, map<vector<int>, int *, vec_cmp> result, int n, TmpMalloc *tmps) {
+
+
+    tmps->reset_counters();
+
     int number_of_blocks = n / BLOCK_SIZE;
     if (n % BLOCK_SIZE) number_of_blocks++;
     int number_of_threads = min(n, BLOCK_SIZE);
 
+    int max_min_size = 0;
+
+    vector<int> subspace(this->h_restricted_dims, this->h_restricted_dims +
+                                                  this->number_of_restricted_dims);
+    vector<int> max_min_subspace;
+
+    int *d_clustering_H;
+//    cudaMalloc(&d_clustering_H, n * sizeof(int));
+
+    int *d_sizes_H = tmps->get_int_array(tmps->int_array_counter++, n);
+//    cudaMalloc(&d_sizes_H, n * sizeof(int));
+
+    int *d_cluster_to_use= tmps->get_int_array(tmps->int_array_counter++, n);
+//    cudaMalloc(&d_cluster_to_use, n * sizeof(int));
+
+    for (std::pair<vector<int>, int *> subspace_clustering : result) {
+
+        // find sizes of clusters
+        vector<int> subspace_mark = subspace_clustering.first;
+
+        if (subspace_of(subspace, subspace_mark)) {
+
+//            vector<int> clustering_H = subspace_clustering.second;
+//            cudaMemcpy(d_clustering_H, clustering_H.data(), n * sizeof(int), cudaMemcpyHostToDevice);
+            d_clustering_H = subspace_clustering.second;
+            cudaMemset(d_sizes_H, 0, n * sizeof(int));
+            cudaMemset(d_cluster_to_use, 0, n * sizeof(int));
+            prune_count_kernel << < 1, number_of_threads >> > (d_sizes_H, d_clustering_H, n);
+
+            prune_to_use << < number_of_blocks, number_of_threads >> >
+                                                (d_cluster_to_use, d_clustering_H, d_points, this->number_of_points);
+
+            // find the minimum size for each subspace
+            int *d_min_size;
+            cudaMalloc(&d_min_size, sizeof(int));
+            cudaMemset(d_min_size, -1, sizeof(int));
+            int min_size;
+            prune_min_cluster << < 1, number_of_threads >> >
+                                      (d_min_size, d_cluster_to_use, d_sizes_H, d_clustering_H, n);
+            cudaMemcpy(&min_size, d_min_size, sizeof(int), cudaMemcpyDeviceToHost);
+//            print_array_gpu<< <1,1>>>(d_sizes_H, n);
+//            cudaDeviceSynchronize();
+//            print_array_gpu<< <1,1>>>(d_cluster_to_use, n);
+//            cudaDeviceSynchronize();
+//
+//            printf("min_size%d\n", min_size);
+
+            // find the maximum minimum size for each subspace
+            if (min_size > max_min_size) {
+                max_min_size = min_size;
+                max_min_subspace = subspace_mark;
+            }
+        }
+    }
+
+//    printf("%d vs %d\n", max_min_size, this->number_of_points);
+    if (max_min_size == 0) {
+        return true;
+    }
+
+    return this->number_of_points * r > max_min_size * 1.;
+}
+
+
+bool ScyTreeArray::pruneRedundancy_gpu1(float r, map <vector<int>, vector<int>, vec_cmp> result, int n) {
+    int number_of_blocks = n / BLOCK_SIZE;
+    if (n % BLOCK_SIZE) number_of_blocks++;
+    int number_of_threads = min(n, BLOCK_SIZE);
     int max_min_size = 0;
 
     vector<int> subspace(this->h_restricted_dims, this->h_restricted_dims +
@@ -4122,6 +4196,7 @@ bool ScyTreeArray::pruneRedundancy_gpu2(float r, map <vector<int>, vector<int>, 
 
             vector<int> clustering_H = subspace_clustering.second;
             cudaMemcpy(d_clustering_H, clustering_H.data(), n * sizeof(int), cudaMemcpyHostToDevice);
+
             cudaMemset(d_sizes_H, 0, n * sizeof(int));
             cudaMemset(d_cluster_to_use, 0, n * sizeof(int));
             prune_count_kernel << < 1, number_of_threads >> > (d_sizes_H, d_clustering_H, n);
@@ -4136,7 +4211,7 @@ bool ScyTreeArray::pruneRedundancy_gpu2(float r, map <vector<int>, vector<int>, 
             int min_size;
             prune_min_cluster << < 1, number_of_threads >> >
                                       (d_min_size, d_cluster_to_use, d_sizes_H, d_clustering_H, n);
-            cudaMemcpy(&min_size, d_min_size, 1, cudaMemcpyDeviceToHost);
+            cudaMemcpy(&min_size, d_min_size, sizeof(int), cudaMemcpyDeviceToHost);
 
             // find the maximum minimum size for each subspace
             if (min_size <= n) {
