@@ -5,13 +5,13 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params = {"n": 500,
+params = {"n": 5000,
           "neighborhood_size": 0.01,
           "F": 1.,
           "r": .2,
           "num_obj": 2,
           "min_size": 25,
-          "subspace_size": 5,
+          "subspace_size": 15,
           "number_of_cells": 5}
 
 print("Loading dataset...")
@@ -23,7 +23,7 @@ print("Finished loading dataset, took: %.4fs" % (time.time() - t0))
 print()
 X_ = X[:params["n"], :params["subspace_size"]].clone()
 t0 = time.time()
-subspaces, clusterings = INSCY.CPU(X_, params["neighborhood_size"], params["F"],
+subspaces, clusterings = INSCY.GPU(X_, params["neighborhood_size"], params["F"],
                                            params["num_obj"], params["min_size"], r=params["r"],
                                            number_of_cells=params["number_of_cells"], rectangular=True,
                                            entropy_order=0)

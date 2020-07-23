@@ -640,7 +640,8 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
                 nvtxRangePushA("pruneRedundancy");
-                bool pruneRedundancy = restricted_scy_tree->pruneRedundancy_gpu(r, result);
+//                bool pruneRedundancy = restricted_scy_tree->pruneRedundancy_gpu(r, result);
+                bool pruneRedundancy = restricted_scy_tree->pruneRedundancy_gpu2(r, result, n);
 //                pruneRecursion = true;
                 nvtxRangePop();
                 if (pruneRedundancy) {

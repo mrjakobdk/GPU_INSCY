@@ -710,9 +710,7 @@ bool ScyTreeNode::pruneRedundancy(float r, map <vector<int>, vector<int>, vec_cm
                 int cluster_id = cluster_size.first;
                 int size = cluster_size.second;
                 if (cluster_to_use[cluster_id]) {
-                    if (min_size == -1 ||
-                        size <
-                        min_size) {//todo this min size should only be for clusters covering the region in question
+                    if (min_size == -1 || size < min_size) {
                         min_size = size;
                     }
                 }

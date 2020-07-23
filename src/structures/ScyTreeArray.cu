@@ -4029,9 +4029,7 @@ bool ScyTreeArray::pruneRedundancy_gpu(float r, map <vector<int>, vector<int>, v
                 int cluster_id = cluster_size.first;
                 int size = cluster_size.second;
                 if (cluster_to_use[cluster_id]) {
-                    if (min_size == -1 ||
-                        size <
-                        min_size) {//todo this min size should only be for clusters covering the region in question
+                    if (min_size == -1 || size < min_size) {
                         min_size = size;
                     }
                 }
@@ -4073,72 +4071,89 @@ void prune_count_kernel(int *d_sizes, int *d_clustering, int n) {
         }
     }
 }
-//
-//bool ScyTreeArray::pruneRedundancy_gpu2(float r, map <vector<int>, vector<int>, vec_cmp> result) {
-////    printf("\npruneRedundancy_gpu, %d\n", result.size());
-//    int max_min_size = 0;
-//
-//    vector<int> subspace(this->h_restricted_dims, this->h_restricted_dims +
-//                                                  this->number_of_restricted_dims);
-//    vector<int> max_min_subspace;
-//
-//
-//    int *d_clustering_H;
-//    cudaMalloc(&d_clustering_H, n * sizeof(int));
-//
-//    int *d_sizes_H;
-//    cudaMalloc(&d_sizes_H, n * sizeof(int));
-//
-//    for (std::pair <vector<int>, vector<int>> subspace_clustering : result) {
-//
-//        // find sizes of clusters
-//        vector<int> subspace_mark = subspace_clustering.first;
-//        if (subspace_of(subspace, subspace_mark)) {
-//
-////            vector<int> clustering_mark = subspace_clustering.second;
-////            map<int, int> cluster_sizes;
-////            for (int cluster_id: clustering_mark) {
-////                if (cluster_id >= 0) {
-////                    if (cluster_sizes.count(cluster_id)) {
-////                        cluster_sizes[cluster_id]++;
-////                    } else {
-////                        cluster_sizes.insert(pair<int, int>(cluster_id, 1));
-////                    }
-////                }
-////            }
-//
-//
-//            vector<int> clustering_H = subspace_clustering.second;
-//            cudaMemcpy(d_clustering_H, clustering_H.data(), n * sizeof(int), cudaMemcpyHostToDevice);
-//            cudaMemset(d_sizes_H, 0, n * sizeof(int));
-//            join_count_kernel << < 1, number_of_threads >> > (d_sizes_H, d_clustering_H, n);
-//
-//
-//            // find the minimum size for each subspace
-//            int min_size = -1;
-//            for (std::pair<int, int> cluster_size : cluster_sizes) {
-//                int size = cluster_size.second;
-//                if (min_size == -1 ||
-//                    size < min_size) {//todo this min size should only be for clusters covering the region in question
-//                    min_size = size;
-//                }
-//
-//            }
-//
-//            // find the maximum minimum size for each subspace
-//            if (min_size > max_min_size) {
-//                max_min_size = min_size;
-//                max_min_subspace = subspace_mark;
-//            }
-//        }
-//    }
-//
-//    if (max_min_size == 0) {
-//        return true;
-//    }
-//
-//    return this->number_of_points * r > max_min_size * 1.;
-//}
+
+__global__
+void prune_to_use(int *d_cluster_to_use, int *d_clustering_H, int *d_points, int number_of_points) {
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < number_of_points; i += blockDim.x * gridDim.x) {
+        int p_id = d_points[i];
+        int cluster_id = d_clustering_H[p_id];
+        if (cluster_id >= 0) {
+            d_cluster_to_use[cluster_id] = 1;
+        }
+    }
+}
+
+__global__
+void prune_min_cluster(int *d_min_size, int *d_cluster_to_use, int *d_sizes, int *d_clustering, int n) {
+    for (int i = threadIdx.x; i < n; i += blockDim.x) {
+        int size = d_sizes[i];
+        int cluster_id = d_clustering[i];
+        if (d_cluster_to_use[cluster_id]) {
+            atomicMin(&d_min_size[0], size);
+        }
+    }
+}
+
+bool ScyTreeArray::pruneRedundancy_gpu2(float r, map <vector<int>, vector<int>, vec_cmp> result, int n) {
+    int number_of_blocks = n / BLOCK_SIZE;
+    if (n % BLOCK_SIZE) number_of_blocks++;
+    int number_of_threads = min(n, BLOCK_SIZE);
+
+    int max_min_size = 0;
+
+    vector<int> subspace(this->h_restricted_dims, this->h_restricted_dims +
+                                                  this->number_of_restricted_dims);
+    vector<int> max_min_subspace;
+
+    int *d_clustering_H;
+    cudaMalloc(&d_clustering_H, n * sizeof(int));
+
+    int *d_sizes_H;
+    cudaMalloc(&d_sizes_H, n * sizeof(int));
+
+    int *d_cluster_to_use;
+    cudaMalloc(&d_cluster_to_use, n * sizeof(int));
+
+    for (std::pair <vector<int>, vector<int>> subspace_clustering : result) {
+
+        // find sizes of clusters
+        vector<int> subspace_mark = subspace_clustering.first;
+        if (subspace_of(subspace, subspace_mark)) {
+
+            vector<int> clustering_H = subspace_clustering.second;
+            cudaMemcpy(d_clustering_H, clustering_H.data(), n * sizeof(int), cudaMemcpyHostToDevice);
+            cudaMemset(d_sizes_H, 0, n * sizeof(int));
+            cudaMemset(d_cluster_to_use, 0, n * sizeof(int));
+            prune_count_kernel << < 1, number_of_threads >> > (d_sizes_H, d_clustering_H, n);
+
+            prune_to_use << < number_of_blocks, number_of_threads >> >
+                                                (d_cluster_to_use, d_clustering_H, d_points, this->number_of_points);
+
+            // find the minimum size for each subspace
+            int *d_min_size;
+            cudaMalloc(&d_min_size, sizeof(int));
+            cudaMemset(d_min_size, n + 1, sizeof(int));
+            int min_size;
+            prune_min_cluster << < 1, number_of_threads >> >
+                                      (d_min_size, d_cluster_to_use, d_sizes_H, d_clustering_H, n);
+            cudaMemcpy(&min_size, d_min_size, 1, cudaMemcpyDeviceToHost);
+
+            // find the maximum minimum size for each subspace
+            if (min_size <= n) {
+                if (min_size > max_min_size) {
+                    max_min_size = min_size;
+                    max_min_subspace = subspace_mark;
+                }
+            }
+        }
+    }
+
+    if (max_min_size == 0) {
+        return true;
+    }
+
+    return this->number_of_points * r > max_min_size * 1.;
+}
 
 ScyTreeArray::~ScyTreeArray() {
     if (number_of_nodes > 0) {
