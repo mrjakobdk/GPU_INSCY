@@ -16,7 +16,7 @@ class TmpMalloc;
 
 class ScyTreeArray {
 public:
-
+    TmpMalloc *tmps = nullptr;
 
 //host variables
     int number_of_cells;
@@ -67,6 +67,9 @@ public:
     ScyTreeArray(int number_of_nodes, int number_of_dims, int number_of_restricted_dims, int number_of_points,
                  int number_of_cells);
 
+    ScyTreeArray(TmpMalloc *tmps, int number_of_nodes, int number_of_dims, int number_of_restricted_dims,
+                 int number_of_points, int number_of_cells);
+
     ~ScyTreeArray();
 
     void copy_to_device();
@@ -100,6 +103,10 @@ public:
     restrict_merge_gpu_multi3(TmpMalloc *tmps, int first_dim_no, int number_of_dims,
                               int number_of_cells);
 
+    vector<vector<ScyTreeArray *>>
+    restrict_merge_gpu_multi4(TmpMalloc *tmps, int first_dim_no, int number_of_dims,
+                              int number_of_cells);
+
 
     bool pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
                             int num_obj);
@@ -109,6 +116,11 @@ public:
 
     bool pruneRecursionAndRemove_gpu3(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,
                                       int num_obj, int *d_neighborhoods, int *d_neighborhood_end, bool rectangular);
+
+    bool pruneRecursionAndRemove_gpu4(TmpMalloc *tmps, int min_size, float *d_X, int n, int d, float neighborhood_size,
+                                      float F, int num_obj, int *d_neighborhoods, int *d_neighborhood_end,
+                                      bool rectangular);
+
 
     bool pruneRedundancy_gpu(float r, map<vector<int>, vector<int>, vec_cmp> result);
 

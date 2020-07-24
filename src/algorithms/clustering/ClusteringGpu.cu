@@ -941,6 +941,91 @@ void find_neighborhoods_re(int *d_neighborhoods, int *d_neighborhood_end,
     }
 }
 
+
+void find_neighborhoods_re4(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighborhood_end,
+                           int *&d_new_neighborhoods, int *&d_new_neighborhood_end, int *&d_new_neighborhood_sizes,
+                           float *d_X, int n, int d, ScyTreeArray *scy_tree, ScyTreeArray *restricted_scy_tree,
+                           float neighborhood_size) {
+    gpuErrchk(cudaPeekAtLastError());
+
+    int total_size;
+    //cudaMalloc(&d_new_neighborhood_sizes, n * sizeof(int));
+    d_new_neighborhood_sizes = tmps->malloc_points();
+//    cudaMalloc(&d_new_neighborhood_end, n * sizeof(int));
+    d_new_neighborhood_end = tmps->malloc_points();
+
+    if (scy_tree->number_of_restricted_dims == 0) {
+
+        int number_of_blocks = n / BLOCK_SIZE;
+        if (n % BLOCK_SIZE) number_of_blocks++;
+        int number_of_threads = min(n, BLOCK_SIZE);
+        dim3 block(number_of_threads);
+        dim3 grid(number_of_blocks);
+
+        cudaMemset(d_new_neighborhood_sizes, 0, n * sizeof(int));
+        cudaMemset(d_new_neighborhood_end, 0, n * sizeof(int));
+        gpuErrchk(cudaPeekAtLastError());
+
+        kernel_find_neighborhood_sizes_re1<<<grid, block >> >(d_new_neighborhood_sizes, d_X, n, d, neighborhood_size,
+                                                              restricted_scy_tree->d_restricted_dims,
+                                                              restricted_scy_tree->number_of_restricted_dims);
+        gpuErrchk(cudaPeekAtLastError());
+
+        inclusive_scan_points(d_new_neighborhood_sizes, d_new_neighborhood_end, n, tmps);
+        gpuErrchk(cudaPeekAtLastError());
+
+        cudaMemcpy(&total_size, d_new_neighborhood_end + n - 1, sizeof(int), cudaMemcpyDeviceToHost);
+        gpuErrchk(cudaPeekAtLastError());
+
+        cudaMalloc(&d_new_neighborhoods, total_size * sizeof(int));
+        gpuErrchk(cudaPeekAtLastError());
+
+        kernel_find_neighborhoods_re1<<<grid, block >> >(d_new_neighborhoods, d_new_neighborhood_end,
+                                                         d_X, n, d, neighborhood_size,
+                                                         restricted_scy_tree->d_restricted_dims,
+                                                         restricted_scy_tree->number_of_restricted_dims);
+        gpuErrchk(cudaPeekAtLastError());
+    } else {
+        if (restricted_scy_tree->number_of_points > 0) {
+            int number_of_blocks = restricted_scy_tree->number_of_points / BLOCK_SIZE;
+            if (restricted_scy_tree->number_of_points % BLOCK_SIZE) number_of_blocks++;
+            int number_of_threads = min(restricted_scy_tree->number_of_points, BLOCK_SIZE);
+            dim3 block(number_of_threads);
+            dim3 grid(number_of_blocks);
+
+            cudaMemset(d_new_neighborhood_sizes, 0, n * sizeof(int));
+            cudaMemset(d_new_neighborhood_end, 0, n * sizeof(int));
+            gpuErrchk(cudaPeekAtLastError());
+
+            kernel_find_neighborhood_sizes_re2<<<grid, block >> >(d_neighborhoods, d_neighborhood_end,
+                                                                  d_new_neighborhood_sizes, d_X, n, d,
+                                                                  neighborhood_size,
+                                                                  restricted_scy_tree->d_points,
+                                                                  restricted_scy_tree->number_of_points,
+                                                                  restricted_scy_tree->d_restricted_dims,
+                                                                  restricted_scy_tree->number_of_restricted_dims);
+//            cudaDeviceSynchronize();
+            gpuErrchk(cudaPeekAtLastError());
+
+            inclusive_scan_points(d_new_neighborhood_sizes, d_new_neighborhood_end, n,tmps);
+            gpuErrchk(cudaPeekAtLastError());
+
+            cudaMemcpy(&total_size, d_new_neighborhood_end + n - 1, sizeof(int), cudaMemcpyDeviceToHost);
+            gpuErrchk(cudaPeekAtLastError());
+
+            cudaMalloc(&d_new_neighborhoods, total_size * sizeof(int));
+
+            kernel_find_neighborhoods_re2<<<grid, block >> >(d_neighborhoods, d_neighborhood_end,
+                                                             d_new_neighborhoods, d_new_neighborhood_end,
+                                                             d_X, n, d, neighborhood_size,
+                                                             restricted_scy_tree->d_points,
+                                                             restricted_scy_tree->number_of_points,
+                                                             restricted_scy_tree->d_restricted_dims,
+                                                             restricted_scy_tree->number_of_restricted_dims);
+        }
+    }
+}
+
 __global__
 void compute_is_dense_re_all(bool *d_is_dense, int *d_points, int number_of_points,
                              int *d_neighborhoods, float neighborhood_size, int *d_neighborhood_end,
@@ -1332,10 +1417,8 @@ void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
 //             scy_tree->d_points, number_of_points);
 
     disjoint_set_clustering_re_all_2<<< 1, number_of_threads >> >
-            (d_clustering,
-             d_neighborhoods, d_neighborhood_end,
-             d_is_dense,
-             scy_tree->d_points, number_of_points);
+            (d_clustering, d_neighborhoods, d_neighborhood_end,
+             d_is_dense, scy_tree->d_points, number_of_points);
 
 //    disjoint_set_clustering_re_all_5<<< 1, number_of_threads >> >
 //            (d_clustering, d_disjoint_set,

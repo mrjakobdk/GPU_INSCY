@@ -34,6 +34,11 @@ void find_neighborhoods_re(int *d_neighborhoods, int *d_neighborhood_end,
                            float *d_X, int n, int d, ScyTreeArray *scy_tree, ScyTreeArray *restricted_scy_tree,
                            float neighborhood_size);
 
+void find_neighborhoods_re4(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighborhood_end,
+                            int *&d_new_neighborhoods, int *&d_new_neighborhood_end, int *&d_new_neighborhood_sizes,
+                            float *d_X, int n, int d, ScyTreeArray *scy_tree, ScyTreeArray *restricted_scy_tree,
+                            float neighborhood_size);
+
 void ClusteringGPUAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, TmpMalloc *tmps, int *d_clustering,
                       ScyTreeArray *scy_tree, float *d_X, int n, int d,
                       float neighborhood_size, float F,

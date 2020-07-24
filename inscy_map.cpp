@@ -901,6 +901,7 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
                     int number_of_cells, bool rectangular, int entropy_order) {
     nvtxRangePushA("run_gpu_multi3_weak");
 
+//    printf("test1\n");
     //int number_of_cells = 3;
     int n = X.size(0);
     int subspace_size = X.size(1);
@@ -930,6 +931,8 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
     nvtxRangePop();
 
     TmpMalloc *tmps = new TmpMalloc();
+    tmps->set(scy_tree_gpu->number_of_points, scy_tree_gpu->number_of_nodes, scy_tree_gpu->number_of_dims);
+//    printf("test2\n");
 
 
     int *d_neighborhoods;
@@ -939,9 +942,8 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
     InscyArrayGpuMulti3Weak(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
                             neighborhood_size, F, num_obj, min_size,
                             result, 0, subspace_size, r, calls, rectangular);
-    delete tmps;
+//    printf("test3\n");
     cudaFree(d_X);
-    delete scy_tree_gpu;
 
     cudaDeviceSynchronize();
 
@@ -964,6 +966,11 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
     tuple.push_back(clusterings);
     nvtxRangePop();
 
+//    printf("test4\n");
+    delete scy_tree_gpu;
+//    printf("test5\n");
+    delete tmps;
+//    printf("test14\n");
     nvtxRangePop();
 
     return tuple;
@@ -973,7 +980,8 @@ run_gpu_multi3_weak(at::Tensor X, float neighborhood_size, float F, int num_obj,
 vector<vector<vector<int>>>
 run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_size, float r,
           int number_of_cells, bool rectangular, int entropy_order) {
-    nvtxRangePushA("run_gpu_multi3_weak");
+//    printf("test0\n");
+//    nvtxRangePushA("run_gpu_4");
 
     //int number_of_cells = 3;
     int n = X.size(0);
@@ -981,12 +989,12 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
 
     int *subspace = get_subspace_order(X, n, subspace_size, number_of_cells, entropy_order);
 
-    nvtxRangePushA("copy X to device");
+//    nvtxRangePushA("copy X to device");
     float *d_X = copy_to_device(X, n, subspace_size);
-    nvtxRangePop();
+//    nvtxRangePop();
 
 
-    nvtxRangePushA("constructing ScyTree");
+//    nvtxRangePushA("constructing ScyTree");
 //    printf("GPU-INSCY(Building ScyTree...): 0%%      \n");
     ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size);
 
@@ -1001,10 +1009,13 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
 //    scy_tree_gpu->print();
 
 //    printf("GPU-INSCY(0): 0%%      \n");
-    nvtxRangePop();
-
+//    nvtxRangePop();
+//    printf("test1\n");
     TmpMalloc *tmps = new TmpMalloc();
 
+//    printf("test2\n");
+    tmps->set(scy_tree_gpu->number_of_points, scy_tree_gpu->number_of_nodes, scy_tree_gpu->number_of_dims);
+//    printf("test3\n");
 
     int *d_neighborhoods;
     int *d_neighborhood_sizes;
@@ -1013,13 +1024,11 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
     InscyArrayGpu4(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
                    neighborhood_size, F, num_obj, min_size,
                    result, 0, subspace_size, r, calls, rectangular);
-    delete tmps;
     cudaFree(d_X);
-    delete scy_tree_gpu;
 
     cudaDeviceSynchronize();
 
-    nvtxRangePushA("saving result");
+//    nvtxRangePushA("saving result");
     printf("InscyArrayGpu4(%d): 100%%      \n", calls);
 
     vector<vector<vector<int>>> tuple;
@@ -1033,14 +1042,18 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
         int *d_clustering = p.second;
         vector<int> clustering(n);
         cudaMemcpy(clustering.data(), d_clustering, n * sizeof(int), cudaMemcpyDeviceToHost);
+        tmps->free_points(d_clustering);
         clusterings[j] = clustering;
         j++;
     }
     tuple.push_back(subspaces);
     tuple.push_back(clusterings);
-    nvtxRangePop();
+//    nvtxRangePop();
 
-    nvtxRangePop();
+    delete scy_tree_gpu;
+    tmps->free_all();
+    delete tmps;
+//    nvtxRangePop();
 
     return tuple;
 }

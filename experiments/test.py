@@ -5,7 +5,7 @@ import python.inscy as INSCY
 import time
 import numpy as np
 
-params = {"n": 5000,
+params = {"n": 10000,
           "neighborhood_size": 0.01,
           "F": 1.,
           "r": .9,
@@ -32,14 +32,14 @@ X_ = X[:params["n"], :params["subspace_size"]].clone()
 # print("number of clusters", INSCY.count_number_of_clusters(subspaces, clusterings))
 # print("clustered points", np.count_nonzero(np.array(clusterings)>=0))
 
-t0 = time.time()
-subspaces, clusterings = INSCY.GPU3(X_, params["neighborhood_size"], params["F"],
-                                    params["num_obj"], params["min_size"], r=params["r"],
-                                    number_of_cells=params["number_of_cells"], rectangular=True,
-                                    entropy_order=0)
-print("Finished GPU3-INSCY random, took: %.4fs" % (time.time() - t0))
-print("number of clusters", INSCY.count_number_of_clusters(subspaces, clusterings))
-print("clustered points", np.count_nonzero(np.array(clusterings)>=0))
+# t0 = time.time()
+# subspaces, clusterings = INSCY.GPU3(X_, params["neighborhood_size"], params["F"],
+#                                     params["num_obj"], params["min_size"], r=params["r"],
+#                                     number_of_cells=params["number_of_cells"], rectangular=True,
+#                                     entropy_order=0)
+# print("Finished GPU3-INSCY random, took: %.4fs" % (time.time() - t0))
+# print("number of clusters", INSCY.count_number_of_clusters(subspaces, clusterings))
+# print("clustered points", np.count_nonzero(np.array(clusterings)>=0))
 
 
 t0 = time.time()
