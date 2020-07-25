@@ -581,13 +581,11 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
 
     gpuErrchk(cudaPeekAtLastError());
 
-//    nvtxRangePushA("restrict_merge_gpu_multi");
+//    cudaDeviceSynchronize();
+//    nvtxRangePushA("restrict_merge_gpu_multi4");
     vector <vector<ScyTreeArray *>> L_merged = scy_tree->restrict_merge_gpu_multi4(tmps, first_dim_no, number_of_dims,
                                                                                    number_of_cells);
-
-
-    gpuErrchk(cudaPeekAtLastError());
-
+//    gpuErrchk(cudaPeekAtLastError());
 //    cudaDeviceSynchronize();
 //    nvtxRangePop();
 
@@ -607,8 +605,8 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
 
 
             gpuErrchk(cudaPeekAtLastError());
-            cudaMemcpy(restricted_scy_tree->h_restricted_dims, restricted_scy_tree->d_restricted_dims,
-                       sizeof(int) * restricted_scy_tree->number_of_restricted_dims, cudaMemcpyDeviceToHost);
+//            cudaMemcpy(restricted_scy_tree->h_restricted_dims, restricted_scy_tree->d_restricted_dims,
+//                       sizeof(int) * restricted_scy_tree->number_of_restricted_dims, cudaMemcpyDeviceToHost);
             subspace = vector<int>(restricted_scy_tree->h_restricted_dims,
                                    restricted_scy_tree->h_restricted_dims +
                                    restricted_scy_tree->number_of_restricted_dims);
@@ -618,23 +616,26 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
             int *d_new_neighborhood_sizes;
             int *d_new_neighborhood_end;
 
-//            nvtxRangePushA("find_neighborhoods_re");
-            gpuErrchk(cudaPeekAtLastError());
+//            nvtxRangePushA("find_neighborhoods_re4");
+//            gpuErrchk(cudaPeekAtLastError());
             find_neighborhoods_re4(tmps, d_neighborhoods, d_neighborhood_end,
                                    d_new_neighborhoods, d_new_neighborhood_end, d_new_neighborhood_sizes,
                                    d_X, n, d, scy_tree, restricted_scy_tree, neighborhood_size);
 //            cudaDeviceSynchronize();
-            gpuErrchk(cudaPeekAtLastError());
+//            gpuErrchk(cudaPeekAtLastError());
 //            nvtxRangePop();
 
+//            cudaDeviceSynchronize();
+//            nvtxRangePushA("pruneRecursionAndRemove_gpu4");
             //pruneRecursion(restricted-tree); //prune sparse regions
-//            nvtxRangePushA("pruneRecursion");
             bool pruneRecursion = restricted_scy_tree->pruneRecursionAndRemove_gpu4(tmps, min_size, d_X, n, d,
                                                                                     neighborhood_size, F, num_obj,
                                                                                     d_new_neighborhoods,
                                                                                     d_new_neighborhood_end,
                                                                                     rectangular);
+//            cudaDeviceSynchronize();
 //            nvtxRangePop();
+
             if (pruneRecursion) {
 
                 //INSCY(restricted-tree,result); //depth-first via recursion
@@ -644,21 +645,23 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
                                F, num_obj, min_size, result, dim_no + 1, total_number_of_dim, r, calls, rectangular);
 
                 //pruneRedundancy(restricted-tree); //in-process-removal
-//                nvtxRangePushA("pruneRedundancy");
+//                cudaDeviceSynchronize();
+//                nvtxRangePushA("pruneRedundancy_gpu2");
 //                bool pruneRedundancy = restricted_scy_tree->pruneRedundancy_gpu(r, result);
                 bool pruneRedundancy = restricted_scy_tree->pruneRedundancy_gpu2(r, result, n, tmps);
 //                pruneRecursion = true;
+//                cudaDeviceSynchronize();
 //                nvtxRangePop();
                 if (pruneRedundancy) {
 
-//                    nvtxRangePushA("clustering");
-                    gpuErrchk(cudaPeekAtLastError());
+//                    nvtxRangePushA("ClusteringGPUReAll");
+//                    gpuErrchk(cudaPeekAtLastError());
                     ClusteringGPUReAll(d_new_neighborhoods, d_new_neighborhood_end, tmps, d_clustering,
                                        restricted_scy_tree,
                                        d_X, n, d, neighborhood_size,
                                        F, num_obj, rectangular);
 //                    cudaDeviceSynchronize();
-                    gpuErrchk(cudaPeekAtLastError());
+//                    gpuErrchk(cudaPeekAtLastError());
 //                    nvtxRangePop();
                 } else {
                     printf("pruned due to prune Redundancy_gpu\n");
@@ -680,7 +683,8 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
         }
 
 
-//        nvtxRangePushA("joining");
+//        cudaDeviceSynchronize();
+//        nvtxRangePushA("join_gpu");
 //        int *h_clustering = new int[n];
 //        cudaMemcpy(h_clustering, d_clustering,
 //                   sizeof(int) * n, cudaMemcpyDeviceToHost);
@@ -694,7 +698,6 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
         gpuErrchk(cudaPeekAtLastError());
 
 //        cudaFree(d_clustering);
-
 //        cudaDeviceSynchronize();
 //        nvtxRangePop();
 

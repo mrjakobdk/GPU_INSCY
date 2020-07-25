@@ -943,9 +943,9 @@ void find_neighborhoods_re(int *d_neighborhoods, int *d_neighborhood_end,
 
 
 void find_neighborhoods_re4(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighborhood_end,
-                           int *&d_new_neighborhoods, int *&d_new_neighborhood_end, int *&d_new_neighborhood_sizes,
-                           float *d_X, int n, int d, ScyTreeArray *scy_tree, ScyTreeArray *restricted_scy_tree,
-                           float neighborhood_size) {
+                            int *&d_new_neighborhoods, int *&d_new_neighborhood_end, int *&d_new_neighborhood_sizes,
+                            float *d_X, int n, int d, ScyTreeArray *scy_tree, ScyTreeArray *restricted_scy_tree,
+                            float neighborhood_size) {
     gpuErrchk(cudaPeekAtLastError());
 
     int total_size;
@@ -1007,7 +1007,7 @@ void find_neighborhoods_re4(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighb
 //            cudaDeviceSynchronize();
             gpuErrchk(cudaPeekAtLastError());
 
-            inclusive_scan_points(d_new_neighborhood_sizes, d_new_neighborhood_end, n,tmps);
+            inclusive_scan_points(d_new_neighborhood_sizes, d_new_neighborhood_end, n, tmps);
             gpuErrchk(cudaPeekAtLastError());
 
             cudaMemcpy(&total_size, d_new_neighborhood_end + n - 1, sizeof(int), cudaMemcpyDeviceToHost);
@@ -1170,7 +1170,6 @@ disjoint_set_clustering_re_all_2(int *d_clustering,
 
             int root = d_clustering[p_id];
 
-
             int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
             for (int j = offset; j < d_neighborhood_end[p_id]; j++) {
                 int q_id = d_neighborhoods[j];
@@ -1196,6 +1195,62 @@ disjoint_set_clustering_re_all_2(int *d_clustering,
         }
     }
 }
+__global__
+void
+disjoint_set_clustering_re_all_2_1(int *d_clustering,
+                                 int *d_neighborhoods, int *d_neighborhood_end,
+                                 bool *d_is_dense, int *d_points, int number_of_points) {
+    __shared__ int changed;
+    changed = 1;
+    __syncthreads();
+    //init
+    for (int i = threadIdx.x + blockIdx.x*blockDim.x; i < number_of_points; i += blockDim.x*gridDim.x) {
+        int p_id = d_points[i];
+        if (d_is_dense[p_id]) {
+            d_clustering[p_id] = p_id;
+        }
+    }
+
+    __syncthreads();
+
+    //for (int itr = 1; itr < number_of_points; itr *= 2) {
+    while (changed) {
+        //disjoint_set_pass1
+        __syncthreads();
+        changed = 0;
+        __syncthreads();
+        for (int i = threadIdx.x + blockIdx.x*blockDim.x; i < number_of_points; i += blockDim.x*gridDim.x) {
+            int p_id = d_points[i];
+            if (!d_is_dense[p_id]) continue;
+
+            int root = d_clustering[p_id];
+
+            int offset = p_id > 0 ? d_neighborhood_end[p_id - 1] : 0;
+            for (int j = offset; j < d_neighborhood_end[p_id]; j++) {
+                int q_id = d_neighborhoods[j];
+                if (d_is_dense[q_id]) {
+                    if (d_clustering[q_id] < root) {
+                        root = d_clustering[q_id];
+                        changed = 1;
+                    }
+                }
+            }
+            d_clustering[p_id] = root;
+        }
+        __syncthreads();
+
+        //disjoint_set_pass2
+        for (int i = threadIdx.x + blockIdx.x*blockDim.x; i < number_of_points; i += blockDim.x*gridDim.x) {
+            int p_id = d_points[i];
+            int root = d_clustering[p_id];
+            while (root >= 0 && root != d_clustering[root]) {
+                root = d_clustering[root];
+            }
+            d_clustering[p_id] = root;
+        }
+    }
+}
+
 
 __global__
 void
@@ -1415,10 +1470,15 @@ void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
 //             d_neighborhoods, d_neighborhood_end,
 //             d_is_dense,
 //             scy_tree->d_points, number_of_points);
+//    number_of_threads = min(number_of_points, 1024);
 
     disjoint_set_clustering_re_all_2<<< 1, number_of_threads >> >
             (d_clustering, d_neighborhoods, d_neighborhood_end,
              d_is_dense, scy_tree->d_points, number_of_points);
+
+//    disjoint_set_clustering_re_all_2_1<<< number_of_blocks, number_of_threads >> >
+//            (d_clustering, d_neighborhoods, d_neighborhood_end,
+//             d_is_dense, scy_tree->d_points, number_of_points);
 
 //    disjoint_set_clustering_re_all_5<<< 1, number_of_threads >> >
 //            (d_clustering, d_disjoint_set,
@@ -1433,28 +1493,29 @@ void ClusteringGPUReAll(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc
 //             scy_tree->d_points, number_of_points);
 
 //    int *d_changed;
-//    int h_changed[] = {1};
+////    int h_changed[] = {1};
 //    cudaMalloc(&d_changed, sizeof(int));
-//
-//    cudaStream_t stream1;
-//    cudaStreamCreate ( &stream1) ;
-//
+////
+////    cudaStream_t stream1;
+////    cudaStreamCreate ( &stream1) ;
+////
 //    disjoint_set_clustering_re_all_4_1<<<number_of_blocks, number_of_threads>> >
 //            (d_clustering,
 //             d_neighborhoods, d_neighborhood_end,
 //             d_is_dense,
 //             scy_tree->d_points, number_of_points);
-//
-//    while (h_changed[0]) {
-//        cudaMemset(d_changed, 0, sizeof(int));
+//    int i = 0;
+////    while (h_changed[0]) {
+//    while (i<log2(number_of_points)*2) {
+//        i++;
+////        cudaMemset(d_changed, 0, sizeof(int));
 //
 //        disjoint_set_clustering_re_all_4_2<<< number_of_blocks, number_of_threads >> >
-//                (d_clustering, d_changed,
-//                 d_neighborhoods, d_neighborhood_end,
-//                 d_is_dense,
+//                (d_clustering, d_changed, d_neighborhoods, d_neighborhood_end, d_is_dense,
 //                 scy_tree->d_points, number_of_points);
 //
-//        cudaMemcpyAsync(h_changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost, stream1);
+////        cudaMemcpyAsync(h_changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost, stream1);
+////        cudaMemcpy(h_changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
 //
 //        disjoint_set_clustering_re_all_4_3<<< number_of_blocks, number_of_threads >> >
 //                (d_clustering,

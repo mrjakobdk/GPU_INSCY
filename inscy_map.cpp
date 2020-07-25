@@ -989,18 +989,21 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
 
     int *subspace = get_subspace_order(X, n, subspace_size, number_of_cells, entropy_order);
 
-//    nvtxRangePushA("copy X to device");
+    nvtxRangePushA("copy_to_device");
     float *d_X = copy_to_device(X, n, subspace_size);
-//    nvtxRangePop();
+    cudaDeviceSynchronize();
+    nvtxRangePop();
 
 
-//    nvtxRangePushA("constructing ScyTree");
+    nvtxRangePushA("constructing ScyTree");
 //    printf("GPU-INSCY(Building ScyTree...): 0%%      \n");
     ScyTreeNode *scy_tree = new ScyTreeNode(X, subspace, number_of_cells, subspace_size, n, neighborhood_size);
 
+    nvtxRangePop();
     map<vector<int>, int *, vec_cmp> result;
 
     int calls = 0;
+    nvtxRangePushA("convert_to_ScyTreeArray");
 //    scy_tree->print();
 //    printf("GPU-INSCY(Converting ScyTree...): 0%%      \n");
     ScyTreeArray *scy_tree_gpu = scy_tree->convert_to_ScyTreeArray();
@@ -1009,7 +1012,8 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
 //    scy_tree_gpu->print();
 
 //    printf("GPU-INSCY(0): 0%%      \n");
-//    nvtxRangePop();
+    cudaDeviceSynchronize();
+    nvtxRangePop();
 //    printf("test1\n");
     TmpMalloc *tmps = new TmpMalloc();
 
@@ -1021,15 +1025,15 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
     int *d_neighborhood_sizes;
     int *d_neighborhood_end;
 
+    nvtxRangePushA("InscyArrayGpu4");
     InscyArrayGpu4(d_neighborhoods, d_neighborhood_end, tmps, scy_tree_gpu, d_X, n, subspace_size,
                    neighborhood_size, F, num_obj, min_size,
                    result, 0, subspace_size, r, calls, rectangular);
-    cudaFree(d_X);
-
-    cudaDeviceSynchronize();
-
-//    nvtxRangePushA("saving result");
     printf("InscyArrayGpu4(%d): 100%%      \n", calls);
+    cudaDeviceSynchronize();
+    nvtxRangePop();
+
+    nvtxRangePushA("saving result");
 
     vector<vector<vector<int>>> tuple;
     vector<vector<int>> subspaces(result.size());
@@ -1048,12 +1052,17 @@ run_gpu_4(at::Tensor X, float neighborhood_size, float F, int num_obj, int min_s
     }
     tuple.push_back(subspaces);
     tuple.push_back(clusterings);
-//    nvtxRangePop();
 
+    cudaDeviceSynchronize();
+    nvtxRangePop();
+
+    nvtxRangePushA("deleting");
+    cudaFree(d_X);
     delete scy_tree_gpu;
     tmps->free_all();
     delete tmps;
-//    nvtxRangePop();
+    cudaDeviceSynchronize();
+    nvtxRangePop();
 
     return tuple;
 }
