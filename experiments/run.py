@@ -31,7 +31,7 @@ if method == "INSCY":
     function = INSCY.CPU
     name += "INSCY"
 if method == "GPU-INSCY":
-    function = INSCY.GPU
+    function = INSCY.GPU5
     name += "GPU_INSCY"
 
 if experiment == "n":

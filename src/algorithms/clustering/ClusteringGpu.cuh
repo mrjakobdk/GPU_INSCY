@@ -39,6 +39,10 @@ void find_neighborhoods_re4(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighb
                             float *d_X, int n, int d, ScyTreeArray *scy_tree, ScyTreeArray *restricted_scy_tree,
                             float neighborhood_size);
 
+pair<int**,int**> find_neighborhoods_re5(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighborhood_end,
+                            float *d_X, int n, int d, ScyTreeArray *scy_tree, vector <vector<ScyTreeArray *>> L_merged,
+                            float neighborhood_size);
+
 void ClusteringGPUAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, TmpMalloc *tmps, int *d_clustering,
                       ScyTreeArray *scy_tree, float *d_X, int n, int d,
                       float neighborhood_size, float F,
@@ -48,5 +52,11 @@ void ClusteringGPUReAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, Tmp
                         ScyTreeArray *scy_tree, float *d_X, int n, int d,
                         float neighborhood_size, float F,
                         int num_obj, bool rectangular);
+
+void ClusteringGPUReAll5(vector<int *> new_neighborhoods_list, vector<int *> new_neighborhood_end_list, TmpMalloc *tmps,
+                         vector<int *> clustering_list,
+                         vector<ScyTreeArray *> scy_tree, float *d_X, int n, int d,
+                         float neighborhood_size, float F,
+                         int num_obj, bool rectangular);
 
 #endif //GPU_INSCY_CLUSTERINGGPU_CUH

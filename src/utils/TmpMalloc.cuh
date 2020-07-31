@@ -22,6 +22,8 @@ public:
     std::queue<int *> q_dims;
     std::queue<int *> q_one;
 
+    std::map<int, std::queue<int *>> q;
+
     int points_count;
     int nodes_count;
     int dims_count;
@@ -77,6 +79,10 @@ public:
     void free_all();
 
     bool not_free = true;
+
+    int *malloc_any(int n);
+
+    void free_any(int *memory, int n);
 };
 
 

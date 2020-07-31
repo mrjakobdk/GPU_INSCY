@@ -18,6 +18,9 @@ using namespace std;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
+void free_tree(TmpMalloc *tmps, ScyTreeArray *&restricted_scy_tree, int *&d_new_neighborhoods,
+               int *&d_new_neighborhood_end);
+
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
     if (code != cudaSuccess) {
         fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
@@ -704,4 +707,148 @@ InscyArrayGpu4(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, S
         dim_no++;
     }
     gpuErrchk(cudaPeekAtLastError());
+}
+
+void compare_gpu(int *d_tmp, int *d_correct, int n) {
+    int h_tmp[n];
+    int h_correct[n];
+    cudaMemcpy(h_tmp, d_tmp, n * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_correct, d_correct, n * sizeof(int), cudaMemcpyDeviceToHost);
+    int m = 0;
+    int incorrect = 0;
+    int correct = 0;
+    for (int i = 0; i < n; i++) {
+        if (h_tmp[i] != h_correct[i]) {
+            incorrect++;
+        } else {
+            correct++;
+            m = max(m, h_correct[i]);
+        }
+    }
+    if (incorrect > 0)
+        printf("correct! max:%d, correct: %d, incorrect:%d\n", m, correct, incorrect);
+}
+
+void
+InscyArrayGpu5(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, ScyTreeArray *scy_tree,
+               float *d_X, int n, int d, float neighborhood_size, float F,
+               int num_obj,
+               int min_size, map<vector<int>, int *, vec_cmp> &result, int first_dim_no,
+               int total_number_of_dim, float r, int &calls, bool rectangular) {
+    calls++;
+    int total_inscy = pow(2, d);
+    printf("InscyArrayGpu5(%d): %d%%      \r", calls, int((calls * 100) / total_inscy));
+
+    int number_of_dims = total_number_of_dim - first_dim_no;
+    int number_of_cells = scy_tree->number_of_cells;
+
+    vector <vector<ScyTreeArray *>> L_merged = scy_tree->restrict_merge_gpu_multi5(tmps, first_dim_no, number_of_dims,
+                                                                                   number_of_cells);
+
+    vector < ScyTreeArray * > restricted_scy_tree_list;
+    vector<int *> clustering_list;
+    vector<int *> new_neighborhoods_list;
+    vector<int *> new_neighborhood_end_list;
+
+    pair<int **, int **> p = find_neighborhoods_re5(tmps, d_neighborhoods, d_neighborhood_end,
+                                                    d_X, n, d, scy_tree, L_merged, neighborhood_size);
+
+    int **hd_new_neighborhoods_list = p.first;
+    int **hd_new_neighborhood_end_list = p.second;
+
+
+    int j = 0;
+    int dim_no = first_dim_no;
+    while (dim_no < total_number_of_dim) {
+
+        int *d_clustering = tmps->malloc_points();
+        cudaMemset(d_clustering, -1, sizeof(int) * n);
+
+        bool clustering_used = false;
+
+        int i = dim_no - first_dim_no;
+        for (ScyTreeArray *restricted_scy_tree : L_merged[i]) {
+
+            int *d_new_neighborhoods = hd_new_neighborhoods_list[j];
+            int *d_new_neighborhood_end = hd_new_neighborhood_end_list[j];
+            j++;
+
+            bool pruneRecursion = restricted_scy_tree->pruneRecursionAndRemove_gpu4(tmps, min_size, d_X, n, d,
+                                                                                    neighborhood_size, F, num_obj,
+                                                                                    d_new_neighborhoods,
+                                                                                    d_new_neighborhood_end,
+                                                                                    rectangular);
+
+            if (pruneRecursion) {
+
+                InscyArrayGpu5(d_new_neighborhoods, d_new_neighborhood_end, tmps, restricted_scy_tree,
+                               d_X, n, d, neighborhood_size, F, num_obj, min_size,
+                               result, dim_no + 1, total_number_of_dim, r, calls, rectangular);
+
+                bool pruneRedundancy = restricted_scy_tree->pruneRedundancy_gpu2(r, result, n, tmps);
+                if (pruneRedundancy) {
+
+                    restricted_scy_tree_list.push_back(restricted_scy_tree);
+                    clustering_list.push_back(d_clustering);
+                    clustering_used = true;
+                    new_neighborhoods_list.push_back(d_new_neighborhoods);
+                    new_neighborhood_end_list.push_back(d_new_neighborhood_end);
+
+                } else {
+                    printf("pruned redundancy\n");
+                    free_tree(tmps, restricted_scy_tree, d_new_neighborhoods, d_new_neighborhood_end);
+                }
+            } else {
+                free_tree(tmps, restricted_scy_tree, d_new_neighborhoods, d_new_neighborhood_end);
+            }
+        }
+
+        dim_no++;
+
+        if (!clustering_used)
+            tmps->free_points(d_clustering);
+    }
+
+    ClusteringGPUReAll5(new_neighborhoods_list, new_neighborhood_end_list, tmps,
+                        clustering_list, restricted_scy_tree_list,
+                        d_X, n, d, neighborhood_size,
+                        F, num_obj, rectangular);
+
+    for (int i = 0; i < restricted_scy_tree_list.size(); i++) {
+        ScyTreeArray *restricted_scy_tree = restricted_scy_tree_list[i];
+        int *d_clustering = clustering_list[i];
+        int *d_new_neighborhoods = new_neighborhoods_list[i];
+        int *d_new_neighborhood_end = new_neighborhood_end_list[i];
+
+        if (i == restricted_scy_tree_list.size() - 1 ||
+            (i < restricted_scy_tree_list.size() - 1 && d_clustering != clustering_list[i + 1])) {
+
+            vector<int> subspace = vector<int>(restricted_scy_tree->h_restricted_dims,
+                                               restricted_scy_tree->h_restricted_dims +
+                                               restricted_scy_tree->number_of_restricted_dims);
+
+            join_gpu(result, d_clustering, subspace, min_size, r, n, tmps);
+        }
+        free_tree(tmps, restricted_scy_tree, d_new_neighborhoods, d_new_neighborhood_end);
+    }
+
+}
+
+void free_tree(TmpMalloc *tmps, ScyTreeArray *&restricted_scy_tree, int *&d_new_neighborhoods,
+               int *&d_new_neighborhood_end) {
+    //if (restricted_scy_tree->number_of_points > 0) {
+//        cudaDeviceSynchronize();
+//        gpuErrchk(cudaPeekAtLastError());
+//        printf("test0.1\n");
+        cudaFree(d_new_neighborhoods);
+//        printf("test0.2\n");
+//        gpuErrchk(cudaPeekAtLastError());
+//    }
+//    printf("test0.3\n");
+    tmps->free_points(d_new_neighborhood_end);
+//    printf("test0.4\n");
+//    gpuErrchk(cudaPeekAtLastError());
+//    printf("test0.5\n");
+    delete restricted_scy_tree;
+//    printf("test0.6\n");
 }

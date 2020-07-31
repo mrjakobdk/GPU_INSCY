@@ -106,6 +106,9 @@ public:
     vector<vector<ScyTreeArray *>>
     restrict_merge_gpu_multi4(TmpMalloc *tmps, int first_dim_no, int number_of_dims,
                               int number_of_cells);
+    vector<vector<ScyTreeArray *>>
+    restrict_merge_gpu_multi5(TmpMalloc *tmps, int first_dim_no, int number_of_dims,
+                              int number_of_cells);
 
 
     bool pruneRecursion_gpu(int min_size, float *d_X, int n, int d, float neighborhood_size, float F,

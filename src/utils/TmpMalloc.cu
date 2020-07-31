@@ -20,7 +20,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
     }
 }
 
-void TmpMalloc::free_all(){
+void TmpMalloc::free_all() {
     for (pair<int, bool *> p: this->bool_arrays) {
         cudaFree(p.second);
     }
@@ -41,7 +41,7 @@ void TmpMalloc::free_all(){
         cudaFree(tmp);
         points_count--;
     }
-    if(points_count){
+    if (points_count) {
         printf("memory leak for points: %d\n", points_count);
     }
     while (!this->q_nodes.empty()) {
@@ -50,7 +50,7 @@ void TmpMalloc::free_all(){
         cudaFree(tmp);
         nodes_count--;
     }
-    if(nodes_count){
+    if (nodes_count) {
         printf("memory leak for nodes: %d\n", nodes_count);
     }
     while (!this->q_dims.empty()) {
@@ -59,7 +59,7 @@ void TmpMalloc::free_all(){
         cudaFree(tmp);
         dims_count--;
     }
-    if(dims_count){
+    if (dims_count) {
         printf("memory leak for dims: %d\n", dims_count);
     }
     while (!this->q_one.empty()) {
@@ -68,15 +68,27 @@ void TmpMalloc::free_all(){
         cudaFree(tmp);
         one_count--;
     }
-    if(one_count){
+    if (one_count) {
         printf("memory leak for one: %d\n", one_count);
     }
+
+
+    for (const auto& q_pair : this->q) {
+        queue<int*> q = q_pair.second;
+        while (!q.empty()) {
+            tmp = q.front();
+            q.pop();
+            cudaFree(tmp);
+        }
+    }
+
+
     printf("deleted\n");
     not_free = false;
 }
 
 TmpMalloc::~TmpMalloc() {
-    if(not_free){
+    if (not_free) {
         this->free_all();
     }
 }
@@ -251,4 +263,27 @@ int *TmpMalloc::malloc_one() {
 
 void TmpMalloc::free_one(int *memory) {
     this->q_one.push(memory);
+}
+
+int *TmpMalloc::malloc_any(int n) {
+    int key = int(ceil(log2(n)));
+
+    if (this->q.find(key) == this->q.end()) {
+        this->q[key] = std::queue<int *>();
+    }
+
+    int *tmp;
+    if (!this->q[key].empty()) {
+        tmp = this->q[key].front();
+        this->q[key].pop();
+    } else {
+        cudaMalloc(&tmp, pow(2, key) * sizeof(int));
+    }
+    return tmp;
+}
+
+void TmpMalloc::free_any(int *memory, int n) {
+    int key = int(ceil(log2(n)));
+
+    this->q[key].push(memory);
 }

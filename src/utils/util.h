@@ -47,6 +47,8 @@ void inclusive_scan_points(int *source, int *y, int n, TmpMalloc *tmps);
 
 void inclusive_scan_nodes(int *source, int *y, int n, TmpMalloc *tmps);
 
+void inclusive_scan_any(int *source, int *y, int n, TmpMalloc *tmps);
+
 void inclusive_scan_cpu(int *x, int *y, int n);
 
 void inclusive_scan_async(int *x, int *y, int n, cudaStream_t stream);
