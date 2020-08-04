@@ -1,9 +1,5 @@
 import os
 
-
-os.system('python experiments/run.py GPU-INSCY n 3 4 order')
-os.system('python experiments/run.py INSCY n 3 4 order')
-
 os.system('python experiments/run.py GPU-INSCY d 3 4')
 os.system('python experiments/run.py INSCY d 3 4')
 
@@ -24,3 +20,6 @@ os.system('python experiments/run.py INSCY num_obj 3 4')
 
 os.system('python experiments/run.py GPU-INSCY min_size 3 4')
 os.system('python experiments/run.py INSCY min_size 3 4')
+
+os.system('python experiments/run.py GPU-INSCY n 3 4 order')
+os.system('python experiments/run.py INSCY n 3 4 order')
