@@ -37,16 +37,16 @@ if method == "GPU-INSCY":
 
 if experiment == "n":
     name += "_n"
-    params["n"] = [500, 1000, 2000]#, 2500, 5000, 10000]
+    params["n"] = [500, 1000, 2000, 4000]#, 2500, 5000, 10000]
 if experiment == "d":
     name += "_d"
-    params["d"] = [5, 10, 15, 25]
+    params["d"] = [5, 10, 15]#, 25]
 if experiment == "c":
     name += "_c"
     params["c"] = [2, 4, 6, 8, 10]
 if experiment == "N_size":
     name += "_N_size"
-    params["N_size"] = [0.001, 0.005, 0.01, 0.02, 0.05]
+    params["N_size"] = [0.001, 0.005, 0.01, 0.02]#, 0.05]
 if experiment == "F":
     name += "_F"
     params["F"] = [.5, 1., 1.5, 2., 2.5]
@@ -119,6 +119,8 @@ for n in params["n"]:
                                               "num_obj", num_obj, "min_size", min_size, "order", order)
                                         times = []
                                         no_clusters = []
+                                        subspaces_list = []
+                                        clusterings_list = []
                                         for i in range(repeats):
                                             X = INSCY.load_synt(d, n, real_no_clusters, i)
 
@@ -127,9 +129,15 @@ for n in params["n"]:
                                                                               r,
                                                                               number_of_cells=c, rectangular=True,
                                                                               entropy_order=order)
+
+
                                             t = time.time() - t0
                                             times.append(t)
                                             print("Finished " + name + ", took: %.4fs" % (time.time() - t0), i + 1, "/",
                                                   repeats)
-                                            no_clusters.append(INSCY.count_number_of_clusters(subspaces, clusterings))
-                                        np.savez(run_file, times=times, no_clusters=no_clusters)
+                                            no = INSCY.count_number_of_clusters(subspaces, clusterings)
+                                            no_clusters.append(no)
+                                            subspaces_list.append(subspaces)
+                                            clusterings_list.append(clusterings)
+                                            print(i, n, d, "number of clusters:", no)
+                                        np.savez(run_file, times=times, no_clusters=no_clusters, subspaces_list=subspaces_list, clusterings_list=clusterings_list)
