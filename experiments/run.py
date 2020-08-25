@@ -10,6 +10,7 @@ method = sys.argv[1]
 experiment = sys.argv[2]
 repeats = int(sys.argv[3])
 real_no_clusters = int(sys.argv[4])
+experiment_2nd = None
 if len(sys.argv) > 5:
     experiment_2nd = sys.argv[5]
 
@@ -21,7 +22,7 @@ params = {"n": [1500],
           "r": [1.],
           "num_obj": [8],
           "min_size": [0.05],
-          "order": [-1],
+          "order": [0],#-1],
           "repeats": repeats,
           "real_no_clusters": real_no_clusters}
 
@@ -36,10 +37,10 @@ if method == "GPU-INSCY":
 
 if experiment == "n":
     name += "_n"
-    params["n"] = [500, 1000, 2000, 2500, 5000, 10000]
+    params["n"] = [500, 1000, 2000]#, 2500, 5000, 10000]
 if experiment == "d":
     name += "_d"
-    params["d"] = [2, 5, 10, 15, 25]
+    params["d"] = [5, 10, 15, 25]
 if experiment == "c":
     name += "_c"
     params["c"] = [2, 4, 6, 8, 10]
