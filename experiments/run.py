@@ -37,7 +37,7 @@ if method == "GPU-INSCY":
 
 if experiment == "n":
     name += "_n"
-    params["n"] = [500, 1000, 2000, 4000]#, 2500, 5000, 10000]
+    params["n"] = [500, 1000, 2000, 4000, 8000]#, 2500, 5000, 10000]
 if experiment == "d":
     name += "_d"
     params["d"] = [5, 10, 15]#, 25]

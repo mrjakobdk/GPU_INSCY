@@ -22,12 +22,12 @@ params = {"n": [1500],
           "r": [1.],
           "num_obj": [8],
           "min_size": [0.05],
-          "order": [-1],
+          "order": [0],
           "repeats": repeats,
           "real_no_clusters": real_no_clusters}
 
 if experiment == "n":
-    params["n"] = [500, 1000, 2000, 2500, 5000, 10000]
+    params["n"] = [500, 1000, 2000, 4000]#[500, 1000, 2000, 2500, 5000, 10000]
     xs = params["n"]
     x_label = 'number of points'
 if experiment == "d":
