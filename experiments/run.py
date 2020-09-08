@@ -13,6 +13,9 @@ real_no_clusters = int(sys.argv[4])
 experiment_2nd = None
 if len(sys.argv) > 5:
     experiment_2nd = sys.argv[5]
+large = False
+if len(sys.argv) > 6:
+    large = bool(int(sys.argv[6]))
 
 params = {"n": [1500],
           "c": [4],
@@ -34,13 +37,24 @@ if method == "INSCY":
 if method == "GPU-INSCY":
     function = INSCY.GPU5
     name += "GPU_INSCY"
+if method == "GPU-INSCY*":
+    function = INSCY.GPU_star
+    name += "GPU_INSCY_star"
 
 if experiment == "n":
     name += "_n"
     params["n"] = [500, 1000, 2000, 4000, 8000]#, 2500, 5000, 10000]
+    if large:
+        name += "_large"
+        params["n"] = [500, 1000, 2000, 4000, 8000] + [i*8000 for i in range(2, 14)]
 if experiment == "d":
     name += "_d"
-    params["d"] = [5, 10, 15]#, 25]
+    params["d"] = [5, 10, 15, 20, 25, 30]
+    if large:
+        name += "_large"
+        params["n"] = [1500]
+        params["d"] = [i*5 for i in range(1, 21)]
+
 if experiment == "c":
     name += "_c"
     params["c"] = [2, 4, 6, 8, 10]
@@ -103,11 +117,16 @@ for n in params["n"]:
                         for num_obj in params["num_obj"]:
                             for min_size in params["min_size"]:
                                 for order in params["order"]:
+
                                     run_file = 'experiments_data/runs/' + method + \
                                                "n" + str(n) + "d" + str(d) + "c" + str(c) + \
                                                "N_size" + str(N_size) + "F" + str(F) + "r" + str(r) + \
                                                "num_obj" + str(num_obj) + "min_size" + str(min_size) + \
-                                               "order" + str(order) + '.npz'
+                                               "order" + str(order)
+
+                                    if real_no_clusters != 4:
+                                        run_file += 'cl' + str(real_no_clusters)
+                                    run_file += '.npz'
 
                                     if os.path.exists(run_file):
                                         print("Experiment already preformed!", method,

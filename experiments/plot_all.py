@@ -14,4 +14,4 @@ os.system('python experiments/plot.py num_obj')
 
 os.system('python experiments/plot.py min_size')
 
-os.system('python experiments/plot.py n order')
+os.system('python experiments/plot.py n')

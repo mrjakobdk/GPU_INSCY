@@ -197,6 +197,12 @@ def GPU5(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, re
     return subspaces, clusterings
 
 
+def GPU_star(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False, entropy_order=0):
+    subspaces, clusterings = inscy.run_gpu_star(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells,
+                                             rectangular, entropy_order)
+    return subspaces, clusterings
+
+
 def run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3):
     subspaces, clusterings = inscy.run_gpu_multi2_cl_multi(X, neighborhood_size, F, num_obj, min_size, r,
                                                            number_of_cells)

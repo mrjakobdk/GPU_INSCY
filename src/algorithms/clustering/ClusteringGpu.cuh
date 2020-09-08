@@ -40,8 +40,12 @@ void find_neighborhoods_re4(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighb
                             float neighborhood_size);
 
 pair<int**,int**> find_neighborhoods_re5(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighborhood_end,
-                            float *d_X, int n, int d, ScyTreeArray *scy_tree, vector <vector<ScyTreeArray *>> L_merged,
-                            float neighborhood_size);
+                                         float *d_X, int n, int d, ScyTreeArray *scy_tree, vector <vector<ScyTreeArray *>> L_merged,
+                                         float neighborhood_size);
+
+pair<int**,int**> find_neighborhoods_re_star(TmpMalloc *tmps, int *d_neighborhoods, int *d_neighborhood_end,
+                                         float *d_X, int n, int d, ScyTreeArray *scy_tree, vector <vector<ScyTreeArray *>> L_merged,
+                                         float neighborhood_size);
 
 void ClusteringGPUAll(int *d_1d_neighborhoods, int *d_1d_neighborhood_end, TmpMalloc *tmps, int *d_clustering,
                       ScyTreeArray *scy_tree, float *d_X, int n, int d,
