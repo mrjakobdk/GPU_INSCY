@@ -1214,25 +1214,31 @@ pair<int **, int **> find_neighborhoods_re5(TmpMalloc *tmps, int *d_neighborhood
 
     int **d_restricted_dims_list;
     cudaMalloc(&d_restricted_dims_list, size * sizeof(int *));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_restricted_dims_list, h_restricted_dims_list, size * sizeof(int *), cudaMemcpyHostToDevice);
     int *d_number_of_restricted_dims;
     cudaMalloc(&d_number_of_restricted_dims, size * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_number_of_restricted_dims, h_number_of_restricted_dims, size * sizeof(int), cudaMemcpyHostToDevice);
     int **d_points_list;
     cudaMalloc(&d_points_list, size * sizeof(int *));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_points_list, h_points_list, size * sizeof(int *), cudaMemcpyHostToDevice);
     int *d_number_of_points;
     cudaMalloc(&d_number_of_points, size * sizeof(int));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_number_of_points, h_number_of_points, size * sizeof(int), cudaMemcpyHostToDevice);
 
     int **d_new_neighborhoods_list;
     cudaMalloc(&d_new_neighborhoods_list, size * sizeof(int *));
     int **d_new_neighborhood_sizes_list;
     cudaMalloc(&d_new_neighborhood_sizes_list, size * sizeof(int *));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_new_neighborhood_sizes_list, h_new_neighborhood_sizes_list, size * sizeof(int *),
                cudaMemcpyHostToDevice);
     int **d_new_neighborhood_end_list;
     cudaMalloc(&d_new_neighborhood_end_list, size * sizeof(int *));
+    gpuErrchk(cudaPeekAtLastError());
     cudaMemcpy(d_new_neighborhood_end_list, h_new_neighborhood_end_list, size * sizeof(int *), cudaMemcpyHostToDevice);
 
     gpuErrchk(cudaPeekAtLastError());

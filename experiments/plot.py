@@ -38,7 +38,7 @@ if experiment == "n":
 if experiment == "d":
     params["d"] = [5, 10, 15, 20, 25, 30]
     if large:
-        params["n"] = [1500]
+        params["n"] = [25000]
         params["d"] = [i*5 for i in range(1, 21)]
     xs = params["d"]
     x_label = 'number of dimensions'
@@ -114,8 +114,8 @@ plt.rc('font', size=15)
 # plt.rc('ytick', labelsize=15)
 
 if large:
-    print("experiment:", "GPU-INSCY", experiment)
-    GPU_INSCY_avg_times = get_avg_time("GPU-INSCY", params, real_no_clusters=20)
+    print("experiment:", "GPU-INSCY-memory", experiment)
+    GPU_INSCY_avg_times = get_avg_time("GPU-INSCY-memory", params, real_no_clusters=20)
     print(xs, GPU_INSCY_avg_times)
     plt.plot(xs[:len(GPU_INSCY_avg_times)], GPU_INSCY_avg_times, label="GPU-INSCY")
     plt.tight_layout()
@@ -144,6 +144,10 @@ else:
         GPU_INSCY_star_avg_times = get_avg_time("GPU-INSCY*", params)
         print(xs, GPU_INSCY_star_avg_times)
         plt.plot(xs, GPU_INSCY_star_avg_times, label="GPU-INSCY*")
+        print("experiment:", "GPU-INSCY-memory", experiment)
+        GPU_INSCY_mem_avg_times = get_avg_time("GPU-INSCY-memory", params)
+        print(xs, GPU_INSCY_mem_avg_times)
+        plt.plot(xs, GPU_INSCY_mem_avg_times, label="GPU-INSCY-memory")
 
     plt.tight_layout()
     plt.gcf().subplots_adjust(left=0.14)
@@ -151,7 +155,7 @@ else:
     plt.yscale("log")
     plt.ylabel('time in seconds')
     plt.xlabel(x_label)
-    plt.savefig("plots/inc_" + experiment + "_log.pdf")
+    plt.savefig("plots/inc_" + experiment + "_log_2.pdf")
     plt.show()
     plt.clf()
 
@@ -159,11 +163,12 @@ else:
     plt.plot(xs, np.array(INSCY_avg_times) / np.array(GPU_INSCY_avg_times), label="GPU-INSCY")
     if GPUStar:
         plt.plot(xs, np.array(INSCY_avg_times) / np.array(GPU_INSCY_star_avg_times), label="GPU-INSCY*")
+        plt.plot(xs, np.array(INSCY_avg_times) / np.array(GPU_INSCY_mem_avg_times), label="GPU-INSCY-mem")
 
     plt.tight_layout()
     plt.gcf().subplots_adjust(left=0.14)
     plt.legend()
     plt.ylabel('factor of speedup')
     plt.xlabel(x_label)
-    plt.savefig("plots/inc_" + experiment + "_speedup.pdf")
+    plt.savefig("plots/inc_" + experiment + "_speedup_2.pdf")
     plt.show()

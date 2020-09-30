@@ -197,6 +197,12 @@ def GPU5(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, re
     return subspaces, clusterings
 
 
+def GPU_memory(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False, entropy_order=0):
+    subspaces, clusterings = inscy.run_gpu_memory(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells,
+                                             rectangular, entropy_order)
+    return subspaces, clusterings
+
+
 def GPU_star(X, neighborhood_size, F, num_obj, min_size, r=1., number_of_cells=3, rectangular=False, entropy_order=0):
     subspaces, clusterings = inscy.run_gpu_star(X, neighborhood_size, F, num_obj, min_size, r, number_of_cells,
                                              rectangular, entropy_order)
@@ -243,3 +249,7 @@ def load_synt(d, n, cl, re):
             d.append([float(value) for value in line.split(' ')])
     print("data set loaded!")
     return normalize(torch.tensor(d))
+
+
+def load_vowel(n_max=10000):
+    return normalize(torch.tensor(inscy.load_vowel(n_max)))

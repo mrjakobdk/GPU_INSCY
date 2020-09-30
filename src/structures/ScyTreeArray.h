@@ -18,6 +18,8 @@ class ScyTreeArray {
 public:
     TmpMalloc *tmps = nullptr;
 
+    bool freed_partial = false;
+
 //host variables
     int number_of_cells;
     int number_of_dims;
@@ -73,6 +75,9 @@ public:
     ~ScyTreeArray();
 
     void copy_to_device();
+
+    void free_partial();
+    void free_rest();
 
     int get_dims_idx();
 

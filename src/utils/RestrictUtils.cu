@@ -1023,7 +1023,7 @@ move_points_3_multi2(int *d_new_parents, int *d_children,
                 printf("old_parent:%d\n", old_parent);
             }
             d_points_placement_2[d_point_new_indecies[i] - 1] =
-                    d_new_indecies[old_parent] - 1;
+                    d_new_indecies[old_parent] - 1;//should it be new_parent? they are the same because it is above the restricted dim!
 //            printf("test3.2\n");
         } else {
 //            printf("test3.3\n");

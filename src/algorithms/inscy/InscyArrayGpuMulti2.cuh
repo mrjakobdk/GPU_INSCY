@@ -63,6 +63,12 @@ void InscyArrayGpu5(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tm
                     int min_size, map <vector<int>, int*, vec_cmp> &result, int first_dim_no,
                     int total_number_of_dim, float r, int &calls, bool rectangular);
 
+void InscyArrayGpuMemory(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, ScyTreeArray *scy_tree,
+                    float *d_X, int n, int d, float neighborhood_size, float F,
+                    int num_obj,
+                    int min_size, map <vector<int>, int*, vec_cmp> &result, int first_dim_no,
+                    int total_number_of_dim, float r, int &calls, bool rectangular);
+
 void InscyArrayGpuStar(int *d_neighborhoods, int *d_neighborhood_end, TmpMalloc *tmps, ScyTreeArray *scy_tree,
                     float *d_X, int n, int d, float neighborhood_size, float F,
                     int num_obj,

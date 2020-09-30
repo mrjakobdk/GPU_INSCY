@@ -40,19 +40,22 @@ if method == "GPU-INSCY":
 if method == "GPU-INSCY*":
     function = INSCY.GPU_star
     name += "GPU_INSCY_star"
+if method == "GPU-INSCY-memory":
+    function = INSCY.GPU_memory
+    name += "GPU_INSCY_memory"
 
 if experiment == "n":
     name += "_n"
     params["n"] = [500, 1000, 2000, 4000, 8000]#, 2500, 5000, 10000]
     if large:
         name += "_large"
-        params["n"] = [500, 1000, 2000, 4000, 8000] + [i*8000 for i in range(2, 14)]
+        params["n"] = [500, 1000, 2000, 4000, 8000] + [i*8000 for i in range(2, 26)]
 if experiment == "d":
     name += "_d"
     params["d"] = [5, 10, 15, 20, 25, 30]
     if large:
         name += "_large"
-        params["n"] = [1500]
+        params["n"] = [25000]
         params["d"] = [i*5 for i in range(1, 21)]
 
 if experiment == "c":
@@ -159,4 +162,5 @@ for n in params["n"]:
                                             subspaces_list.append(subspaces)
                                             clusterings_list.append(clusterings)
                                             print(i, n, d, "number of clusters:", no)
+                                            del X
                                         np.savez(run_file, times=times, no_clusters=no_clusters, subspaces_list=subspaces_list, clusterings_list=clusterings_list)

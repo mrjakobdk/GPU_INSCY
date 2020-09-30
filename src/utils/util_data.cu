@@ -177,7 +177,7 @@ vector<vector<float>> load_glass(int n_max) {
 vector<vector<float>> load_vowel(int n_max) {
 
     fstream file;
-    file.open("data/vowel/vowel.dat");
+    file.open("data/real/vowel.dat");
     char seperator = ',';
 
     string line;
