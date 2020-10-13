@@ -27,7 +27,9 @@ params = {"n": [1500],
           "min_size": [0.05],
           "order": [0],#-1],
           "repeats": repeats,
-          "real_no_clusters": real_no_clusters}
+          "real_no_clusters": real_no_clusters,
+          "real_cls":[real_no_clusters]}
+
 
 name = ""
 
@@ -44,6 +46,12 @@ if method == "GPU-INSCY-memory":
     function = INSCY.GPU_memory
     name += "GPU_INSCY_memory"
 
+if experiment == "real_cls":
+    name += "_real_cls"
+    params["real_cls"] = [5, 10, 20, 30, 40]
+    if large:
+        name += "_large"
+        params["n"] = [25000]
 if experiment == "n":
     name += "_n"
     params["n"] = [500, 1000, 2000, 4000, 8000]#, 2500, 5000, 10000]
@@ -120,47 +128,48 @@ for n in params["n"]:
                         for num_obj in params["num_obj"]:
                             for min_size in params["min_size"]:
                                 for order in params["order"]:
+                                    for real_no_clusters in params["real_cls"]:
 
-                                    run_file = 'experiments_data/runs/' + method + \
-                                               "n" + str(n) + "d" + str(d) + "c" + str(c) + \
-                                               "N_size" + str(N_size) + "F" + str(F) + "r" + str(r) + \
-                                               "num_obj" + str(num_obj) + "min_size" + str(min_size) + \
-                                               "order" + str(order)
+                                        run_file = 'experiments_data/runs/' + method + \
+                                                   "n" + str(n) + "d" + str(d) + "c" + str(c) + \
+                                                   "N_size" + str(N_size) + "F" + str(F) + "r" + str(r) + \
+                                                   "num_obj" + str(num_obj) + "min_size" + str(min_size) + \
+                                                   "order" + str(order)
 
-                                    if real_no_clusters != 4:
-                                        run_file += 'cl' + str(real_no_clusters)
-                                    run_file += '.npz'
+                                        if real_no_clusters != 4:
+                                            run_file += 'cl' + str(real_no_clusters)
+                                        run_file += '.npz'
 
-                                    if os.path.exists(run_file):
-                                        print("Experiment already preformed!", method,
-                                              "n", n, "d", d, "c", c, "N_size", N_size, "F", F, "r", r,
-                                              "num_obj", num_obj, "min_size", min_size, "order", order)
-                                    else:
-                                        print("Running experiment...", method,
-                                              "n", n, "d", d, "c", c, "N_size", N_size, "F", F, "r", r,
-                                              "num_obj", num_obj, "min_size", min_size, "order", order)
-                                        times = []
-                                        no_clusters = []
-                                        subspaces_list = []
-                                        clusterings_list = []
-                                        for i in range(repeats):
-                                            X = INSCY.load_synt(d, n, real_no_clusters, i)
+                                        if os.path.exists(run_file):
+                                            print("Experiment already preformed!", method,
+                                                  "n", n, "d", d, "c", c, "N_size", N_size, "F", F, "r", r,
+                                                  "num_obj", num_obj, "min_size", min_size, "order", order)
+                                        else:
+                                            print("Running experiment...", method,
+                                                  "n", n, "d", d, "c", c, "N_size", N_size, "F", F, "r", r,
+                                                  "num_obj", num_obj, "min_size", min_size, "order", order)
+                                            times = []
+                                            no_clusters = []
+                                            subspaces_list = []
+                                            clusterings_list = []
+                                            for i in range(repeats):
+                                                X = INSCY.load_synt(d, n, real_no_clusters, i)
 
-                                            t0 = time.time()
-                                            subspaces, clusterings = function(X, N_size, F, num_obj, int(n * min_size),
-                                                                              r,
-                                                                              number_of_cells=c, rectangular=True,
-                                                                              entropy_order=order)
+                                                t0 = time.time()
+                                                subspaces, clusterings = function(X, N_size, F, num_obj, int(n * min_size),
+                                                                                  r,
+                                                                                  number_of_cells=c, rectangular=True,
+                                                                                  entropy_order=order)
 
 
-                                            t = time.time() - t0
-                                            times.append(t)
-                                            print("Finished " + name + ", took: %.4fs" % (time.time() - t0), i + 1, "/",
-                                                  repeats)
-                                            no = INSCY.count_number_of_clusters(subspaces, clusterings)
-                                            no_clusters.append(no)
-                                            subspaces_list.append(subspaces)
-                                            clusterings_list.append(clusterings)
-                                            print(i, n, d, "number of clusters:", no)
-                                            del X
-                                        np.savez(run_file, times=times, no_clusters=no_clusters, subspaces_list=subspaces_list, clusterings_list=clusterings_list)
+                                                t = time.time() - t0
+                                                times.append(t)
+                                                print("Finished " + name + ", took: %.4fs" % (time.time() - t0), i + 1, "/",
+                                                      repeats)
+                                                no = INSCY.count_number_of_clusters(subspaces, clusterings)
+                                                no_clusters.append(no)
+                                                subspaces_list.append(subspaces)
+                                                clusterings_list.append(clusterings)
+                                                print(i, n, d, "number of clusters:", no)
+                                                del X
+                                            np.savez(run_file, times=times, no_clusters=no_clusters, subspaces_list=subspaces_list, clusterings_list=clusterings_list)

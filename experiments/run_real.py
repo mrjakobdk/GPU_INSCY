@@ -28,12 +28,14 @@ if dataset == "sky":
     #X = INSCY.normalize(torch.from_numpy(df.values).float())
     m_list = []
     #for r in ["(0_0.5_0_0.5)", "(0_0.5_0.5_1)", "(0.5_1_0_0.5)", "(0.5_1_0.5_1)", "(1_2_0_0.5)",  "(1_2_0.5_1)", "(0_1_1_2)","(1_2_1_2)"]:
-    for r in ["(0_0.5_0_0.5)", "(0_0.5_0.5_1)", "(0.5_1_0_0.5)", "(0.5_1_0.5_1)", "(1_2_0_0.5)",  "(1_2_0.5_1)"]:
+    for r in ["(0_0.5_0_0.5)"]:#, "(0_0.5_0.5_1)", "(0.5_1_0_0.5)", "(0.5_1_0.5_1)"]:#, "(1_2_0_0.5)",  "(1_2_0.5_1)"]:
         m_list.append(torch.from_numpy(np.loadtxt("data/real/skyserver/result " + r + ".csv", delimiter=',', skiprows=1)).float())
     m = torch.cat(m_list)
     X = INSCY.normalize(m)
 
 print(dataset, X.shape)
+
+exit()
 #plt.scatter(X[:,0],X[:,1], s=10, alpha=0.1)
 #plt.show()
 #exit()

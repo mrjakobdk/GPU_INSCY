@@ -70,6 +70,6 @@ for _ in range(3):
 
 for _ in range(3):
     t0 = time.time()
-    INSCY.CPU(X, N_size, F, num_obj, int(n * min_size), r, number_of_cells=c, rectangular=True, entropy_order=0)
+    INSCY.GPU_memory2(X, N_size, F, num_obj, int(n * min_size), r, number_of_cells=c, rectangular=True, entropy_order=0)
     t1 = time.time()
-    print("CPU",t1-t0)
+    print("GPU_memory2",t1-t0)

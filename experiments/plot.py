@@ -27,8 +27,15 @@ params = {"n": [1500],
           "min_size": [0.05],
           "order": [0],
           "repeats": repeats,
-          "real_no_clusters": real_no_clusters}
+          "real_no_clusters": real_no_clusters,
+          "real_cls":[real_no_clusters]}
 
+if experiment == "real_cls":
+    params["real_cls"] = [5, 10, 20, 30, 40]
+    xs = params["real_cls"]
+    x_label = 'number of clusters'
+    if large:
+        params["n"] = [25000]
 if experiment == "n":
     params["n"] = [500, 1000, 2000, 4000, 8000]  # [500, 1000, 2000, 2500, 5000, 10000]
     if large:
@@ -80,32 +87,34 @@ def get_avg_time(method, params, real_no_clusters=4):
                             for num_obj in params["num_obj"]:
                                 for min_size in params["min_size"]:
                                     for order in params["order"]:
-                                        if real_no_clusters == 4:
-                                            run_file = 'experiments_data/runs/' + method + \
-                                                       "n" + str(n) + "d" + str(d) + "c" + str(c) + \
-                                                       "N_size" + str(N_size) + "F" + str(F) + "r" + str(r) + \
-                                                       "num_obj" + str(num_obj) + "min_size" + str(min_size) + \
-                                                       "order" + str(order) + '.npz'
-                                        else:
-                                            run_file = 'experiments_data/runs/' + method + \
-                                                       "n" + str(n) + "d" + str(d) + "c" + str(c) + \
-                                                       "N_size" + str(N_size) + "F" + str(F) + "r" + str(r) + \
-                                                       "num_obj" + str(num_obj) + "min_size" + str(min_size) + \
-                                                       "order" + str(order) + "cl" + str(real_no_clusters) + '.npz'
+                                        for real_no_clusters in params["real_cls"]:
+                                            if real_no_clusters == 4:
+                                                run_file = 'experiments_data/runs/' + method + \
+                                                           "n" + str(n) + "d" + str(d) + "c" + str(c) + \
+                                                           "N_size" + str(N_size) + "F" + str(F) + "r" + str(r) + \
+                                                           "num_obj" + str(num_obj) + "min_size" + str(min_size) + \
+                                                           "order" + str(order) + '.npz'
+                                            else:
+                                                run_file = 'experiments_data/runs/' + method + \
+                                                           "n" + str(n) + "d" + str(d) + "c" + str(c) + \
+                                                           "N_size" + str(N_size) + "F" + str(F) + "r" + str(r) + \
+                                                           "num_obj" + str(num_obj) + "min_size" + str(min_size) + \
+                                                           "order" + str(order) + "cl" + str(real_no_clusters) + '.npz'
 
-                                        if os.path.exists(run_file):
-                                            data = np.load(run_file, allow_pickle=True)
-                                            no_clusters = data["no_clusters"]
-                                            times = data["times"]
+                                            if os.path.exists(run_file):
+                                                data = np.load(run_file, allow_pickle=True)
+                                                no_clusters = data["no_clusters"]
+                                                times = data["times"]
 
-                                            avg_times.append(np.mean(times))
+                                                avg_times.append(np.mean(times))
 
-                                            print(no_clusters)
+                                                print(no_clusters)
 
-                                        else:
-                                            print("No experiment...", method, experiment,
-                                                  "n", n, "d", d, "c", c, "N_size", N_size, "F", F, "r", r,
-                                                  "num_obj", num_obj, "min_size", min_size, "order", order)
+                                            else:
+                                                print("No experiment...", method, experiment,
+                                                      "n", n, "d", d, "c", c, "N_size", N_size, "F", F, "r", r,
+                                                      "num_obj", num_obj, "min_size", min_size, "order", order)
+                                                print(run_file)
 
     return avg_times
 
@@ -117,13 +126,14 @@ if large:
     print("experiment:", "GPU-INSCY-memory", experiment)
     GPU_INSCY_avg_times = get_avg_time("GPU-INSCY-memory", params, real_no_clusters=20)
     print(xs, GPU_INSCY_avg_times)
-    plt.plot(xs[:len(GPU_INSCY_avg_times)], GPU_INSCY_avg_times, label="GPU-INSCY")
-    plt.tight_layout()
+    plt.plot(xs[:len(GPU_INSCY_avg_times)], GPU_INSCY_avg_times, label="GPU-INSCY", color="orange")
     plt.gcf().subplots_adjust(left=0.14)
-    plt.legend()
+    plt.legend(loc='upper left')
     #plt.yscale("log")
     plt.ylabel('time in seconds')
     plt.xlabel(x_label)
+    plt.ylim(0,900)
+    plt.tight_layout()
     plt.savefig("plots/inc_" + experiment + "_large.pdf")
     plt.show()
     plt.clf()
@@ -149,12 +159,13 @@ else:
         print(xs, GPU_INSCY_mem_avg_times)
         plt.plot(xs, GPU_INSCY_mem_avg_times, label="GPU-INSCY-memory")
 
-    plt.tight_layout()
     plt.gcf().subplots_adjust(left=0.14)
-    plt.legend()
+    plt.legend(loc='upper left')
     plt.yscale("log")
     plt.ylabel('time in seconds')
     plt.xlabel(x_label)
+    plt.ylim(0,100000)
+    plt.tight_layout()
     plt.savefig("plots/inc_" + experiment + "_log_2.pdf")
     plt.show()
     plt.clf()
@@ -163,12 +174,13 @@ else:
     plt.plot(xs, np.array(INSCY_avg_times) / np.array(GPU_INSCY_avg_times), label="GPU-INSCY")
     if GPUStar:
         plt.plot(xs, np.array(INSCY_avg_times) / np.array(GPU_INSCY_star_avg_times), label="GPU-INSCY*")
-        plt.plot(xs, np.array(INSCY_avg_times) / np.array(GPU_INSCY_mem_avg_times), label="GPU-INSCY-mem")
+        plt.plot(xs, np.array(INSCY_avg_times) / np.array(GPU_INSCY_mem_avg_times), label="GPU-INSCY-memory")
 
-    plt.tight_layout()
     plt.gcf().subplots_adjust(left=0.14)
-    plt.legend()
+    plt.legend(loc='upper left')
     plt.ylabel('factor of speedup')
     plt.xlabel(x_label)
+    plt.ylim(0,16000)
+    plt.tight_layout()
     plt.savefig("plots/inc_" + experiment + "_speedup_2.pdf")
     plt.show()
